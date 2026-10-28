@@ -1,0 +1,2195 @@
+{
+  "schema_version": "1.0",
+  "title": "PrintMarshal application integration audit and gap register",
+  "researched_on": "2026-10-28",
+  "application_root": "/srv/printmarshal",
+  "report_path": "/srv/printmarshal/research/application-integration-audit-2026-10-28.md",
+  "scope": {
+    "authorized_work": "Read-only application audit and public integration research; findings written only under research/.",
+    "method": "Static source inspection, producer-to-consumer path tracing, configuration/schema/test review, and official standards/vendor documentation research.",
+    "not_performed": [
+      "Application code changes",
+      "Running application or contacting printers",
+      "Executing tests/builds or dependency vulnerability scans",
+      "Live IdP, SIEM, SMTP or webhook qualification",
+      "Account provisioning, sending notifications or deploying connectors"
+    ],
+    "qualification": "Absent means not found in the inspected implementation; a type, setting, schema, UI declaration or external protocol does not establish working integration.",
+    "assumptions": [
+      "Single-organization self-hosted installation is the baseline; multi-site is optional.",
+      "SaaS services, identity brokers, collectors, message buses and external secret stores must remain optional.",
+      "Future device writes require exact driver capability, resource authorization, approvals and recorded results."
+    ]
+  },
+  "priority_definitions": {
+    "P1": "Fix or design before enterprise access or reliance on the affected integration; a delivery priority, not a CVSS severity.",
+    "P2": "Core enterprise expansion once its foundations are ready.",
+    "P3": "Conditional extension requiring demonstrated customer demand."
+  },
+  "effort_definitions": {
+    "M": "A contained connector or cross-cutting improvement with several code paths and operational tests.",
+    "L": "A substantial feature spanning persistence, policy, APIs and failure handling.",
+    "XL": "A distributed architecture change; requires separate design and qualification.",
+    "note": "Relative sizing only; not person-days, a schedule or implementation commitment. Dependencies describe the production-ready design, not prerequisites to fixing a small existing defect."
+  },
+  "summary": {
+    "code_findings": 18,
+    "code_findings_by_priority": {
+      "P1": 14,
+      "P2": 4,
+      "P3": 0
+    },
+    "integration_gaps": 40,
+    "gaps_by_priority": {
+      "P1": 18,
+      "P2": 18,
+      "P3": 4
+    },
+    "code_evidence_anchors": 47,
+    "primary_sources": 47
+  },
+  "audit_findings": [
+    {
+      "id": "A01",
+      "priority": "P1",
+      "kind": "implementation_defect",
+      "title": "Notification delivery is not durable",
+      "observation": "Notify launches a goroutine per destination, attempts delivery once, then writes a best-effort notification log. HTTP failures, rate limits and process restarts do not lead to persisted retry.",
+      "impact": "SIEM, incident and email events can disappear while the underlying fleet operation succeeds; burst fan-out has no bounded delivery worker.",
+      "recommendation": "Commit an event/outbox record durably; add bounded workers, destination leases, retry classification, Retry-After, dead letters and replay using stable event IDs.",
+      "code_evidence_ids": [
+        "C13",
+        "C14",
+        "C22"
+      ],
+      "source_ids": [
+        "W10",
+        "W21"
+      ]
+    },
+    {
+      "id": "A02",
+      "priority": "P1",
+      "kind": "implementation_defect",
+      "title": "Declared and delivered event sets differ",
+      "observation": "Notifier configuration names job.finished, but the job runner emits job.updated only to the Hub. Manual alert clear/ack and consumable replacement events also publish to the Hub without the notifier.",
+      "impact": "An incident can remain open externally after an operator clears it, and subscribers can configure an event that is never delivered.",
+      "recommendation": "Define a single event catalogue and route all eligible transitions through the durable publisher; record automatic versus manual resolution and preserve event origin.",
+      "code_evidence_ids": [
+        "C16",
+        "C18",
+        "C19",
+        "C20",
+        "C47"
+      ],
+      "source_ids": []
+    },
+    {
+      "id": "A03",
+      "priority": "P1",
+      "kind": "implementation_defect",
+      "title": "Audit records can be silently lost and omit security context",
+      "observation": "The API audit helper discards AddAudit errors. Login/logout and middleware denials do not create audit events. Audit rows lack request ID, immutable principal ID, origin IP, principal type and external export state.",
+      "impact": "A security team cannot reliably reconstruct access and actions or assume that every recorded change has an audit trail.",
+      "recommendation": "Make local mutations and audit/outbox atomic; persist intent and outcome separately for future printer I/O; record authentication/denial events with bounded redacted context.",
+      "code_evidence_ids": [
+        "C04",
+        "C05",
+        "C06",
+        "C21",
+        "C23",
+        "C24"
+      ],
+      "source_ids": [
+        "W07"
+      ]
+    },
+    {
+      "id": "A04",
+      "priority": "P1",
+      "kind": "implementation_defect",
+      "title": "Password changes preserve old sessions and mint an extra session",
+      "observation": "changePassword calls Login to verify the current password, causing an additional persisted session whose token is discarded. SetPassword updates only password_hash and does not invalidate other sessions.",
+      "impact": "Changing a compromised password does not terminate a stolen bearer session; unused sessions accumulate until expiry or deletion.",
+      "recommendation": "Separate password verification from session issuance; invalidate or rotate sessions according to explicit policy after password/identity changes and expose administrator revocation.",
+      "code_evidence_ids": [
+        "C02",
+        "C07",
+        "C08"
+      ],
+      "source_ids": [
+        "W05"
+      ]
+    },
+    {
+      "id": "A05",
+      "priority": "P1",
+      "kind": "security_boundary_gap",
+      "title": "Live streams outlive authorization and accept broad origins",
+      "observation": "WebSocket authentication occurs at handshake. ServeHTTP allows wildcard origins and never rechecks session expiry or user revocation. TokenFromRequest accepts access_token query parameters for every API request, not just WebSockets.",
+      "impact": "A previously authorized stream can continue after logout/deletion/expiry; query tokens can leak through infrastructure URL logging. This is not an unauthenticated WebSocket bypass: authentication and SameSiteStrict cookies still exist.",
+      "recommendation": "Restrict origins, remove long-lived query tokens, enforce stream revocation/expiry, and later filter events by resource scope.",
+      "code_evidence_ids": [
+        "C04",
+        "C09",
+        "C10",
+        "C11"
+      ],
+      "source_ids": [
+        "W02",
+        "W05"
+      ]
+    },
+    {
+      "id": "A06",
+      "priority": "P1",
+      "kind": "deployment_gap",
+      "title": "Enterprise transport and device trust are not configured by default",
+      "observation": "The server calls ListenAndServe with HTTP; secure cookies default false, and deployment exposes the host-network listener. IPP defaults prefer clear HTTP and enable InsecureSkipVerify for HTTPS reads.",
+      "impact": "Credentials require a separately secured ingress; printer identity is not cryptographically verified by default. Read-only polling limits device mutation but does not establish trustworthy telemetry.",
+      "recommendation": "Document a tested TLS ingress profile and trusted proxy rules; enable secure cookies; add per-connector/device CA bundles or pins and explicit discovery-only trust exceptions.",
+      "code_evidence_ids": [
+        "C10",
+        "C25",
+        "C26",
+        "C41",
+        "C44"
+      ],
+      "source_ids": [
+        "W05"
+      ]
+    },
+    {
+      "id": "A07",
+      "priority": "P1",
+      "kind": "implementation_defect",
+      "title": "SMTP ignores the notification deadline",
+      "observation": "Notify creates a 20-second context, but sendMail does not accept it and calls smtp.Dial with no application connection/read/write deadline.",
+      "impact": "Unresponsive SMTP servers can retain goroutines beyond the intended timeout and make shutdown/delivery health unreliable.",
+      "recommendation": "Use context-aware dialing and per-phase socket deadlines, bounded email workers, validated headers and explicit TLS modes.",
+      "code_evidence_ids": [
+        "C13",
+        "C15"
+      ],
+      "source_ids": []
+    },
+    {
+      "id": "A08",
+      "priority": "P1",
+      "kind": "compatibility_gap",
+      "title": "SMTP authentication has no modern provider route",
+      "observation": "Only smtp.PlainAuth is implemented. There is no XOAUTH2 token acquisition, Graph sendMail or connector credential lifecycle.",
+      "impact": "Modern Microsoft 365 policies and other OAuth-only deployments cannot use this path directly; it still works with a compatible local relay.",
+      "recommendation": "Keep local SMTP/relay support and add OAuth SMTP or scoped Graph sending. Treat provider acceptance separately from mailbox delivery.",
+      "code_evidence_ids": [
+        "C15",
+        "C16"
+      ],
+      "source_ids": [
+        "W13",
+        "W14",
+        "W15",
+        "W16"
+      ]
+    },
+    {
+      "id": "A09",
+      "priority": "P1",
+      "kind": "compatibility_risk",
+      "title": "Teams compatibility needs a Workflows migration contract",
+      "observation": "The Teams formatter posts a MessageCard with no configurable HTTP authorization header or documented Workflow authentication/ownership setup.",
+      "impact": "Old Office 365 Connector URLs are retired. MessageCard itself is not universally invalid: current Workflows supports rendering it, with limitations.",
+      "recommendation": "Document and test Workflows endpoints, authentication and supported card schemas; use Adaptive Cards for interactive flows and handle expired endpoints/owner changes.",
+      "code_evidence_ids": [
+        "C14",
+        "C16"
+      ],
+      "source_ids": [
+        "W11",
+        "W12"
+      ]
+    },
+    {
+      "id": "A10",
+      "priority": "P1",
+      "kind": "enterprise_feature_gap",
+      "title": "Authentication and machine identity are local-only",
+      "observation": "Auth supports local bcrypt users and opaque sessions. There are no OIDC/SAML/SCIM routes, identity-provider mappings, MFA assurance handling or first-class scoped service accounts.",
+      "impact": "Enterprise lifecycle, conditional access and automation must rely on separately managed local users or human sessions.",
+      "recommendation": "Implement generic OIDC and separate service principals first; use a broker for SAML/LDAP where suitable; retain controlled local recovery access; add SCIM for lifecycle.",
+      "code_evidence_ids": [
+        "C02",
+        "C04",
+        "C06",
+        "C09"
+      ],
+      "source_ids": [
+        "W01",
+        "W02",
+        "W03",
+        "W04"
+      ]
+    },
+    {
+      "id": "A11",
+      "priority": "P1",
+      "kind": "enterprise_feature_gap",
+      "title": "Authorization is global and coarse",
+      "observation": "Role.Allows is a three-level rank. require only checks that rank. Existing groups and credential scopes route fleet work but do not constrain which resources a user can read or change.",
+      "impact": "A site operator or integration cannot be limited to a site/group/action; global streams and exports share that boundary.",
+      "recommendation": "Add action/resource policy checks across list, single-object, export, bulk jobs, streams and credentials. Separate security/firmware permissions and approval roles before writes ship.",
+      "code_evidence_ids": [
+        "C03",
+        "C04",
+        "C37",
+        "C38"
+      ],
+      "source_ids": [
+        "W06"
+      ]
+    },
+    {
+      "id": "A12",
+      "priority": "P1",
+      "kind": "enterprise_feature_gap",
+      "title": "SIEM export and printer-log ingestion are absent",
+      "observation": "There is no SIEM exporter, syslog receiver, OTLP receiver/exporter or normalized device-security log store. The security.syslog.server catalogue entry describes a future printer setting, not a running receiver.",
+      "impact": "Application audit export, printer security collection and operational telemetry cannot be treated as existing end-to-end integrations.",
+      "recommendation": "Implement separate pipelines with common identity/correlation; support a qualified external collector before building a general log-storage product.",
+      "code_evidence_ids": [
+        "C21",
+        "C24",
+        "C27",
+        "C29",
+        "C30",
+        "C31"
+      ],
+      "source_ids": [
+        "W17",
+        "W18",
+        "W20",
+        "W24",
+        "W25"
+      ]
+    },
+    {
+      "id": "A13",
+      "priority": "P1",
+      "kind": "security_boundary_gap",
+      "title": "Trap attribution and storm controls are incomplete",
+      "observation": "The listener uses gosnmp.Default, clears the community restriction and matches devices by source IP. No application SNMPv3 trap-user configuration or rate/coalescing policy is visible. A matched trap can raise an alert and submit a poll.",
+      "impact": "Spoofed or burst events on reachable networks can contaminate evidence and induce extra poll/notification work; SNMP polling v3 support does not prove authenticated trap reception.",
+      "recommendation": "Provide source policies, configured v3 security where supported, trust labels, bounded input/rate limits and coalesced reconciliation; never execute remediation based only on an untrusted log/trap.",
+      "code_evidence_ids": [
+        "C27",
+        "C28"
+      ],
+      "source_ids": []
+    },
+    {
+      "id": "A14",
+      "priority": "P2",
+      "kind": "enterprise_feature_gap",
+      "title": "Integration secrets lack managed rotation and references",
+      "observation": "Device secrets use AES-GCM and a single operator-supplied or generated key. Webhook URLs are config-file values; SMTP references an environment variable. There is no connector secret reference abstraction or key version/rotation workflow.",
+      "impact": "Webhook URLs themselves are bearer secrets; enterprise secret stores and key rotation cannot be connected consistently.",
+      "recommendation": "Add secretRef resolution with minimum privileges, versioned key handling and rotation tests; support mounted files first and optional Vault/managed secret backends.",
+      "code_evidence_ids": [
+        "C16",
+        "C35",
+        "C38"
+      ],
+      "source_ids": [
+        "W34"
+      ]
+    },
+    {
+      "id": "A15",
+      "priority": "P2",
+      "kind": "integration_contract_gap",
+      "title": "REST export is not a stable incremental sync contract",
+      "observation": "Routes are unversioned and deviceFilter has no updated-since cursor. listDevices reports total as len(returned devices), including when a limit applies. No OpenAPI contract, idempotency-key flow or dedicated integration API credentials were found.",
+      "impact": "CMDB/ITSM automation needs custom polling and can misinterpret a page count as a collection total or duplicate actions after retries.",
+      "recommendation": "Publish a versioned OpenAPI contract with accurate pagination, cursors/tombstones, external IDs, conflict rules, request IDs and idempotent command submission.",
+      "code_evidence_ids": [
+        "C04",
+        "C36",
+        "C37",
+        "C43"
+      ],
+      "source_ids": [
+        "W41"
+      ]
+    },
+    {
+      "id": "A16",
+      "priority": "P2",
+      "kind": "observability_gap",
+      "title": "Application health has little external instrumentation",
+      "observation": "JSON slog is optional, HTTP access logging is debug-level, and /healthz returns a static OK/version response. No Prometheus endpoint or OpenTelemetry instrumentation was found.",
+      "impact": "Operators cannot see delivery backlog age, failed exports, DB readiness, scheduler lag or stale fleet data using their existing observability stack.",
+      "recommendation": "Add readiness and metrics first, then OTLP correlation. Keep device telemetry/metrics distinct from immutable audit delivery and constrain label cardinality.",
+      "code_evidence_ids": [
+        "C24",
+        "C39",
+        "C41"
+      ],
+      "source_ids": [
+        "W20",
+        "W21",
+        "W28"
+      ]
+    },
+    {
+      "id": "A17",
+      "priority": "P2",
+      "kind": "declared_only",
+      "title": "PKI/configuration/firmware interfaces are scaffolding",
+      "observation": "SCEP/EST/ACME enums and CAProfile exist, but the three feature route files are empty, service facades do not implement the workflows, and vendor plugin registration is empty.",
+      "impact": "Certificate enrollment, policy-remediation or signed firmware integrations cannot be advertised based on type names or schemas.",
+      "recommendation": "Build CA-provider and printer-install adapters with separate compatibility records, and place all device writes behind capability, approval and audit controls.",
+      "code_evidence_ids": [
+        "C29",
+        "C31",
+        "C32",
+        "C33",
+        "C34"
+      ],
+      "source_ids": [
+        "W35"
+      ]
+    },
+    {
+      "id": "A18",
+      "priority": "P1",
+      "kind": "logging_exposure",
+      "title": "Generated bootstrap password is written into ordinary logs",
+      "observation": "When no initial password is provided, Bootstrap logs the generated password in a warning event on the application's normal logger.",
+      "impact": "Shipping stdout wholesale to a SIEM can copy the initial administrator credential into a broader-access log system.",
+      "recommendation": "Use a protected bootstrap handoff or supply the existing environment setting; explicitly prevent bootstrap secret fields from reaching centralized logs and verify redaction.",
+      "code_evidence_ids": [
+        "C24",
+        "C42"
+      ],
+      "source_ids": [
+        "W07"
+      ]
+    }
+  ],
+  "integration_gaps": [
+    {
+      "id": "G01",
+      "domain": "identity",
+      "title": "Generic OIDC single sign-on",
+      "current_state": "missing",
+      "priority": "P1",
+      "relative_effort": "L",
+      "depends_on": [
+        "G04",
+        "G07"
+      ],
+      "code_evidence_ids": [
+        "C02",
+        "C04",
+        "C06"
+      ],
+      "source_ids": [
+        "W01",
+        "W02"
+      ],
+      "proposal": "Server-side authorization code flow with PKCE, issuer discovery/JWKS validation, stable issuer+subject identity, explicit group-to-role/scope mapping and a protected local recovery account.",
+      "acceptance_criteria": [
+        "Reject wrong issuer/audience/signature/nonce and replayed codes.",
+        "Exercise key rotation, IdP outage, group removal and two users whose email is reused.",
+        "Use IdP MFA/assurance policy without treating an ID token as a general API access token."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G02",
+      "domain": "identity",
+      "title": "SCIM provisioning and deprovisioning",
+      "current_state": "missing",
+      "priority": "P2",
+      "relative_effort": "L",
+      "depends_on": [
+        "G01",
+        "G04",
+        "G06"
+      ],
+      "code_evidence_ids": [
+        "C02",
+        "C08"
+      ],
+      "source_ids": [
+        "W03"
+      ],
+      "proposal": "Provision Users/Groups and deactivate accounts through SCIM 2.0 with bounded filtering, external IDs and explicit ownership.",
+      "acceptance_criteria": [
+        "Deactivation revokes HTTP sessions and streams within a documented bound.",
+        "Retries do not duplicate users; group removal removes derived permissions.",
+        "SCIM provisioning never grants default administrator access."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G03",
+      "domain": "identity",
+      "title": "SAML and LDAP/AD compatibility through a broker",
+      "current_state": "missing",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G01"
+      ],
+      "code_evidence_ids": [
+        "C02"
+      ],
+      "source_ids": [
+        "W04"
+      ],
+      "proposal": "Document a supported self-hosted broker configuration for existing SAML and LDAP/AD estates; build native SAML/LDAP only for justified requirements.",
+      "acceptance_criteria": [
+        "Test brokered login, group mapping, offboarding and outage/recovery.",
+        "LDAP credentials are confined to the broker and transport is authenticated.",
+        "Recovery access remains possible without silently bypassing authorization."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G04",
+      "domain": "authorization",
+      "title": "Action and resource-scoped authorization",
+      "current_state": "global_roles_only",
+      "priority": "P1",
+      "relative_effort": "L",
+      "depends_on": [],
+      "code_evidence_ids": [
+        "C03",
+        "C04",
+        "C37",
+        "C38"
+      ],
+      "source_ids": [
+        "W06"
+      ],
+      "proposal": "Add principal/action/resource checks and explicit site/group scope; distinguish credential routing from authorization and split future firmware/security privileges.",
+      "acceptance_criteria": [
+        "Cross-site list, direct ID, export, job, telemetry and WebSocket access are denied or filtered consistently.",
+        "Bulk targets are authorized at submission and execution; dynamic group edits cannot expand access silently.",
+        "Security approval and execution can be assigned to different principals."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G05",
+      "domain": "identity",
+      "title": "Scoped service accounts and API credentials",
+      "current_state": "human_sessions_only",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [
+        "G04",
+        "G07"
+      ],
+      "code_evidence_ids": [
+        "C02",
+        "C09"
+      ],
+      "source_ids": [
+        "W02"
+      ],
+      "proposal": "First-class machine principals with expiring, revocable, scoped credentials; use opaque hashed tokens or validated external client-credentials access tokens.",
+      "acceptance_criteria": [
+        "An inventory sync token cannot change stock, credentials or printers.",
+        "Rotation and revocation take effect on HTTP and streams; actor identity appears in audit.",
+        "Never require a human administrator password for a connector."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G06",
+      "domain": "identity",
+      "title": "Session lifecycle and local authentication hardening",
+      "current_state": "partial_with_defects",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [],
+      "code_evidence_ids": [
+        "C02",
+        "C07",
+        "C08",
+        "C09",
+        "C10",
+        "C11"
+      ],
+      "source_ids": [
+        "W02",
+        "W05"
+      ],
+      "proposal": "Separate verification from issuance, revoke/rotate sessions, eliminate long-lived query tokens, restrict WebSocket origins, add bounded login throttling and identity change hooks.",
+      "acceptance_criteria": [
+        "Password change invalidates selected old sessions and does not mint a discarded session.",
+        "Logout, expiry and account disable terminate or invalidate active streams.",
+        "Credential stuffing is rate limited without allowing arbitrary account lockout denial of service."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G07",
+      "domain": "transport",
+      "title": "TLS ingress, trusted proxies and per-connector/device trust",
+      "current_state": "partial",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [],
+      "code_evidence_ids": [
+        "C10",
+        "C25",
+        "C26",
+        "C41",
+        "C44"
+      ],
+      "source_ids": [
+        "W05",
+        "W18",
+        "W19"
+      ],
+      "proposal": "Tested reverse-proxy/native TLS deployment profiles, secure cookies, public base URL, trusted forwarded headers, outbound CA/mTLS/proxy settings and explicit printer trust modes.",
+      "acceptance_criteria": [
+        "Default enterprise profile never transmits login credentials over clear HTTP.",
+        "Forged forwarded headers do not change trusted identity/source attribution.",
+        "CA rotation, pin mismatch and scoped self-signed device discovery behave predictably."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G08",
+      "domain": "events",
+      "title": "Canonical event catalogue and versioned envelope",
+      "current_state": "partial",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [],
+      "code_evidence_ids": [
+        "C12",
+        "C17",
+        "C18",
+        "C20"
+      ],
+      "source_ids": [
+        "W08",
+        "W26"
+      ],
+      "proposal": "Create stable event IDs and source identity, original/observed timestamps, schema version, actor/resource/job/correlation IDs and explicit lifecycle event types.",
+      "acceptance_criteria": [
+        "Events validate against a published schema.",
+        "Retries preserve event ID and original event time; delivery attempts have separate IDs/times.",
+        "Every declared event has an identified producer and test."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G09",
+      "domain": "delivery",
+      "title": "Durable outbox and bounded connector workers",
+      "current_state": "missing",
+      "priority": "P1",
+      "relative_effort": "L",
+      "depends_on": [
+        "G08",
+        "G29"
+      ],
+      "code_evidence_ids": [
+        "C13",
+        "C14",
+        "C22"
+      ],
+      "source_ids": [
+        "W10",
+        "W21",
+        "W44"
+      ],
+      "proposal": "SQLite transaction-backed event/outbox and per-destination delivery state first; add bounded workers, leases, backoff/jitter, Retry-After, dead letters, replay and retention controls.",
+      "acceptance_criteria": [
+        "An event survives a crash after state commit and before network send.",
+        "429/5xx/timeouts retry within policy; permanent errors stop with visible reason.",
+        "A slow destination does not block polling or other destinations; duplicate delivery is explicitly supported."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G10",
+      "domain": "webhooks",
+      "title": "Signed authenticated outbound webhooks",
+      "current_state": "basic_json_only",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [
+        "G07",
+        "G09",
+        "G25"
+      ],
+      "code_evidence_ids": [
+        "C14",
+        "C16"
+      ],
+      "source_ids": [
+        "W09",
+        "W10"
+      ],
+      "proposal": "Versioned payloads, HMAC signature/timestamp, key ID/rotation, configurable authentication and destination policies including approved internal endpoints.",
+      "acceptance_criteria": [
+        "A receiver verifies raw-body integrity and rejects stale/replayed signatures.",
+        "Redirections cannot leak credentials or leave approved destination policy.",
+        "Requests obey timeouts, size limits, TLS verification and retry rules; log entries redact webhook secrets."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G11",
+      "domain": "notifications",
+      "title": "Complete alert/job/stock routing and suppression",
+      "current_state": "partial_with_missing_paths",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [
+        "G08",
+        "G09"
+      ],
+      "code_evidence_ids": [
+        "C16",
+        "C18",
+        "C19",
+        "C20",
+        "C47"
+      ],
+      "source_ids": [
+        "W29"
+      ],
+      "proposal": "Centralize all selected transition events and add severity/site filters, deduplication, maintenance windows, escalation, digest and flapping policies.",
+      "acceptance_criteria": [
+        "Automatic and manual clear both update an external incident according to policy.",
+        "A configured job.finished subscription receives terminal success/partial/failure consistently.",
+        "Acknowledgment is not confused with resolution and routine stock changes cannot flood on-call."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G12",
+      "domain": "email",
+      "title": "Reliable secure SMTP transport",
+      "current_state": "partial_with_timeout_defect",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [
+        "G09",
+        "G25"
+      ],
+      "code_evidence_ids": [
+        "C13",
+        "C15",
+        "C16"
+      ],
+      "source_ids": [
+        "W14"
+      ],
+      "proposal": "Context/deadline-aware SMTP, explicit STARTTLS/implicit TLS/approved relay modes, safe MIME/header encoding, retry classification and test-send diagnostics.",
+      "acceptance_criteria": [
+        "A stalled connect/TLS/DATA operation exits within its configured deadline.",
+        "Subjects/addresses containing CR/LF cannot inject headers.",
+        "Transient failure is retried and accepted mail is not labelled delivered-to-inbox."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G13",
+      "domain": "email",
+      "title": "OAuth SMTP and Microsoft Graph mail",
+      "current_state": "missing",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [
+        "G07",
+        "G09",
+        "G25"
+      ],
+      "code_evidence_ids": [
+        "C15",
+        "C16"
+      ],
+      "source_ids": [
+        "W13",
+        "W14",
+        "W15",
+        "W16"
+      ],
+      "proposal": "Provider-auth abstraction; retain local relay and add XOAUTH2 or application-scoped Graph sendMail with refresh/expiry handling and mailbox restrictions.",
+      "acceptance_criteria": [
+        "Send using a tenant that disables password SMTP authentication.",
+        "Restrict sending to the intended mailbox and test credential expiry/rotation.",
+        "Differentiate provider acceptance, retryable failure and optional delivery feedback."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G14",
+      "domain": "chat",
+      "title": "Microsoft Teams Workflows support",
+      "current_state": "legacy_style_formatter_only",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [
+        "G09",
+        "G10",
+        "G25"
+      ],
+      "code_evidence_ids": [
+        "C14",
+        "C16"
+      ],
+      "source_ids": [
+        "W11",
+        "W12"
+      ],
+      "proposal": "Document and test Workflows endpoint/authentication and ownership; support appropriate MessageCard/Adaptive Card payloads and endpoint migration.",
+      "acceptance_criteria": [
+        "A new Workflows endpoint renders a notification in the chosen channel.",
+        "Tenant-authenticated flow requirements and owner removal are tested.",
+        "Retired connector URLs produce an actionable migration error rather than silent success."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G15",
+      "domain": "siem",
+      "title": "Normalized application security/audit export",
+      "current_state": "missing",
+      "priority": "P1",
+      "relative_effort": "L",
+      "depends_on": [
+        "G08",
+        "G09",
+        "G29"
+      ],
+      "code_evidence_ids": [
+        "C05",
+        "C21",
+        "C24",
+        "C43"
+      ],
+      "source_ids": [
+        "W07",
+        "W17",
+        "W20",
+        "W26"
+      ],
+      "proposal": "Separate security/audit export from debug logs; provide canonical JSON/collector handoff and optional RFC5424/TLS output with versioned mappings.",
+      "acceptance_criteria": [
+        "Failed login, denial, credential change and future printer action reach the selected destination with correlation.",
+        "No bootstrap/session/device secret is exported.",
+        "Delivery acknowledgments and gaps are visible and source event IDs survive conversion."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G16",
+      "domain": "siem",
+      "title": "Splunk HEC adapter or qualified collector path",
+      "current_state": "missing",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G15",
+        "G25"
+      ],
+      "code_evidence_ids": [
+        "C14",
+        "C21"
+      ],
+      "source_ids": [
+        "W22",
+        "W23"
+      ],
+      "proposal": "HEC token/auth, endpoint/index/source/sourcetype mapping, batching and response validation; enable indexer acknowledgment only on supported/configured deployments.",
+      "acceptance_criteria": [
+        "HEC envelope is accepted and searchable with event ID and device/principal fields.",
+        "Token-disabled, wrong-index, throttling and ambiguous response cases are handled.",
+        "Document whether success means accepted or indexer-acknowledged for this Splunk deployment."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G17",
+      "domain": "siem",
+      "title": "Microsoft Sentinel supported ingestion paths",
+      "current_state": "missing",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G15",
+        "G25"
+      ],
+      "code_evidence_ids": [
+        "C14",
+        "C21",
+        "C30"
+      ],
+      "source_ids": [
+        "W24",
+        "W25"
+      ],
+      "proposal": "Offer Azure Monitor Logs Ingestion API with DCR/table/service identity, or a documented syslog/CEF via AMA forwarder; treat them as distinct architectures.",
+      "acceptance_criteria": [
+        "A record arrives in the expected custom/CommonSecurityLog/Syslog table with correct time semantics.",
+        "DCR permissions and schema mismatch failures are visible.",
+        "Do not configure the same event twice through parallel routes without deduplication."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G18",
+      "domain": "siem",
+      "title": "Elastic/ECS and general log-backend mappings",
+      "current_state": "missing",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G15"
+      ],
+      "code_evidence_ids": [
+        "C17",
+        "C21",
+        "C24"
+      ],
+      "source_ids": [
+        "W20",
+        "W26",
+        "W27"
+      ],
+      "proposal": "Publish ECS mapping for Elastic Security and a qualified collector handoff for other backends; retain application events distinct from printer-origin logs.",
+      "acceptance_criteria": [
+        "Elastic Security-required fields have valid values rather than raw proprietary JSON alone.",
+        "Preserve original/observed timestamps and event identity.",
+        "A backend-specific adapter/pipeline is tested before claiming compatibility; OTLP alone is not universal SIEM compatibility."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G19",
+      "domain": "ingestion",
+      "title": "Printer syslog collection and normalization",
+      "current_state": "missing",
+      "priority": "P1",
+      "relative_effort": "L",
+      "depends_on": [
+        "G07",
+        "G08",
+        "G25"
+      ],
+      "code_evidence_ids": [
+        "C27",
+        "C30",
+        "C31"
+      ],
+      "source_ids": [
+        "W17",
+        "W18",
+        "W19",
+        "W25",
+        "W43",
+        "W44"
+      ],
+      "proposal": "Use an optional external syslog collector first, feeding an authenticated normalized event intake; support documented printer formats and explicit TLS/legacy UDP trust classes.",
+      "acceptance_criteria": [
+        "Replay captured model/firmware log fixtures for login, setting/certificate changes and reboot events.",
+        "Preserve raw evidence reference, timestamps, source transport, parser version and attribution confidence.",
+        "Malformed bursts, unknown sources and disk exhaustion cannot starve API/polling; UDP is not advertised as lossless."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G20",
+      "domain": "ingestion",
+      "title": "Authenticated and rate-controlled SNMP trap intake",
+      "current_state": "partial",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [
+        "G08"
+      ],
+      "code_evidence_ids": [
+        "C27",
+        "C28"
+      ],
+      "source_ids": [
+        "W17"
+      ],
+      "proposal": "Configure source policies and v3 USM users where devices support them; bound/coalesce events and keep trap-to-poll reconciliation separate from remediation.",
+      "acceptance_criteria": [
+        "An unknown or untrusted source cannot impersonate an authenticated printer event.",
+        "Burst traps coalesce polling and do not create unbounded jobs/notifications.",
+        "Boot/time/security failures are handled and transport trust is visible in exported evidence."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G21",
+      "domain": "observability",
+      "title": "Prometheus metrics, readiness and OTLP",
+      "current_state": "missing_except_json_logs_and_liveness",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G08"
+      ],
+      "code_evidence_ids": [
+        "C24",
+        "C39",
+        "C41"
+      ],
+      "source_ids": [
+        "W20",
+        "W21",
+        "W28",
+        "W45"
+      ],
+      "proposal": "Application readiness/metrics plus optional OTLP logs/traces, correlation across API/jobs/connectors, and reference dashboards/alerts; expose fleet metrics selectively.",
+      "acceptance_criteria": [
+        "Measure oldest delivery age, dead letters, poll freshness, scheduler lag and integration failures.",
+        "Document metric cardinality budgets and endpoint authorization.",
+        "An unavailable collector does not block the product; health distinguishes process alive from DB/delivery readiness."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G22",
+      "domain": "itsm",
+      "title": "ServiceNow / Jira Service Management incident lifecycle",
+      "current_state": "missing",
+      "priority": "P2",
+      "relative_effort": "L",
+      "depends_on": [
+        "G05",
+        "G09",
+        "G11",
+        "G28"
+      ],
+      "code_evidence_ids": [
+        "C17",
+        "C19",
+        "C20"
+      ],
+      "source_ids": [
+        "W30",
+        "W31"
+      ],
+      "proposal": "Map alert lifecycle to ticket create/update/resolve with external object IDs, field mappings, suppression, idempotency and loop prevention.",
+      "acceptance_criteria": [
+        "A retry creates one ticket, not duplicates.",
+        "Clear and re-open follow a documented lifecycle with evidence links.",
+        "Authenticated external changes cannot bypass site/action authorization or initiate printer writes."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G23",
+      "domain": "on_call",
+      "title": "PagerDuty Events API v2 lifecycle",
+      "current_state": "missing",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G09",
+        "G11",
+        "G25"
+      ],
+      "code_evidence_ids": [
+        "C13",
+        "C19"
+      ],
+      "source_ids": [
+        "W29",
+        "W46"
+      ],
+      "proposal": "Trigger/acknowledge/resolve using a stable alert-incarnation dedup key, severity mapping and routing key; keep stock warnings below paging threshold by default.",
+      "acceptance_criteria": [
+        "Raise/ack/clear map correctly and duplicate triggers coalesce.",
+        "A re-opened condition uses a deliberate new incarnation or explicit reuse policy.",
+        "202 acceptance, 429, 5xx and replay are distinguished; credentials are never logged."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G24",
+      "domain": "inventory",
+      "title": "CMDB/asset sync with explicit field ownership",
+      "current_state": "csv_and_general_api_only",
+      "priority": "P2",
+      "relative_effort": "L",
+      "depends_on": [
+        "G05",
+        "G09",
+        "G27"
+      ],
+      "code_evidence_ids": [
+        "C36",
+        "C37",
+        "C38"
+      ],
+      "source_ids": [
+        "W30",
+        "W32",
+        "W33"
+      ],
+      "proposal": "ServiceNow IRE, NetBox and Snipe-IT adapters/bridges with external IDs and source-of-truth rules; reconcile using stable device evidence, not IP alone.",
+      "acceptance_criteria": [
+        "An address change does not create a duplicate asset.",
+        "Discovered facts update without overwriting operator/CMDB-owned location, owner or asset tag.",
+        "Reconciliation dry-run, conflicts, tombstones and offline targets have documented behavior."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G25",
+      "domain": "secrets",
+      "title": "Connector secret references and rotation",
+      "current_state": "device_secrets_encrypted_connector_storage_inconsistent",
+      "priority": "P1",
+      "relative_effort": "M",
+      "depends_on": [],
+      "code_evidence_ids": [
+        "C16",
+        "C35",
+        "C38"
+      ],
+      "source_ids": [
+        "W34"
+      ],
+      "proposal": "Shared secretRef interface for encrypted local store, mounted files and optional Vault KV; separate webhook/API/SMTP/IdP/CA credentials and version key material.",
+      "acceptance_criteria": [
+        "Rotate a secret without revealing it in UI/log/export and document reload behavior.",
+        "Secret backend outage has bounded cache/expiry and failure semantics.",
+        "Backup/restore and encryption-key rotation preserve decryptability under explicit access control."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G26",
+      "domain": "pki",
+      "title": "CA enrollment separated from printer certificate deployment",
+      "current_state": "types_only",
+      "priority": "P2",
+      "relative_effort": "L",
+      "depends_on": [
+        "G04",
+        "G07",
+        "G25",
+        "G29"
+      ],
+      "code_evidence_ids": [
+        "C29",
+        "C31",
+        "C34"
+      ],
+      "source_ids": [
+        "W35"
+      ],
+      "proposal": "CA-provider adapters for enterprise PKI (Vault PKI, SCEP/EST/ACME as justified), plus separate per-device CSR/install/renew drivers and capability evidence.",
+      "acceptance_criteria": [
+        "Issue/sign and device install are separate, audited results.",
+        "Prefer on-device private keys when supported; validate chain/SAN/EKU/time and renewal failures.",
+        "Renewal does not silently enable unsupported printer-native enrollment or lose the management channel."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G27",
+      "domain": "automation",
+      "title": "Versioned OpenAPI and dependable sync/command API",
+      "current_state": "rest_without_published_contract",
+      "priority": "P1",
+      "relative_effort": "L",
+      "depends_on": [
+        "G04",
+        "G05",
+        "G08"
+      ],
+      "code_evidence_ids": [
+        "C36",
+        "C37",
+        "C43"
+      ],
+      "source_ids": [
+        "W36",
+        "W41"
+      ],
+      "proposal": "Versioned schema, accurate totals/cursors, external IDs, idempotency keys, request IDs, async job outcome semantics and examples for Ansible/curl before bespoke SDKs.",
+      "acceptance_criteria": [
+        "Generated clients validate contract and pagination is stable during changes.",
+        "A timeout/retry does not duplicate a command.",
+        "Ansible examples verify final job results and do not claim check-mode behavior unsupported by the API/module."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G28",
+      "domain": "automation",
+      "title": "Authenticated inbound callbacks and action requests",
+      "current_state": "missing",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G04",
+        "G05",
+        "G08",
+        "G29"
+      ],
+      "code_evidence_ids": [
+        "C04",
+        "C17"
+      ],
+      "source_ids": [
+        "W02",
+        "W09"
+      ],
+      "proposal": "Versioned authenticated inbound API with replay/dedup protection, issuer/source policy, scoped principals and explicit callback-to-action mapping.",
+      "acceptance_criteria": [
+        "A forged/replayed incident callback cannot ack or mutate an unrelated resource.",
+        "Webhook payloads never execute shell commands or bypass printer-operation approvals.",
+        "Callback loops are prevented by origin/correlation IDs and authority rules."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G29",
+      "domain": "audit",
+      "title": "Transactional security audit and intent/outcome journal",
+      "current_state": "partial_with_ignored_failures",
+      "priority": "P1",
+      "relative_effort": "L",
+      "depends_on": [
+        "G08"
+      ],
+      "code_evidence_ids": [
+        "C05",
+        "C21",
+        "C23",
+        "C42"
+      ],
+      "source_ids": [
+        "W07"
+      ],
+      "proposal": "Durable principal/action/outcome events, append restrictions, local transaction coupling and explicit printer I/O intent/outcome records; exports reference immutable source IDs.",
+      "acceptance_criteria": [
+        "Simulated local audit persistence failure cannot silently commit an unaudited privileged metadata change.",
+        "A crash/timeout during future printer I/O yields reconcilable pending/unknown outcome, not false success.",
+        "Login success/failure, authorization denial, break-glass use and secret rotation are recorded without secret values."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G30",
+      "domain": "retention",
+      "title": "Retention, external archive and restore contract",
+      "current_state": "telemetry_pruning_only",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G09",
+        "G29"
+      ],
+      "code_evidence_ids": [
+        "C21",
+        "C22",
+        "C39",
+        "C45"
+      ],
+      "source_ids": [
+        "W40",
+        "W44"
+      ],
+      "proposal": "Separate policies for metrics, raw printer logs, audit, attempts and dead letters; optional protected object archive, backups, key recovery and tested restore.",
+      "acceptance_criteria": [
+        "Disk-full policy preserves audit/delivery evidence within the stated acceptance bound.",
+        "Retention/restore cannot silently replay resolved incidents or lose dedup state.",
+        "WORM/retention settings are validated on the actual storage target; generic S3 compatibility is not proof of Object Lock."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G31",
+      "domain": "operations",
+      "title": "Integration configuration, health and diagnostics UI/API",
+      "current_state": "startup_config_and_read_only_summary",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G04",
+        "G05",
+        "G09",
+        "G25"
+      ],
+      "code_evidence_ids": [
+        "C16",
+        "C43",
+        "C46"
+      ],
+      "source_ids": [
+        "W21"
+      ],
+      "proposal": "Admin-managed connector records, validation/test-send, redacted previews, per-destination status, delivery history, replay authorization and config audit.",
+      "acceptance_criteria": [
+        "Operators can identify revoked credentials, schema rejection, stale queues and disabled connectors.",
+        "Test messages are clearly labelled and never trigger printer actions.",
+        "Editing and replay privileges are separate from viewing diagnostics; probe responses cannot expose secrets."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G32",
+      "domain": "distributed",
+      "title": "Site collectors and customer network boundaries",
+      "current_state": "single_process_host_network",
+      "priority": "P2",
+      "relative_effort": "XL",
+      "depends_on": [
+        "G04",
+        "G05",
+        "G07",
+        "G08",
+        "G09"
+      ],
+      "code_evidence_ids": [
+        "C25",
+        "C27",
+        "C38",
+        "C44",
+        "C45"
+      ],
+      "source_ids": [
+        "W18",
+        "W21"
+      ],
+      "proposal": "Optional outbound-connected site collectors with mTLS identities/site scope, local spool, revocation, version negotiation and explicit printer-credential placement.",
+      "acceptance_criteria": [
+        "Same private IP at two sites cannot collide.",
+        "Collector compromise is bounded to its site and revocation is effective.",
+        "Offline replay preserves original timestamps and site identity without granting remote shell access."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G33",
+      "domain": "security_enrichment",
+      "title": "Vendor advisories, NVD and KEV correlation",
+      "current_state": "missing",
+      "priority": "P2",
+      "relative_effort": "L",
+      "depends_on": [
+        "G08",
+        "G24",
+        "G27"
+      ],
+      "code_evidence_ids": [
+        "C29",
+        "C32",
+        "C34"
+      ],
+      "source_ids": [
+        "W37",
+        "W38"
+      ],
+      "proposal": "Cached advisory/CPE/KEV enrichment with evidence-backed product and component-firmware mapping, confidence and applicability state.",
+      "acceptance_criteria": [
+        "Unknown or missing firmware is reported as unknown rather than compliant.",
+        "Marketing-name similarity alone cannot confirm vulnerability.",
+        "Offline feed updates preserve provenance and do not trigger automatic firmware installation."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G34",
+      "domain": "network_context",
+      "title": "NAC / Cisco ISE context enrichment",
+      "current_state": "missing",
+      "priority": "P3",
+      "relative_effort": "L",
+      "depends_on": [
+        "G04",
+        "G05",
+        "G07",
+        "G24"
+      ],
+      "code_evidence_ids": [
+        "C36",
+        "C37"
+      ],
+      "source_ids": [
+        "W39"
+      ],
+      "proposal": "Read-only network/identity context through a customer-selected NAC connector; preserve endpoint identity/time and distinguish network quarantine from printer administration.",
+      "acceptance_criteria": [
+        "A stale MAC/IP correlation is marked uncertain.",
+        "Connector access is scoped and audited.",
+        "No automatic quarantine/change-of-authorization is enabled without a separate designed approval path."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G35",
+      "domain": "automation",
+      "title": "GitOps/configuration import and change-system linkage",
+      "current_state": "configuration_workflow_scaffold",
+      "priority": "P3",
+      "relative_effort": "L",
+      "depends_on": [
+        "G04",
+        "G27",
+        "G28",
+        "G29"
+      ],
+      "code_evidence_ids": [
+        "C31",
+        "C32",
+        "C33",
+        "C34"
+      ],
+      "source_ids": [
+        "W36"
+      ],
+      "proposal": "Validated desired-state imports, external change IDs, preview/diff and approvals once device-write workflows exist; keep secrets as references.",
+      "acceptance_criteria": [
+        "A repository change can be previewed without touching printers.",
+        "Only supported settings/capabilities reach a scoped campaign.",
+        "Approval and external change IDs remain attached to every final device result."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G36",
+      "domain": "inventory",
+      "title": "Ownership/IPAM/site metadata enrichment",
+      "current_state": "operator_fields_and_groups_only",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G04",
+        "G24"
+      ],
+      "code_evidence_ids": [
+        "C36",
+        "C37",
+        "C38"
+      ],
+      "source_ids": [
+        "W30",
+        "W32",
+        "W33"
+      ],
+      "proposal": "Customer-owned site/asset/owner metadata imports with provenance, field authority and conflict resolution; identifiers are not permissions.",
+      "acceptance_criteria": [
+        "Operator-owned fields survive rediscovery and sync.",
+        "A CMDB tag/group does not independently grant access.",
+        "Missing owner/site values do not cause silent reassignment or resource-scope expansion."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G37",
+      "domain": "reporting",
+      "title": "Scheduled external reports and evidence exports",
+      "current_state": "manual_csv_only",
+      "priority": "P2",
+      "relative_effort": "M",
+      "depends_on": [
+        "G05",
+        "G09",
+        "G27",
+        "G30"
+      ],
+      "code_evidence_ids": [
+        "C36",
+        "C43"
+      ],
+      "source_ids": [
+        "W15",
+        "W40"
+      ],
+      "proposal": "Scheduled scoped inventory/compliance/stock exports using authenticated download links or approved object storage/email; report actual unknown coverage.",
+      "acceptance_criteria": [
+        "Large exports are paginated/snapshotted and authorized for the service principal.",
+        "Links expire and exclude secrets; delivery is audited.",
+        "Security reports cannot claim assessments that the current scaffold has not performed."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G38",
+      "domain": "optional_ai",
+      "title": "Read-only MCP/assistant integration",
+      "current_state": "missing",
+      "priority": "P3",
+      "relative_effort": "M",
+      "depends_on": [
+        "G04",
+        "G05",
+        "G27",
+        "G29"
+      ],
+      "code_evidence_ids": [
+        "C04",
+        "C09",
+        "C17"
+      ],
+      "source_ids": [
+        "W42"
+      ],
+      "proposal": "An optional read-only adapter over the same scoped API, with separate audience-validated access and untrusted device/log content handling.",
+      "acceptance_criteria": [
+        "Tool calls cannot exceed API resource scope or pass through unrelated bearer tokens.",
+        "Printer names/log text cannot authorize actions or alter policy.",
+        "Write-capable tools remain deferred until explicit approval and device-operation safeguards exist."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G39",
+      "domain": "firmware",
+      "title": "Approved firmware repositories and offline evidence packages",
+      "current_state": "firmware_routes_scaffold",
+      "priority": "P2",
+      "relative_effort": "L",
+      "depends_on": [
+        "G04",
+        "G25",
+        "G27",
+        "G29"
+      ],
+      "code_evidence_ids": [
+        "C32",
+        "C34"
+      ],
+      "source_ids": [],
+      "proposal": "Customer-approved package repositories/mirrors with provenance, compatibility metadata, checksums and vendor-signature verification where supported; use prior printer research for exact update rights.",
+      "acceptance_criteria": [
+        "A package for the wrong product/region/branch is rejected.",
+        "Offline import preserves source/release metadata and never invents an undocumented vendor upload API.",
+        "No campaign is advertised until exact vendor-driver update/recovery qualification exists."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G40",
+      "domain": "event_bus",
+      "title": "Optional broker/automation-platform bridges",
+      "current_state": "missing",
+      "priority": "P3",
+      "relative_effort": "M",
+      "depends_on": [
+        "G08",
+        "G09",
+        "G10",
+        "G28"
+      ],
+      "code_evidence_ids": [
+        "C12",
+        "C13",
+        "C17"
+      ],
+      "source_ids": [
+        "W08",
+        "W21"
+      ],
+      "proposal": "Use versioned webhooks/collector bridges for customer automation first; introduce a native broker transport only for demonstrated throughput/topology requirements.",
+      "acceptance_criteria": [
+        "Bridge delivery and consumer dedup semantics are documented.",
+        "A broker outage is bounded by the durable queue policy.",
+        "No mandatory message-bus dependency is introduced into the single-site installation without a justified need."
+      ],
+      "implementation_status": "research_only_not_implemented"
+    }
+  ],
+  "code_evidence": {
+    "C01": {
+      "path": "/srv/printmarshal/README.md",
+      "line": 11,
+      "title": "Declared current scope",
+      "anchor": "## Status"
+    },
+    "C02": {
+      "path": "/srv/printmarshal/internal/auth/auth.go",
+      "line": 78,
+      "title": "Local authentication and session issuance",
+      "anchor": "func (s *Service) Login(ctx context.Context, username, password string) (string, *model.User, error) {"
+    },
+    "C03": {
+      "path": "/srv/printmarshal/internal/model/model.go",
+      "line": 383,
+      "title": "Global hierarchical roles",
+      "anchor": "func (r Role) Allows(min Role) bool {"
+    },
+    "C04": {
+      "path": "/srv/printmarshal/internal/api/server.go",
+      "line": 127,
+      "title": "Authentication and authorization middleware",
+      "anchor": "func (s *Server) require(min model.Role, next http.HandlerFunc) http.Handler {"
+    },
+    "C05": {
+      "path": "/srv/printmarshal/internal/api/server.go",
+      "line": 210,
+      "title": "Best-effort audit write",
+      "anchor": "func (s *Server) audit(ctx context.Context, r *http.Request, action, target string, before, after map[string]any, result string) {"
+    },
+    "C06": {
+      "path": "/srv/printmarshal/internal/api/server.go",
+      "line": 225,
+      "title": "Login response and failure path",
+      "anchor": "func (s *Server) login(w http.ResponseWriter, r *http.Request) {"
+    },
+    "C07": {
+      "path": "/srv/printmarshal/internal/api/server.go",
+      "line": 256,
+      "title": "Password change reuses session-issuing Login",
+      "anchor": "func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {"
+    },
+    "C08": {
+      "path": "/srv/printmarshal/internal/store/sqlite_misc.go",
+      "line": 657,
+      "title": "Password update without session revocation",
+      "anchor": "func (s *SQLite) SetPassword(ctx context.Context, id, passwordHash string) error {"
+    },
+    "C09": {
+      "path": "/srv/printmarshal/internal/auth/auth.go",
+      "line": 142,
+      "title": "Bearer/cookie/query token extraction",
+      "anchor": "func TokenFromRequest(r *http.Request) string {"
+    },
+    "C10": {
+      "path": "/srv/printmarshal/internal/auth/auth.go",
+      "line": 162,
+      "title": "Session cookie attributes",
+      "anchor": "func (s *Service) SetCookie(w http.ResponseWriter, token string) {"
+    },
+    "C11": {
+      "path": "/srv/printmarshal/internal/api/ws.go",
+      "line": 58,
+      "title": "WebSocket origins and connection lifetime",
+      "anchor": "func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {"
+    },
+    "C12": {
+      "path": "/srv/printmarshal/internal/api/ws.go",
+      "line": 25,
+      "title": "In-memory event broadcast with drop-on-full",
+      "anchor": "func (h *Hub) Publish(e model.Event) {"
+    },
+    "C13": {
+      "path": "/srv/printmarshal/internal/alerts/notify.go",
+      "line": 51,
+      "title": "Unbounded asynchronous single-attempt notifications",
+      "anchor": "func (n *Notifier) Notify(event string, subject string, body string, data any) {"
+    },
+    "C14": {
+      "path": "/srv/printmarshal/internal/alerts/notify.go",
+      "line": 86,
+      "title": "Generic HTTP delivery without connector credentials/signatures/retries",
+      "anchor": "func (n *Notifier) post(ctx context.Context, url string, payload any) error {"
+    },
+    "C15": {
+      "path": "/srv/printmarshal/internal/alerts/notify.go",
+      "line": 107,
+      "title": "SMTP PLAIN, STARTTLS option and missing deadline",
+      "anchor": "func (n *Notifier) sendMail(dest config.Notifier, subject, body string) error {"
+    },
+    "C16": {
+      "path": "/srv/printmarshal/internal/config/config.go",
+      "line": 71,
+      "title": "Static notifier configuration and declared event choices",
+      "anchor": "type Notifier struct {"
+    },
+    "C17": {
+      "path": "/srv/printmarshal/internal/model/model.go",
+      "line": 552,
+      "title": "Event envelope without stable event ID/schema version",
+      "anchor": "type Event struct {"
+    },
+    "C18": {
+      "path": "/srv/printmarshal/internal/fleet/service.go",
+      "line": 225,
+      "title": "Automatic alert notifications",
+      "anchor": "func (s *Service) reconcileAlerts(ctx context.Context, dev *model.Device, desired []alerts.Desired, sources []string) {"
+    },
+    "C19": {
+      "path": "/srv/printmarshal/internal/api/server.go",
+      "line": 765,
+      "title": "Manual clear broadcasts but does not notify",
+      "anchor": "func (s *Server) clearAlert(w http.ResponseWriter, r *http.Request) {"
+    },
+    "C20": {
+      "path": "/srv/printmarshal/internal/jobs/runner.go",
+      "line": 202,
+      "title": "Jobs only publish job.updated",
+      "anchor": "func (r *Runner) emit(j *model.Job) {"
+    },
+    "C21": {
+      "path": "/srv/printmarshal/internal/store/schema.sql",
+      "line": 136,
+      "title": "Audit persistence fields",
+      "anchor": "CREATE TABLE IF NOT EXISTS audit ("
+    },
+    "C22": {
+      "path": "/srv/printmarshal/internal/store/schema.sql",
+      "line": 126,
+      "title": "Delivery log fields; no retry queue",
+      "anchor": "CREATE TABLE IF NOT EXISTS notification_log ("
+    },
+    "C23": {
+      "path": "/srv/printmarshal/internal/store/sqlite_misc.go",
+      "line": 530,
+      "title": "Audit store insertion",
+      "anchor": "func (s *SQLite) AddAudit(ctx context.Context, e *model.AuditEntry) error {"
+    },
+    "C24": {
+      "path": "/srv/printmarshal/cmd/printmarshal/main.go",
+      "line": 55,
+      "title": "Optional stdout JSON operational logs",
+      "anchor": "func newLogger() *slog.Logger {"
+    },
+    "C25": {
+      "path": "/srv/printmarshal/internal/config/config.go",
+      "line": 112,
+      "title": "HTTP/session/IPP defaults",
+      "anchor": "func Default() *Config {"
+    },
+    "C26": {
+      "path": "/srv/printmarshal/internal/driver/ipp/driver.go",
+      "line": 76,
+      "title": "Configurable insecure TLS for printer reads",
+      "anchor": "func NewTransport(opts Options) Transport {"
+    },
+    "C27": {
+      "path": "/srv/printmarshal/internal/trap/listener.go",
+      "line": 48,
+      "title": "Source-address trap trust; no configured SNMPv3 user policy",
+      "anchor": "func (l *Listener) Run(ctx context.Context) error {"
+    },
+    "C28": {
+      "path": "/srv/printmarshal/internal/fleet/service.go",
+      "line": 529,
+      "title": "Trap alert creation and reconciliation poll submission",
+      "anchor": "func (s *Service) HandleTrap(ctx context.Context, sourceIP string, description string, severity model.Severity, varbinds map[string]string) {"
+    },
+    "C29": {
+      "path": "/srv/printmarshal/internal/model/security.go",
+      "line": 91,
+      "title": "Certificate protocol declarations",
+      "anchor": "type EnrollmentProtocol string"
+    },
+    "C30": {
+      "path": "/srv/printmarshal/internal/model/settings_catalog.go",
+      "line": 84,
+      "title": "Syslog setting declaration",
+      "anchor": "{Key: \"security.syslog.server\", Area: \"security\", Name: \"Syslog server\", Type: \"string\", Security: true},"
+    },
+    "C31": {
+      "path": "/srv/printmarshal/internal/api/security.go",
+      "line": 7,
+      "title": "Security route placeholder",
+      "anchor": "func (s *Server) securityRoutes(mux *http.ServeMux) {"
+    },
+    "C32": {
+      "path": "/srv/printmarshal/internal/api/firmware.go",
+      "line": 7,
+      "title": "Firmware route placeholder",
+      "anchor": "func (s *Server) firmwareRoutes(mux *http.ServeMux) {"
+    },
+    "C33": {
+      "path": "/srv/printmarshal/internal/api/config.go",
+      "line": 7,
+      "title": "Configuration route placeholder",
+      "anchor": "func (s *Server) configRoutes(mux *http.ServeMux) {"
+    },
+    "C34": {
+      "path": "/srv/printmarshal/internal/plugins/all.go",
+      "line": 14,
+      "title": "Empty vendor plugin registration",
+      "anchor": "func RegisterAll(reg *engine.Registry, log *slog.Logger) {"
+    },
+    "C35": {
+      "path": "/srv/printmarshal/internal/secrets/secrets.go",
+      "line": 39,
+      "title": "Single local encryption-key provisioning",
+      "anchor": "func LoadOrCreateKey(env string, keyFile string) ([]byte, error) {"
+    },
+    "C36": {
+      "path": "/srv/printmarshal/internal/api/server.go",
+      "line": 314,
+      "title": "API result total equals returned page length",
+      "anchor": "func (s *Server) listDevices(w http.ResponseWriter, r *http.Request) {"
+    },
+    "C37": {
+      "path": "/srv/printmarshal/internal/api/server.go",
+      "line": 301,
+      "title": "API query/filter surface",
+      "anchor": "func deviceFilter(r *http.Request) store.DeviceFilter {"
+    },
+    "C38": {
+      "path": "/srv/printmarshal/internal/store/sqlite_misc.go",
+      "line": 69,
+      "title": "Device/group credential routing, not human authorization",
+      "anchor": "func (s *SQLite) ResolveCreds(ctx context.Context, deviceID string, groupIDs []string) (model.Creds, error) {"
+    },
+    "C39": {
+      "path": "/srv/printmarshal/internal/fleet/service.go",
+      "line": 469,
+      "title": "Telemetry pruning but no integration/audit lifecycle worker",
+      "anchor": "func (s *Service) RunScheduler(ctx context.Context) {"
+    },
+    "C40": {
+      "path": "/srv/printmarshal/internal/api/server_test.go",
+      "line": 87,
+      "title": "Existing role/secrets coverage",
+      "anchor": "func TestCredentialsNeverLeakAndRolesEnforced(t *testing.T) {"
+    },
+    "C41": {
+      "path": "/srv/printmarshal/cmd/printmarshal/main.go",
+      "line": 166,
+      "title": "HTTP server transport and health deployment scope",
+      "anchor": "httpSrv := &http.Server{Addr: cfg.Listen, Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}"
+    },
+    "C42": {
+      "path": "/srv/printmarshal/internal/auth/auth.go",
+      "line": 41,
+      "title": "Generated bootstrap password deliberately logged",
+      "anchor": "func (s *Service) Bootstrap(ctx context.Context, envPassword string) error {"
+    },
+    "C43": {
+      "path": "/srv/printmarshal/internal/api/server.go",
+      "line": 111,
+      "title": "Audit and notification API access",
+      "anchor": "mux.Handle(\"GET /api/audit\", s.require(model.RoleOperator, s.listAudit))"
+    },
+    "C44": {
+      "path": "/srv/printmarshal/deploy/docker-compose.yml",
+      "line": 8,
+      "title": "Small-site host-network deployment",
+      "anchor": "network_mode: host          # required for zero-config discovery and traps"
+    },
+    "C45": {
+      "path": "/srv/printmarshal/internal/store/sqlite.go",
+      "line": 31,
+      "title": "SQLite single-connection persistence",
+      "anchor": "func OpenSQLite(path string, box *secrets.Box) (*SQLite, error) {"
+    },
+    "C46": {
+      "path": "/srv/printmarshal/internal/api/server.go",
+      "line": 909,
+      "title": "Read-only integration configuration surface",
+      "anchor": "func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {"
+    },
+    "C47": {
+      "path": "/srv/printmarshal/internal/fleet/service.go",
+      "line": 260,
+      "title": "Consumable replacement events only go to event hub",
+      "anchor": "func (s *Service) afterSupplies(ctx context.Context, before, after *model.Device) {"
+    }
+  },
+  "primary_sources": {
+    "W01": {
+      "title": "OpenID Connect Core 1.0, errata set 2",
+      "url": "https://openid.net/specs/openid-connect-core-1_0.html",
+      "access": "retrieved_relevant_sections",
+      "checked_on": "2026-10-28"
+    },
+    "W02": {
+      "title": "RFC 9700 OAuth 2.0 Security Best Current Practice",
+      "url": "https://www.rfc-editor.org/rfc/rfc9700.html",
+      "access": "retrieved_relevant_sections",
+      "checked_on": "2026-10-28"
+    },
+    "W03": {
+      "title": "RFC 7644 SCIM protocol",
+      "url": "https://www.rfc-editor.org/rfc/rfc7644.html",
+      "access": "retrieved",
+      "checked_on": "2026-10-28"
+    },
+    "W04": {
+      "title": "Keycloak identity brokering and user federation",
+      "url": "https://www.keycloak.org/docs/latest/server_admin/",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W05": {
+      "title": "OWASP Authentication Cheat Sheet",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W06": {
+      "title": "OWASP Authorization Cheat Sheet",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W07": {
+      "title": "OWASP Logging Cheat Sheet",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W08": {
+      "title": "CloudEvents 1.0.2 event specification",
+      "url": "https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md",
+      "access": "retrieved_relevant_sections",
+      "checked_on": "2026-10-28"
+    },
+    "W09": {
+      "title": "GitHub webhook HMAC signature validation",
+      "url": "https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries",
+      "access": "retrieved",
+      "checked_on": "2026-10-28"
+    },
+    "W10": {
+      "title": "Slack rate limits including webhooks and Retry-After",
+      "url": "https://docs.slack.dev/apis/web-api/rate-limits/",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W11": {
+      "title": "Teams connector retirement, April 14 2026 update",
+      "url": "https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/",
+      "access": "retrieved_latest_update",
+      "checked_on": "2026-10-28"
+    },
+    "W12": {
+      "title": "Teams Workflows webhook authentication and payload schemas",
+      "url": "https://learn.microsoft.com/en-us/connectors/teams/",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W13": {
+      "title": "Exchange SMTP AUTH revised timeline, January 27 2026",
+      "url": "https://techcommunity.microsoft.com/blog/exchange/updated-exchange-online-smtp-auth-basic-authentication-deprecation-timeline/4489835",
+      "access": "official_indexed_post_text_direct_page_empty",
+      "checked_on": "2026-10-28"
+    },
+    "W14": {
+      "title": "Microsoft SMTP OAuth / XOAUTH2 and application permissions",
+      "url": "https://learn.microsoft.com/en-us/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth",
+      "access": "retrieved",
+      "checked_on": "2026-10-28"
+    },
+    "W15": {
+      "title": "Microsoft Graph sendMail",
+      "url": "https://learn.microsoft.com/en-us/graph/api/user-sendmail?tabs=python&view=graph-rest-1.0",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W16": {
+      "title": "Exchange application RBAC for mailbox scope",
+      "url": "https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W17": {
+      "title": "RFC 5424 Syslog",
+      "url": "https://www.rfc-editor.org/info/rfc5424/",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W18": {
+      "title": "RFC 5425 Syslog over TLS",
+      "url": "https://www.rfc-editor.org/info/rfc5425/",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W19": {
+      "title": "RFC 9662 updated secure-syslog cipher requirements",
+      "url": "https://www.rfc-editor.org/rfc/rfc9662.html",
+      "access": "retrieved",
+      "checked_on": "2026-10-28"
+    },
+    "W20": {
+      "title": "OpenTelemetry OTLP specification",
+      "url": "https://opentelemetry.io/docs/specs/otlp/",
+      "access": "retrieved",
+      "checked_on": "2026-10-28"
+    },
+    "W21": {
+      "title": "OpenTelemetry Collector resiliency and persistent queues",
+      "url": "https://opentelemetry.io/docs/collector/resiliency/",
+      "access": "retrieved",
+      "checked_on": "2026-10-28"
+    },
+    "W22": {
+      "title": "Splunk HEC request examples",
+      "url": "https://help.splunk.com/en/splunk-enterprise/get-data-in/collect-http-event-data/http-event-collector-examples",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W23": {
+      "title": "Splunk HEC indexer acknowledgment and platform caveats",
+      "url": "https://help.splunk.com/en/splunk-enterprise/get-started/get-data-in/9.0/get-data-with-http-event-collector/about-http-event-collector-indexer-acknowledgment",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W24": {
+      "title": "Azure Monitor Logs Ingestion API / DCR configuration",
+      "url": "https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W25": {
+      "title": "Microsoft Sentinel syslog/CEF via AMA",
+      "url": "https://learn.microsoft.com/en-us/azure/sentinel/cef-syslog-ama-overview",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W26": {
+      "title": "Elastic ECS event fields",
+      "url": "https://www.elastic.co/docs/reference/ecs/ecs-event",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W27": {
+      "title": "Elastic Security required ECS fields",
+      "url": "https://www.elastic.co/docs/reference/security/fields-and-object-schemas/siem-field-reference",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W28": {
+      "title": "Prometheus instrumentation/cardinality practices",
+      "url": "https://prometheus.io/docs/practices/instrumentation/",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W29": {
+      "title": "PagerDuty Events API v2 overview and retry semantics",
+      "url": "https://docs.pagerduty.com/developer/events-api-v2-overview",
+      "access": "retrieved_relevant_sections",
+      "checked_on": "2026-10-28"
+    },
+    "W30": {
+      "title": "ServiceNow Identification and Reconciliation REST API",
+      "url": "https://www.servicenow.com/docs/r/api-reference/rest-apis/c_IdentifyReconcileAPI.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W31": {
+      "title": "Jira Service Management create request API",
+      "url": "https://developer.atlassian.com/cloud/jira/service-desk/rest/api-group-request/",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W32": {
+      "title": "NetBox stable REST API documentation",
+      "url": "https://netbox.readthedocs.io/en/stable/integrations/rest-api/",
+      "access": "retrieved",
+      "checked_on": "2026-10-28"
+    },
+    "W33": {
+      "title": "Snipe-IT API overview",
+      "url": "https://snipe-it.readme.io/reference/api-overview",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W34": {
+      "title": "Vault KV v2 API",
+      "url": "https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2",
+      "access": "retrieved",
+      "checked_on": "2026-10-28"
+    },
+    "W35": {
+      "title": "Vault PKI API / issuance and CSR signing",
+      "url": "https://developer.hashicorp.com/vault/api-docs/secret/pki",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W36": {
+      "title": "Ansible uri HTTP API module",
+      "url": "https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/uri_module.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W37": {
+      "title": "NVD product/CPE match API",
+      "url": "https://nvd.nist.gov/developers/products",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W38": {
+      "title": "CISA-maintained KEV data mirror",
+      "url": "https://github.com/cisagov/kev-data",
+      "access": "retrieved_repository",
+      "checked_on": "2026-10-28"
+    },
+    "W39": {
+      "title": "Cisco ISE pxGrid technical overview",
+      "url": "https://developer.cisco.com/docs/pxgrid/technical-overview/",
+      "access": "retrieved",
+      "checked_on": "2026-10-28"
+    },
+    "W40": {
+      "title": "S3 Object Lock retention and legal hold",
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W41": {
+      "title": "OpenAPI Specification 3.2.1",
+      "url": "https://spec.openapis.org/oas/v3.2.1.html",
+      "access": "retrieved_via_latest_alias",
+      "checked_on": "2026-10-28"
+    },
+    "W42": {
+      "title": "MCP security best practices",
+      "url": "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices",
+      "access": "retrieved_via_latest_alias",
+      "checked_on": "2026-10-28"
+    },
+    "W43": {
+      "title": "rsyslog TCP/TLS intake",
+      "url": "https://docs.rsyslog.com/doc/configuration/modules/imtcp.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W44": {
+      "title": "rsyslog queue durability distinctions",
+      "url": "https://docs.rsyslog.com/doc/concepts/queues.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W45": {
+      "title": "Zabbix HTTP agent API polling",
+      "url": "https://www.zabbix.com/documentation/7.2/en/manual/config/items/itemtypes/http",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "W46": {
+      "title": "PagerDuty alert event parameters and deduplication",
+      "url": "https://docs.pagerduty.com/developer/send-alert-event",
+      "access": "retrieved_relevant_sections",
+      "checked_on": "2026-10-28"
+    },
+    "W47": {
+      "title": "Go smtp.PlainAuth TLS/localhost restriction",
+      "url": "https://go.dev/src/net/smtp/auth.go",
+      "access": "retrieved_source",
+      "checked_on": "2026-10-28"
+    }
+  },
+  "source_snapshot": {
+    "captured_on": "2026-10-28",
+    "files": {
+      "internal/auth/auth.go": {
+        "sha256": "5bb18264354556a52b6ff19947c5c89bbf57b1fe8294d740fe83c0c8e8cb7541",
+        "lines": 183
+      },
+      "internal/api/server.go": {
+        "sha256": "b79a3565e74dc76156e41112332314e72fa4052227714db3e5d52129bb6172bd",
+        "lines": 935
+      },
+      "internal/api/ws.go": {
+        "sha256": "7d2d4ca8e5218374f6493d1766bacb43eee947db865990d0a90f4f577dcb2309",
+        "lines": 89
+      },
+      "internal/alerts/notify.go": {
+        "sha256": "d524a7461a9007923cacc24dfd82c0d62cfc6e592e21de41556b156efafbf3e2",
+        "lines": 153
+      },
+      "internal/config/config.go": {
+        "sha256": "3cc5a223c430d48f5324069bec89d231b585e30f0848141e516c4c4addbff8a0",
+        "lines": 197
+      },
+      "internal/fleet/service.go": {
+        "sha256": "494bb4626560e2a83144138278cb4713da431fc63dc458ace94bc675d899c773",
+        "lines": 564
+      },
+      "internal/jobs/runner.go": {
+        "sha256": "be8c8e4c951ab15ff212e268c0f03e0e4cda5e0d113b2ad2ca0f729b30f25368",
+        "lines": 207
+      },
+      "internal/model/model.go": {
+        "sha256": "6a43e30191738784efe15aa0ee8f15d7453de6e6441ee95f46385344e6786792",
+        "lines": 569
+      },
+      "internal/model/security.go": {
+        "sha256": "f546296f2e46a3abbb1164dbffca82a2ef5317fb6eb404600beae87f116b0c63",
+        "lines": 131
+      },
+      "internal/model/settings_catalog.go": {
+        "sha256": "50b3e1d3d0c27ffcb015b4e4f9217126301ab36e3e7b725a76b45a0fa7bff90c",
+        "lines": 129
+      },
+      "internal/store/schema.sql": {
+        "sha256": "139183452d42d3644daf24a1a4eb9491e3f5bd076fb71f849c9b342640b94977",
+        "lines": 212
+      },
+      "internal/store/sqlite_misc.go": {
+        "sha256": "9977687e26292409b9087fdfdd46586e32bc42ec5648a2dff0c32264c338c3b3",
+        "lines": 692
+      },
+      "internal/secrets/secrets.go": {
+        "sha256": "25d13356e92d44076126f5de4989b32384e0facbd038949ec15a879d4f75f981",
+        "lines": 83
+      },
+      "internal/driver/ipp/driver.go": {
+        "sha256": "4844bac6f63e01ecaf701c8155c0b802e61ae3416cb131420b9bbb88ae192f1b",
+        "lines": 507
+      },
+      "internal/trap/listener.go": {
+        "sha256": "514a1b92498bda581afe49d5d862913a97a6f30924bcd75dcef5f8ad572ab32e",
+        "lines": 121
+      },
+      "internal/api/config.go": {
+        "sha256": "f701e6f097f18f3da7bd534cf2686a2210b3deee6fa50e1ab1ffb46c6016b746",
+        "lines": 9
+      },
+      "internal/api/security.go": {
+        "sha256": "3bd704c30414f84263935f5d92c5ef52da7cf8eee42911183a9cd4ae078d9177",
+        "lines": 9
+      },
+      "internal/api/firmware.go": {
+        "sha256": "b586542cf12f4510b23ccda2de4a6f33a41d556cfd13ce54fb3da8a491424185",
+        "lines": 9
+      },
+      "internal/plugins/all.go": {
+        "sha256": "9fb7321e1af1006cdea82f05c89f80803066eec08bec9b24e01981d4949bde43",
+        "lines": 17
+      },
+      "cmd/printmarshal/main.go": {
+        "sha256": "b0c2dc13ee636fb2e038abbfb4da51655f290bda6df398693ce1f2ede4b892c8",
+        "lines": 186
+      },
+      "deploy/docker-compose.yml": {
+        "sha256": "43ef468ee48eabea189e3f6154b24703b9337ddcc7f587d6e3e70ba7e434d361",
+        "lines": 29
+      },
+      "README.md": {
+        "sha256": "fd26add38db8c29a75e4f22aa492d37af1f81e4f3a2a60003260e292615bdd16",
+        "lines": 135
+      },
+      "go.mod": {
+        "sha256": "1b1ccfeea075210738259eb20affb6b6a5f17b3b18df291477c8eeef16bf1dc1",
+        "lines": 27
+      }
+    },
+    "note": "SHA-256 and logical line counts identify the reviewed core files. Evidence anchors were resolved against the current files before report generation. Line links can move during subsequent development; use the recorded anchor and hash to identify this audit snapshot."
+  },
+  "recommended_validation": {
+    "performed": [
+      "Static source and schema inspection",
+      "Literal code anchor verification",
+      "Official documentation research",
+      "Gap dependency graph validation"
+    ],
+    "proposed_not_executed": [
+      "Session and WebSocket revocation tests",
+      "Resource-scope authorization matrix",
+      "Crash/restart outbox and provider throttling tests",
+      "Provider-specific authentication and searchable-ingestion tests",
+      "Malformed and burst printer-log fixtures",
+      "Disk pressure, key rotation, backup and restore tests"
+    ]
+  }
+}
