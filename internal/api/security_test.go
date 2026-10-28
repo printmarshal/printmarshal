@@ -63,7 +63,7 @@ func newSecurityTestServer(t *testing.T) (*httptest.Server, *Server, *apiFakeDri
 	return ts, s, fake
 }
 
-func waitJob(t *testing.T, s *Server, body string) *model.Job {
+func waitSecurityJob(t *testing.T, s *Server, body string) *model.Job {
 	t.Helper()
 	var j model.Job
 	if err := json.Unmarshal([]byte(body), &j); err != nil {
@@ -133,7 +133,7 @@ func TestSecurityRolesAndFlows(t *testing.T) {
 	if code != 202 {
 		t.Fatalf("assess: %d %s", code, body)
 	}
-	if j := waitJob(t, s, body); j.Status != model.JobSucceeded || j.Type != "security.assess" {
+	if j := waitSecurityJob(t, s, body); j.Status != model.JobSucceeded || j.Type != "security.assess" {
 		t.Fatalf("assess job: %+v", j)
 	}
 	code, body = do(t, ts, viewer, "GET", "/api/compliance?policy="+pol.ID, "")
@@ -164,7 +164,7 @@ func TestSecurityRolesAndFlows(t *testing.T) {
 	if code != 202 {
 		t.Fatalf("remediate: %d %s", code, body)
 	}
-	j := waitJob(t, s, body)
+	j := waitSecurityJob(t, s, body)
 	if j.Status != model.JobSucceeded || j.Params["dryRun"] != true {
 		t.Fatalf("remediate dry-run job: %+v", j)
 	}
@@ -178,7 +178,7 @@ func TestSecurityRolesAndFlows(t *testing.T) {
 	if code != 202 {
 		t.Fatalf("remediate real: %d %s", code, body)
 	}
-	j = waitJob(t, s, body)
+	j = waitSecurityJob(t, s, body)
 	code, body = do(t, ts, viewer, "GET", "/api/jobs/"+j.ID, "")
 	if code != 200 || !strings.Contains(body, `"status":"written"`) {
 		t.Errorf("job results: %d %s", code, body)
@@ -222,7 +222,7 @@ func TestSecurityRolesAndFlows(t *testing.T) {
 	if code != 202 {
 		t.Fatalf("enroll: %d %s", code, body)
 	}
-	j = waitJob(t, s, body)
+	j = waitSecurityJob(t, s, body)
 	results, _ := s.Store.ListJobResults(context.Background(), j.ID)
 	if j.Status != model.JobSucceeded || len(results) != 1 || !strings.Contains(results[0].Message, "would enroll") || results[0].Data["canInstall"] != false {
 		t.Errorf("enroll dry run: %+v %+v", j, results)
@@ -242,7 +242,7 @@ func TestSecurityRolesAndFlows(t *testing.T) {
 	if code != 202 {
 		t.Fatalf("rotate: %d %s", code, body)
 	}
-	j = waitJob(t, s, body)
+	j = waitSecurityJob(t, s, body)
 	if j.Status != model.JobSucceeded {
 		t.Fatalf("rotate job: %+v", j)
 	}
