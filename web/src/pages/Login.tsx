@@ -24,7 +24,7 @@ export default function Login({ onLogin }: { onLogin: (u: User) => void }) {
         <input className="fin" id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
         {error && <div className="error small">{error}</div>}
         <Btn type="submit" variant="pri" disabled={busy} style={{ marginTop: 4 }}>{busy ? 'Signing in…' : 'Sign in'}</Btn>
-        <div className="cap">First run: the admin password comes from PM_ADMIN_PASSWORD or the server log.</div>
+        <div className="cap">First run: the admin password comes from PM_ADMIN_PASSWORD or the initial-admin-password file in the data directory.</div>
       </form>
     </div>
   )
