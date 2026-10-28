@@ -8,3 +8,4 @@
 secret.key
 .DS_Store
 /.claude/
+/deploy/printmarshal.env

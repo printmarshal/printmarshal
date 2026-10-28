@@ -120,6 +120,7 @@ type Store interface {
 	SecurityStore
 	FirmwareStore
 	OutboxStore
+	CatalogStore
 
 	Close() error
 

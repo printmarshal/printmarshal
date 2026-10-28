@@ -33,6 +33,7 @@ import (
 	"printmarshal/internal/jobs"
 	"printmarshal/internal/model"
 	"printmarshal/internal/plugins"
+	"printmarshal/internal/printprovider"
 	"printmarshal/internal/secrets"
 	"printmarshal/internal/security"
 	"printmarshal/internal/store"
@@ -160,6 +161,8 @@ func run(cfgPath string) error {
 
 	fl := fleet.New(st, eng, runner, cfg, log, bus.Publish, probe)
 	deps := fl.DepsOf()
+	pp := printprovider.New(deps) // optional CUPS/IPP Everywhere queue bridge (docs/print-provider.md)
+	api.SetPrintProvider(pp)
 	cfgSvc := configmgmt.New(deps)
 	secSvc := security.New(deps)
 	fwSvc := firmware.New(deps)
