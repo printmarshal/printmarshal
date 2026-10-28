@@ -67,3 +67,21 @@ Recorded by the build session that implemented phases 1–2.
 | Print provider (§8.7) | Separate optional module, off by default, CUPS adapter behind an interface with a dry backend | Keeps the core free of print serving; only touches the local CUPS, never a printer. |
 | PostgreSQL | Implemented last, after every feature's store sub-interface has landed | A Postgres store must satisfy the whole `store.Store`; doing it earlier would have raced the feature agents. |
 | Firmware delivery | Standard delivery only to the simulator / explicit allow-list (`PM_FIRMWARE_SIM_TARGETS`); real devices need a plugin | No vendor publishes a universal firmware transport; honesty over coverage. |
+
+## Decisions from the enterprise-integration audit (28 October 2026, `research/application-integration-audit-2026-10-28.md`)
+
+| Finding | Decision | Why |
+| --- | --- | --- |
+| A01/A02/G08/G09 event routing | One `events.Bus` with a catalogue and versioned envelope; the WebSocket hub and the notifier are subscribers; producers publish once | The audit found events delivered to the UI but not to notifiers and vice versa. A single contract makes "declared" and "delivered" the same set, and the catalogue is validated at start-up. |
+| Notification durability | Outbox table, retries with exponential backoff, dead rows + `notification.dead` event, admin requeue | Fire-and-forget goroutines lost deliveries on restart or outage; the outbox is visible in the UI and `/metrics`. |
+| A03 audit failures | Logged at error level with the full action; every entry also published as `audit.recorded`; `auth.login/failed/denied/logout/session.revoked` recorded | Silent `_ =` on audit writes is not acceptable for a security product. |
+| A04/A05 sessions | Password change revokes other sessions; no tokens in query strings; WebSocket same-origin unless `auth.allowedOrigins`; streams re-check the session every minute | Revocation must actually end access, including long-lived streams. |
+| A06 transport | Secure cookies stay opt-in but the server warns when listening off-loopback without them; TLS at the proxy/ingress documented | The binary does not terminate TLS itself; the warning makes the gap visible on day one. |
+| A07/A08 SMTP | Connection deadlines from the attempt budget; LOGIN and XOAUTH2 (token from env or client-credentials grant) | Basic auth is off for Microsoft 365 / Google Workspace tenants. |
+| A09 Teams | Adaptive Card payload for Workflows webhooks by default, `legacy: true` for retired connectors | Office 365 connectors are retired; MessageCard posts fail on new URLs. |
+| A13 traps | Source allow-list (CIDRs), per-source rate limit, one drop log line per source per minute, still only acted on for known device addresses | Trap storms and spoofed sources must not create alerts or flood logs. |
+| A18 bootstrap | Generated admin password goes to `<dataDir>/initial-admin-password` (0600), not the log | Logs are shipped; the data directory is not. |
+| A16/G21 operations | `/readyz` (database check) and hand-rolled Prometheus `/metrics` | No client library dependency; the few series operators need (devices, alerts, jobs, outbox, HTTP) are enough to alert on. |
+| A10/A11 identity | API tokens with role + group scope; optional OIDC (code flow with PKCE) with claim-to-role mapping | Machine clients and SSO without a third-party auth library. |
+| A12/A15 export | Syslog (RFC 5424, CEF or JSON) / file / HTTP sinks for security events; incremental sync API with `(updatedAt, id)` cursors and tombstones; printer syslog ingestion | SIEM and CMDB integrations need push and a resumable pull, not screen-scraping the REST API. |
+| A19/A20 writes | Credentials carry a purpose (read / write / both); write paths resolve write credentials only; after a real write the setting is read back and recorded as verified / diverged / unverifiable | A read-only community string must never be able to write, and "accepted" is not "in effect". |

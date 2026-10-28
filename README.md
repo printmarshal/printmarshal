@@ -10,18 +10,18 @@ management software.
 
 ## Status
 
-**Phase 1 and 2 of the [build spec](docs/printmarshal-build-spec.md) are implemented**
-(foundations, read-only monitoring, inventory and lifecycle). Everything that touches
-a printer is read-only, except firmware delivery (phase 6, below), which is gated,
-dry-runnable and audited and reaches only the simulator or allow-listed devices.
-Phases 3–5 and 7 (configuration read/write, security, vendor plugins, print-provider
-add-on) are not started; the capability/driver model they plug into is in place.
-a printer is read-only, except the explicit, dry-run-by-default security writes of
-phase 5 (remediation, credential rotation, certificate installation), which are gated,
-audited and only possible through drivers that implement the write-side capabilities.
-Phases 3, 4, 6 and 7 (configuration read/write, firmware, vendor plugins,
-print-provider add-on) are not started; the capability/driver model they plug into is
-in place.
+**All seven phases of the [build spec](docs/printmarshal-build-spec.md) are
+implemented**: foundations and read-only monitoring (1–2), configuration read/write
+(3–4), security (5), firmware (6) and vendor plugins plus the optional print-provider
+add-on (7), together with the enterprise-integration hardening from the research
+audit (event bus, durable notifications, authentication and transport controls,
+SIEM export, operational endpoints). Everything that touches a printer is read-only
+unless an operator explicitly runs a gated, dry-run-by-default, audited write
+(configuration apply, security remediation, credential rotation, certificate
+install, firmware delivery) through a driver that implements the write-side
+capability. Standards drivers (SNMP, IPP, eSCL) have been validated live against
+an HP Color LaserJet MFP M283fdw; writes have been exercised only against the
+simulator.
 
 What works today:
 
@@ -89,10 +89,18 @@ What works today:
   for discovered printers: plan, dry run, sync as an audited job, per-device removal.
   It only configures CUPS on the PrintMarshal host and never changes a printer; it is
   a convenience, not print management.
+- **Events and notifications** ([docs](docs/events.md)) — one event catalogue and
+  bus feeding the live stream and a durable, retried notification outbox (dead-letter
+  rows are visible and requeueable); Slack / Discord / generic webhooks, Teams
+  Workflows (Adaptive Cards) and SMTP with PLAIN, LOGIN or XOAUTH2 (Microsoft 365,
+  Google Workspace) authentication.
 - **Platform** — REST + WebSocket API, role-based users (viewer / operator / admin),
-  encrypted credential store whose secrets are write-only through the API, an audit log,
-  resumable jobs with per-device results, a React web UI, a printer simulator for
-  development/CI, Docker packaging.
+  encrypted credential store whose secrets are write-only through the API, an audit log
+  that also flows to the event bus, sign-in throttling, session revocation on password
+  change, same-origin streams that re-check their session, trap source trust and rate
+  limits, `/readyz` and Prometheus `/metrics`, resumable jobs with per-device results,
+  a React web UI, a printer simulator for development/CI, Docker / Kubernetes / Helm /
+  systemd packaging.
 
 ## Quick start
 
@@ -105,7 +113,8 @@ PM_ADMIN_PASSWORD=change-me ./bin/printmarshal
 ```
 
 Open <http://localhost:8080>, sign in as `admin`, go to **Discovery** and start a run.
-Without `PM_ADMIN_PASSWORD` the first start generates a password and prints it in the log.
+Without `PM_ADMIN_PASSWORD` the first start generates a password and writes it to
+`<data dir>/initial-admin-password` (mode 0600); change it after signing in and delete the file.
 
 To try it without a printer, run the simulator and point the server at its ports:
 
@@ -154,7 +163,8 @@ and/or environment variables:
 | `PM_POLL_INTERVAL` | Scheduled poll cadence | `5m` |
 | `PM_POLL_CONCURRENCY` | Max simultaneous device reads | `32` |
 | `PM_DISCOVERY_ENABLED` / `PM_DISCOVERY_INTERVAL` / `PM_DISCOVERY_TARGETS` | Scheduled discovery | off / `1h` / none |
-| `PM_TRAP_ENABLED` / `PM_TRAP_LISTEN` | SNMP trap listener | on / `0.0.0.0:1162` |
+| `PM_TRAP_ENABLED` / `PM_TRAP_LISTEN` | SNMP trap listener (`trap.allowedSources`, `trap.ratePerMinute` in the file) | on / `0.0.0.0:1162` |
+| `PM_SECURE_COOKIES` | Mark the session cookie `Secure` (set it behind TLS) | `false` (warns on non-loopback listen) |
 | `PM_SNMP_PORT`, `PM_IPP_ENDPOINTS` | Device ports (for simulators) | `161`, standard IPP paths |
 | `PM_LOG_LEVEL`, `PM_LOG_FORMAT` | `debug|info|warn|error`, `text|json` | `info`, `text` |
 
@@ -178,7 +188,11 @@ internal/engine       capability model, driver registry, identify/poll
 internal/driver/snmp  SNMP driver (RFC 3418/2863/2790/3805)   internal/driver/ipp  IPP driver (RFC 8010/8011, PWG 5100.13)
 internal/discovery    mDNS, WS-Discovery, active scan          internal/fleet       orchestration: discovery runs, polls, alerts
 internal/store        Store interface + SQLite                  internal/jobs        worker pool, resumable jobs
-internal/alerts       rules + notifiers                         internal/trap        SNMP trap listener
+internal/alerts       rules + durable notifier                  internal/trap        SNMP trap listener
+internal/events       event catalogue, envelope and bus         internal/catalog     device model catalogue
+internal/configmgmt   configuration (phases 3–4)                internal/security    policies, remediation, PKI (phase 5)
+internal/firmware     packages and campaigns (phase 6)          internal/plugins     vendor plugins (phase 7)
+internal/reports      report aggregates                         internal/printprovider  optional CUPS bridge
 internal/api          REST + WebSocket                          internal/auth        users, sessions, roles
 web/                  React/TypeScript SPA (built into internal/web/dist and embedded)
 testdata/fixtures     recorded-style SNMP images used by tests and the simulator
