@@ -7,12 +7,13 @@ import { useEvents } from '../ws'
 import { Ic } from '../components/icons'
 import { Banner, Bar, Btn, Card, DevicePill, Mk, MiniSpark, Pill, SevPill, Sw, Tabs, Tag, fmtInt, remaining, since, supplyColor, trayTone } from '../components/ui'
 import { ConsumableLink, fmtDays, statusOf } from '../components/consumables'
+import DeviceFirmwareTab from '../components/firmware/DeviceFirmwareTab'
 
 const transitions: Record<string, string[]> = {
   discovered: ['onboarded', 'active', 'decommissioned'], onboarded: ['active', 'needs_attention', 'decommissioned'],
   active: ['needs_attention', 'decommissioned'], needs_attention: ['active', 'decommissioned'], decommissioned: ['onboarded'],
 }
-type Tab = 'overview' | 'activity'
+type Tab = 'overview' | 'firmware' | 'activity'
 
 export default function DeviceDetail({ user }: { user: User }) {
   const { id } = useParams()
@@ -91,6 +92,7 @@ export default function DeviceDetail({ user }: { user: User }) {
       )}
       <Tabs label="Device sections" value={tab} onChange={setTab} tabs={[
         { v: 'overview', label: 'Overview' },
+        { v: 'firmware', label: 'Firmware' },
         { v: 'activity', label: 'Activity' },
       ]} />
 
@@ -138,6 +140,7 @@ export default function DeviceDetail({ user }: { user: User }) {
           </div>
         </div>
       )}
+      {tab === 'firmware' && <DeviceFirmwareTab device={d} canOperate={canOperate} />}
       {tab === 'activity' && <ActivityCard deviceId={d.id} canSee={canOperate} />}
     </>
   )
