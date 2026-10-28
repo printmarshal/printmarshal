@@ -20,13 +20,17 @@ import (
 	"printmarshal/internal/api"
 	"printmarshal/internal/auth"
 	"printmarshal/internal/config"
+	"printmarshal/internal/configmgmt"
 	"printmarshal/internal/driver/ipp"
 	"printmarshal/internal/driver/snmp"
 	"printmarshal/internal/engine"
+	"printmarshal/internal/firmware"
 	"printmarshal/internal/fleet"
 	"printmarshal/internal/jobs"
 	"printmarshal/internal/model"
+	"printmarshal/internal/plugins"
 	"printmarshal/internal/secrets"
+	"printmarshal/internal/security"
 	"printmarshal/internal/store"
 	"printmarshal/internal/trap"
 	"printmarshal/internal/web"
@@ -116,6 +120,7 @@ func run(cfgPath string) error {
 	ippOpts.InsecureTLS = cfg.Poll.IPPInsecureTLS
 	ippOpts.Endpoints = cfg.Poll.IPPEndpoints
 	reg.Register(ipp.New(ipp.NewTransport(ippOpts), ippOpts))
+	plugins.RegisterAll(reg, log) // vendor plugins: enrichment at the edge (spec §6)
 	eng := engine.New(reg, log, cfg.Poll.Concurrency)
 
 	hub := api.NewHub()
@@ -137,6 +142,10 @@ func run(cfgPath string) error {
 	}
 
 	fl := fleet.New(st, eng, runner, cfg, log, hub.Publish, notifier, probe)
+	deps := fl.DepsOf()
+	cfgSvc := configmgmt.New(deps)
+	secSvc := security.New(deps)
+	fwSvc := firmware.New(deps)
 
 	authSvc := auth.New(st, cfg.Auth.SessionTTL.D(), cfg.Auth.SecureCookies, log)
 	if err := authSvc.Bootstrap(ctx, os.Getenv("PM_ADMIN_PASSWORD")); err != nil {
@@ -153,7 +162,7 @@ func run(cfgPath string) error {
 	}
 	go fl.RunScheduler(ctx)
 
-	srv := &api.Server{Store: st, Fleet: fl, Auth: authSvc, Hub: hub, Cfg: cfg, Log: log, UI: web.Handler(), Version: version}
+	srv := &api.Server{Store: st, Fleet: fl, ConfigMgmt: cfgSvc, Security: secSvc, Firmware: fwSvc, Auth: authSvc, Hub: hub, Cfg: cfg, Log: log, UI: web.Handler(), Version: version}
 	httpSrv := &http.Server{Addr: cfg.Listen, Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() {

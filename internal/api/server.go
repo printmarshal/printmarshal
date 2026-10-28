@@ -17,21 +17,27 @@ import (
 
 	"printmarshal/internal/auth"
 	"printmarshal/internal/config"
+	"printmarshal/internal/configmgmt"
+	"printmarshal/internal/firmware"
 	"printmarshal/internal/fleet"
 	"printmarshal/internal/model"
+	"printmarshal/internal/security"
 	"printmarshal/internal/store"
 )
 
 // Server holds dependencies for the handlers.
 type Server struct {
-	Store   store.Store
-	Fleet   *fleet.Service
-	Auth    *auth.Service
-	Hub     *Hub
-	Cfg     *config.Config
-	Log     *slog.Logger
-	UI      http.Handler
-	Version string
+	Store      store.Store
+	Fleet      *fleet.Service
+	ConfigMgmt *configmgmt.Service
+	Security   *security.Service
+	Firmware   *firmware.Service
+	Auth       *auth.Service
+	Hub        *Hub
+	Cfg        *config.Config
+	Log        *slog.Logger
+	UI         http.Handler
+	Version    string
 }
 
 // Handler builds the router.
@@ -93,6 +99,10 @@ func (s *Server) Handler() http.Handler {
 
 	// Consumables stock inventory and installed-supply links (consumables.go)
 	s.consumableRoutes(mux)
+	// Feature areas (each in its own file; see config.go, security.go, firmware.go)
+	s.configRoutes(mux)
+	s.securityRoutes(mux)
+	s.firmwareRoutes(mux)
 
 	// Users, audit, notifications, settings
 	mux.Handle("GET /api/users", s.require(model.RoleAdmin, s.listUsers))

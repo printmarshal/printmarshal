@@ -1,0 +1,1 @@
+-- firmware area tables (applied after schema.sql).

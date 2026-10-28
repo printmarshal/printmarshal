@@ -2534,7 +2534,7 @@
         "T01",
         "T02"
       ],
-      "model_evidence": "model_specifications_and_administrator_guide",
+      "model_evidence": "model_specifications",
       "release_year": null,
       "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
       "qualification_status": "research_candidate_unvalidated",
@@ -2555,7 +2555,7 @@
       "model_source_ids": [
         "NTO01"
       ],
-      "model_evidence": "model_specifications_and_administrator_guide",
+      "model_evidence": "model_specifications",
       "release_year": null,
       "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
       "qualification_status": "research_candidate_unvalidated",
@@ -2601,7 +2601,7 @@
       "model_source_ids": [
         "T06"
       ],
-      "model_evidence": "model_specifications_and_administrator_guide",
+      "model_evidence": "model_specifications",
       "release_year": null,
       "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
       "qualification_status": "research_candidate_unvalidated",
@@ -2798,7 +2798,7 @@
         "NOK01",
         "NOK02"
       ],
-      "model_evidence": "official_support_and_family_context",
+      "model_evidence": "model_specifications",
       "release_year": null,
       "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
       "qualification_status": "research_candidate_unvalidated",
@@ -4653,5 +4653,24 @@
       "access": "carried_from_first_pass_see_access_note",
       "checked_on": "2026-10-28"
     }
-  }
+  },
+  "documented_identity_conflicts": [
+    {
+      "brand": "HP",
+      "product_number": "X3A87A",
+      "observations": [
+        {
+          "model": "E87640",
+          "bundle": "du",
+          "source_id": "NHP03"
+        },
+        {
+          "model": "E87640",
+          "bundle": "dn",
+          "source_id": "NHP05"
+        }
+      ],
+      "resolution": "Preserve both documented observations; confirm product label, region and reported firmware identity before normalizing the bundle."
+    }
+  ]
 }

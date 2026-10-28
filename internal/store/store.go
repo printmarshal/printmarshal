@@ -112,8 +112,14 @@ type DashboardSummary struct {
 	RunningJobs    int            `json:"runningJobs"`
 }
 
-// Store is the full persistence surface.
+// Store is the full persistence surface. Feature areas add their own
+// sub-interface in a file of their own (store_<area>.go) and implement it on
+// *SQLite in sqlite_<area>.go with its tables in schema_<area>.sql.
 type Store interface {
+	ConfigStore
+	SecurityStore
+	FirmwareStore
+
 	Close() error
 
 	// Devices

@@ -31,7 +31,7 @@ Sources are primary vendor material or standards. Some HP pages block direct ret
 
 **E876:** the named E87640/50/60 and E82540/50/60 guide documents SNMPv1/v2c/v3, EWS administration, TLS, 802.1X, IPsec/firewall, certificates, protocol controls and firmware upgrade. Relevant printed pages are 119–128 for administration, including General/Firmware Upgrade on page 122 and management protocols on page 128. This is direct device-family evidence, beyond simply finding a vendor software entry. [NHP05]
 
-HP’s developer compatibility table supplies exact product/bundle identities. The JSON retains **23 product-number examples**, including E877 speed-specific dn and Flow z bundles, generic E877 units, and E876/E825 examples. It is an example registry, not a complete regional SKU database. Different documents can describe a shared-looking product number or bundle differently; preserve the source’s bundle text and confirm the physical device. [NHP03] [NHP05]
+HP’s developer compatibility table supplies exact product/bundle identities. The JSON retains **23 product-number examples**, including E877 speed-specific dn and Flow z bundles, generic E877 units, and E876/E825 examples. It is an example registry, not a complete regional SKU database. For example, the Workpath table labels X3A87A as E87640 du, while the device guide labels that product number E87640dn. Preserve both observations and confirm the physical device before normalizing the bundle. [NHP03] [NHP05]
 
 ### Licensed speed changes identification
 
@@ -194,7 +194,7 @@ This work produces the research inputs for those tests. It does not perform netw
 | Market prevalence | Customer inventories or reliable model-level fleet data; compatibility breadth alone cannot establish popularity |
 | Hardware detail | Complete current regional specs for every secondary candidate; this supplement prioritizes identity and management evidence |
 
-Source inconsistencies are preserved rather than silently turned into product facts: malformed model strings, conflicting storage revisions, inconsistent colour/mono labels, regional speeds and abbreviated firmware family rows all require corroboration. No guessed numeric range was expanded into model numbers.
+Source inconsistencies are preserved rather than silently turned into product facts: malformed model strings, conflicting storage revisions, inconsistent colour/mono labels, regional speeds and abbreviated firmware family rows all require corroboration. The initial two research documents were preserved. No guessed numeric range was expanded into model numbers.
 
 ## Expanded model inventory
 

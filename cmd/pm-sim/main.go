@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gosnmp/gosnmp"
@@ -22,6 +23,34 @@ import (
 	"printmarshal/internal/driver/snmp"
 	"printmarshal/internal/model"
 )
+
+// Extension hooks: feature simulators (configuration writes, firmware upload…)
+// live in their own files in this package and append to these from init().
+var (
+	// IPPHooks handle IPP operations other than Get-Printer-Attributes. The first
+	// hook that returns a non-nil response wins.
+	IPPHooks []func(req *ipp.Message, state *SimState) *ipp.Message
+	// HTTPHooks mount extra HTTP routes on the simulator's mux.
+	HTTPHooks []func(mux *http.ServeMux, state *SimState)
+	// SNMPSetHook handles SNMP SetRequest PDUs; it returns the response variables
+	// and an SNMP error status.
+	SNMPSetHook func(state *SimState, vars []gosnmp.SnmpPDU) ([]gosnmp.SnmpPDU, gosnmp.SNMPError)
+)
+
+// SimState is the mutable simulated device shared by all protocol front-ends.
+type SimState struct {
+	mu       sync.Mutex
+	Fixture  *snmp.Fixture
+	Firmware string
+	// Settings holds simulated writable settings keyed by canonical setting key.
+	Settings map[string]any
+	// Overrides are extra IPP printer attributes (e.g. after a Set-Printer-Attributes).
+	Overrides map[string]ipp.Attribute
+}
+
+// Lock/Unlock guard the state for hooks.
+func (st *SimState) Lock()   { st.mu.Lock() }
+func (st *SimState) Unlock() { st.mu.Unlock() }
 
 func main() {
 	fixture := flag.String("fixture", "testdata/fixtures/generic-laser.snmp", "SNMP fixture file")
@@ -37,15 +66,16 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
+	state := &SimState{Fixture: fx, Firmware: *firmware, Settings: map[string]any{}, Overrides: map[string]ipp.Attribute{}}
 
 	go func() {
-		if err := serveSNMP(ctx, *snmpAddr, *community, fx); err != nil {
+		if err := serveSNMP(ctx, *snmpAddr, *community, state); err != nil {
 			log.Fatalf("snmp agent: %v", err)
 		}
 	}()
 	if *ippAddr != "" {
 		go func() {
-			if err := serveIPP(ctx, *ippAddr, fx, *firmware); err != nil && err != http.ErrServerClosed {
+			if err := serveIPP(ctx, *ippAddr, state); err != nil && err != http.ErrServerClosed {
 				log.Fatalf("ipp server: %v", err)
 			}
 		}()
@@ -56,7 +86,8 @@ func main() {
 
 // --- SNMP agent ---------------------------------------------------------------
 
-func serveSNMP(ctx context.Context, addr, community string, fx *snmp.Fixture) error {
+func serveSNMP(ctx context.Context, addr, community string, state *SimState) error {
+	fx := state.Fixture
 	conn, err := net.ListenPacket("udp", addr)
 	if err != nil {
 		return err
@@ -113,6 +144,14 @@ func serveSNMP(ctx context.Context, addr, community string, fx *snmp.Fixture) er
 					}
 				}
 			}
+		case gosnmp.SetRequest:
+			if SNMPSetHook == nil {
+				resp.Error = gosnmp.NotWritable
+				resp.Variables = pkt.Variables
+			} else {
+				vars, serr := SNMPSetHook(state, pkt.Variables)
+				resp.Variables, resp.Error = vars, serr
+			}
 		default:
 			continue
 		}
@@ -157,10 +196,13 @@ func toVar(p snmp.PDU) gosnmp.SnmpPDU {
 
 // --- IPP server -------------------------------------------------------------
 
-func serveIPP(ctx context.Context, addr string, fx *snmp.Fixture, firmware string) error {
-	attrs := printerAttributes(ctx, fx, firmware)
-	srv := &http.Server{Addr: addr, ReadHeaderTimeout: 5 * time.Second}
-	srv.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func serveIPP(ctx context.Context, addr string, state *SimState) error {
+	mux := http.NewServeMux()
+	for _, h := range HTTPHooks {
+		h(mux, state)
+	}
+	srv := &http.Server{Addr: addr, ReadHeaderTimeout: 5 * time.Second, Handler: mux}
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || !strings.HasPrefix(r.Header.Get("Content-Type"), "application/ipp") {
 			http.Error(w, "IPP endpoint", http.StatusBadRequest)
 			return
@@ -176,12 +218,23 @@ func serveIPP(ctx context.Context, addr string, fx *snmp.Fixture, firmware strin
 			{Tag: ipp.TagCharset, Name: "attributes-charset", Values: []any{"utf-8"}},
 			{Tag: ipp.TagLanguage, Name: "attributes-natural-language", Values: []any{"en"}},
 		}}
-		if req.StatusCode != ipp.OpGetPrinterAttributes {
-			resp.StatusCode = 0x0501 // server-error-operation-not-supported
-			resp.Groups = []ipp.Group{ops}
-		} else {
+		switch {
+		case req.StatusCode == ipp.OpGetPrinterAttributes:
 			resp.StatusCode = 0x0000
-			resp.Groups = []ipp.Group{ops, {Tag: ipp.TagPrinter, Attributes: attrs}}
+			resp.Groups = []ipp.Group{ops, {Tag: ipp.TagPrinter, Attributes: currentAttributes(ctx, state)}}
+		default:
+			var handled *ipp.Message
+			for _, h := range IPPHooks {
+				if handled = h(req, state); handled != nil {
+					break
+				}
+			}
+			if handled != nil {
+				resp = handled
+			} else {
+				resp.StatusCode = 0x0501 // server-error-operation-not-supported
+				resp.Groups = []ipp.Group{ops}
+			}
 		}
 		out, _ := ipp.Encode(resp)
 		w.Header().Set("Content-Type", "application/ipp")
@@ -189,6 +242,32 @@ func serveIPP(ctx context.Context, addr string, fx *snmp.Fixture, firmware strin
 	})
 	go func() { <-ctx.Done(); _ = srv.Shutdown(context.Background()) }()
 	return srv.ListenAndServe()
+}
+
+// currentAttributes renders the fixture-derived attributes with any overrides applied.
+func currentAttributes(ctx context.Context, state *SimState) []ipp.Attribute {
+	state.Lock()
+	defer state.Unlock()
+	attrs := printerAttributes(ctx, state.Fixture, state.Firmware)
+	if len(state.Overrides) == 0 {
+		return attrs
+	}
+	out := attrs[:0:0]
+	seen := map[string]bool{}
+	for _, a := range attrs {
+		if o, ok := state.Overrides[a.Name]; ok {
+			out = append(out, o)
+			seen[a.Name] = true
+			continue
+		}
+		out = append(out, a)
+	}
+	for name, o := range state.Overrides {
+		if !seen[name] {
+			out = append(out, o)
+		}
+	}
+	return out
 }
 
 func printerAttributes(ctx context.Context, fx *snmp.Fixture, firmware string) []ipp.Attribute {

@@ -3,11 +3,12 @@ package store
 import (
 	"context"
 	"database/sql"
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -17,8 +18,8 @@ import (
 	"printmarshal/internal/secrets"
 )
 
-//go:embed schema.sql
-var schemaSQL string
+//go:embed schema.sql schema_*.sql
+var schemaFS embed.FS
 
 // SQLite implements Store on a single SQLite file (the single-container default, spec §5).
 type SQLite struct {
@@ -59,8 +60,23 @@ func OpenSQLite(path string, box *secrets.Box) (*SQLite, error) {
 }
 
 func (s *SQLite) migrate() error {
-	if _, err := s.db.Exec(schemaSQL); err != nil {
-		return fmt.Errorf("schema: %w", err)
+	entries, err := schemaFS.ReadDir(".")
+	if err != nil {
+		return err
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	sort.Strings(names) // schema.sql first, then schema_<area>.sql alphabetically
+	for _, name := range names {
+		b, err := schemaFS.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		if _, err := s.db.Exec(string(b)); err != nil {
+			return fmt.Errorf("schema %s: %w", name, err)
+		}
 	}
 	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (1, ?)`, now()); err != nil {
 		return err
@@ -68,7 +84,7 @@ func (s *SQLite) migrate() error {
 	if err := s.migrateLegacyStock(); err != nil {
 		return fmt.Errorf("migrate stock: %w", err)
 	}
-	_, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, ?)`, now())
+	_, err = s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, ?)`, now())
 	return err
 }
 

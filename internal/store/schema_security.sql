@@ -1,0 +1,1 @@
+-- security area tables (applied after schema.sql).
