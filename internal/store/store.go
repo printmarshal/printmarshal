@@ -122,6 +122,8 @@ type Store interface {
 	OutboxStore
 	CatalogStore
 	ReportStore
+	TokenStore
+	LogStore
 
 	Close() error
 

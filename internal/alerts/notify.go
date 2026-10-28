@@ -18,7 +18,6 @@ import (
 	"net"
 	"net/http"
 	"net/smtp"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -44,8 +43,9 @@ type Notifier struct {
 	// Timeout per delivery attempt (HTTP and SMTP).
 	Timeout time.Duration
 
-	mu   sync.Mutex
-	wake chan struct{}
+	mu     sync.Mutex
+	wake   chan struct{}
+	tokens *tokenSource
 }
 
 // NewNotifier builds a notifier from config. It validates that every
@@ -60,6 +60,7 @@ func NewNotifier(cfg []config.Notifier, st store.Store, log *slog.Logger) *Notif
 	}
 	return &Notifier{cfg: cfg, store: st, log: log,
 		http:        &http.Client{Timeout: 10 * time.Second},
+		tokens:      newTokenSource(&http.Client{Timeout: 10 * time.Second}),
 		MaxAttempts: 6, Backoff: 30 * time.Second, MaxBackoff: 30 * time.Minute, Timeout: 20 * time.Second,
 		wake: make(chan struct{}, 1)}
 }
@@ -309,7 +310,7 @@ func (n *Notifier) deliver(ctx context.Context, dest config.Notifier, event, sub
 	case "discord":
 		return n.post(ctx, dest.URL, map[string]any{"content": fmt.Sprintf("**%s**\n%s", subject, body)})
 	case "teams":
-		return n.post(ctx, dest.URL, map[string]any{"@type": "MessageCard", "title": subject, "text": body, "summary": subject})
+		return n.post(ctx, dest.URL, teamsPayload(dest, subject, body))
 	case "webhook", "":
 		return n.post(ctx, dest.URL, map[string]any{"event": event, "subject": subject, "body": body, "data": data, "at": time.Now().UTC()})
 	default:
@@ -376,8 +377,11 @@ func (n *Notifier) sendMail(ctx context.Context, dest config.Notifier, subject, 
 		}
 	}
 	if dest.Username != "" {
-		pw := os.Getenv(dest.PasswordEnv)
-		if err := c.Auth(smtp.PlainAuth("", dest.Username, pw, dest.Host)); err != nil {
+		a, err := n.smtpAuth(ctx, dest)
+		if err != nil {
+			return err
+		}
+		if err := c.Auth(a); err != nil {
 			return err
 		}
 	}

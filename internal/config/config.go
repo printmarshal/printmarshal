@@ -72,11 +72,79 @@ type Config struct {
 		AllowedOrigins []string `json:"allowedOrigins,omitempty"`
 		// LoginFailuresPerMinute per source IP before sign-in is rate limited (0 = default 10).
 		LoginFailuresPerMinute int `json:"loginFailuresPerMinute,omitempty"`
+		// OIDC enables single sign-on through an OpenID Connect provider
+		// (authorization-code flow with PKCE; docs/auth.md). Off while Issuer is empty.
+		OIDC OIDC `json:"oidc"`
 	} `json:"auth"`
 
 	Telemetry struct {
 		Retention Duration `json:"retention"` // samples older than this are down-sampled/pruned
 	} `json:"telemetry"`
+
+	// Export is the SIEM / log export and the printer syslog receiver (docs/export.md).
+	Export Export `json:"export"`
+}
+
+// Export configures the security-event export sinks and the printer syslog
+// receiver (audit A12). Every sink is optional; an empty address disables it.
+type Export struct {
+	// Buffer is the number of events queued for the export worker before
+	// new ones are dropped (and counted) so the event bus never blocks.
+	Buffer int `json:"buffer,omitempty"`
+
+	Syslog struct {
+		// Address is udp://host:514, tcp://host:6514 or tls://host:6514.
+		Address string `json:"address"`
+		// Format is "syslog" (RFC 5424 with structured data), "cef" or "json".
+		Format string `json:"format"`
+		// Facility is the syslog facility number (default 16 = local0).
+		Facility int `json:"facility,omitempty"`
+		// TLSInsecure skips server certificate verification for tls://.
+		TLSInsecure bool `json:"tlsInsecure,omitempty"`
+		// CAFile is a PEM bundle that verifies the tls:// server.
+		CAFile string `json:"caFile,omitempty"`
+	} `json:"syslog"`
+
+	File struct {
+		Path      string `json:"path"`                // JSON lines, appended
+		MaxSizeMB int    `json:"maxSizeMb,omitempty"` // rotate above this size (default 50)
+		Keep      int    `json:"keep,omitempty"`      // rotated files to keep (default 5)
+	} `json:"file"`
+
+	HTTP struct {
+		URL           string   `json:"url"`                     // POST target for JSON-lines batches
+		TokenEnv      string   `json:"tokenEnv,omitempty"`      // env var holding a bearer token
+		BatchSize     int      `json:"batchSize,omitempty"`     // events per POST (default 100)
+		FlushInterval Duration `json:"flushInterval,omitempty"` // send a partial batch after this (default 5s)
+		Timeout       Duration `json:"timeout,omitempty"`       // per attempt (default 10s)
+	} `json:"http"`
+
+	// IngestListen is the UDP address the printer syslog receiver binds
+	// (e.g. "0.0.0.0:1514"); empty = off.
+	IngestListen string `json:"ingestListen"`
+	// IngestRetention prunes device log lines older than this (default 30 days).
+	IngestRetention Duration `json:"ingestRetention,omitempty"`
+	// IngestRatePerMinute caps lines handled per source address (default 120).
+	IngestRatePerMinute int `json:"ingestRatePerMinute,omitempty"`
+}
+
+// OIDC configures the optional OpenID Connect sign-in (docs/auth.md).
+type OIDC struct {
+	Issuer          string `json:"issuer"` // e.g. https://login.microsoftonline.com/<tenant>/v2.0
+	ClientID        string `json:"clientId"`
+	ClientSecretEnv string `json:"clientSecretEnv,omitempty"` // env var holding the client secret (never the secret itself)
+	RedirectURL     string `json:"redirectUrl"`               // https://<printmarshal>/api/auth/oidc/callback
+	DisplayName     string `json:"displayName,omitempty"`     // login button label; defaults to the issuer host
+	// Scopes requested besides "openid" (default: profile, email).
+	Scopes []string `json:"scopes,omitempty"`
+	// RoleClaim names the ID-token claim (dot path allowed, e.g. "realm_access.roles")
+	// whose values are looked up in RoleMap; the highest mapped role wins.
+	RoleClaim string            `json:"roleClaim,omitempty"`
+	RoleMap   map[string]string `json:"roleMap,omitempty"` // claim value -> viewer | operator | admin
+	// DefaultRole is used when no RoleMap entry matches (default viewer).
+	DefaultRole string `json:"defaultRole,omitempty"`
+	// AllowedDomains restricts sign-in to these email domains (empty = any).
+	AllowedDomains []string `json:"allowedDomains,omitempty"`
 }
 
 // Notifier is one webhook or SMTP destination (spec §8.3).
@@ -93,6 +161,19 @@ type Notifier struct {
 	Username    string   `json:"username,omitempty"`
 	PasswordEnv string   `json:"passwordEnv,omitempty"` // name of env var holding the SMTP password
 	StartTLS    bool     `json:"startTls,omitempty"`
+	// AuthMethod selects the SASL mechanism: "plain" (default), "login" (Exchange/
+	// older relays) or "xoauth2" (Microsoft 365, Google Workspace). For xoauth2
+	// the bearer token comes from TokenEnv, or is fetched with the OAuth 2.0
+	// client-credentials grant when TokenURL is set.
+	AuthMethod      string `json:"authMethod,omitempty"`
+	TokenEnv        string `json:"tokenEnv,omitempty"` // env var holding a ready bearer token
+	TokenURL        string `json:"tokenUrl,omitempty"` // e.g. https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token
+	ClientID        string `json:"clientId,omitempty"`
+	ClientSecretEnv string `json:"clientSecretEnv,omitempty"` // env var holding the OAuth client secret
+	Scope           string `json:"scope,omitempty"`           // e.g. https://outlook.office365.com/.default
+	// Legacy switches the Teams payload back to the retired Office 365 connector
+	// MessageCard format; the default is an Adaptive Card for Workflows webhooks.
+	Legacy bool `json:"legacy,omitempty"`
 }
 
 // Duration marshals as a Go duration string.
@@ -144,6 +225,16 @@ func Default() *Config {
 	c.Jobs.Workers = 4
 	c.Auth.SessionTTL = Duration(30 * 24 * time.Hour)
 	c.Telemetry.Retention = Duration(90 * 24 * time.Hour)
+	c.Export.Buffer = 4096
+	c.Export.Syslog.Format = "syslog"
+	c.Export.Syslog.Facility = 16
+	c.Export.File.MaxSizeMB = 50
+	c.Export.File.Keep = 5
+	c.Export.HTTP.BatchSize = 100
+	c.Export.HTTP.FlushInterval = Duration(5 * time.Second)
+	c.Export.HTTP.Timeout = Duration(10 * time.Second)
+	c.Export.IngestRetention = Duration(30 * 24 * time.Hour)
+	c.Export.IngestRatePerMinute = 120
 	return c
 }
 
@@ -202,6 +293,26 @@ func Load(path string) (*Config, error) {
 	envStr("PM_TRAP_LISTEN", &c.Trap.Listen)
 	envInt("PM_JOB_WORKERS", &c.Jobs.Workers)
 	envBool("PM_SECURE_COOKIES", &c.Auth.SecureCookies)
+	envStr("PM_OIDC_ISSUER", &c.Auth.OIDC.Issuer)
+	envStr("PM_OIDC_CLIENT_ID", &c.Auth.OIDC.ClientID)
+	envStr("PM_OIDC_CLIENT_SECRET_ENV", &c.Auth.OIDC.ClientSecretEnv)
+	envStr("PM_OIDC_REDIRECT_URL", &c.Auth.OIDC.RedirectURL)
+	envStr("PM_EXPORT_SYSLOG", &c.Export.Syslog.Address)
+	envStr("PM_EXPORT_SYSLOG_FORMAT", &c.Export.Syslog.Format)
+	envInt("PM_EXPORT_SYSLOG_FACILITY", &c.Export.Syslog.Facility)
+	envBool("PM_EXPORT_SYSLOG_TLS_INSECURE", &c.Export.Syslog.TLSInsecure)
+	envStr("PM_EXPORT_SYSLOG_CA_FILE", &c.Export.Syslog.CAFile)
+	envStr("PM_EXPORT_FILE", &c.Export.File.Path)
+	envInt("PM_EXPORT_FILE_MAX_MB", &c.Export.File.MaxSizeMB)
+	envInt("PM_EXPORT_FILE_KEEP", &c.Export.File.Keep)
+	envStr("PM_EXPORT_HTTP", &c.Export.HTTP.URL)
+	envStr("PM_EXPORT_HTTP_TOKEN_ENV", &c.Export.HTTP.TokenEnv)
+	envInt("PM_EXPORT_HTTP_BATCH", &c.Export.HTTP.BatchSize)
+	envDur("PM_EXPORT_HTTP_FLUSH", &c.Export.HTTP.FlushInterval)
+	envInt("PM_EXPORT_BUFFER", &c.Export.Buffer)
+	envStr("PM_EXPORT_INGEST_LISTEN", &c.Export.IngestListen)
+	envDur("PM_EXPORT_INGEST_RETENTION", &c.Export.IngestRetention)
+	envInt("PM_EXPORT_INGEST_RATE", &c.Export.IngestRatePerMinute)
 	if c.DSN == "" {
 		c.DSN = c.DataDir + "/printmarshal.db"
 	}

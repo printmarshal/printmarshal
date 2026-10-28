@@ -68,6 +68,8 @@ var Catalog = []Def{
 	{Type: "auth.denied", Description: "An authenticated request was refused by authorization", Security: true},
 	{Type: "auth.logout", Description: "A session ended", Security: true},
 	{Type: "auth.session.revoked", Description: "Sessions were revoked", Security: true},
+	{Type: "auth.token.created", Description: "An API token (service account) was created", Security: true},
+	{Type: "auth.token.revoked", Description: "An API token was revoked", Security: true},
 	{Type: "audit.recorded", Description: "An audit entry was written", Security: true},
 	{Type: "settings.updated", Description: "Runtime settings changed", Notifiable: true, Security: true},
 	{Type: "notification.test", Description: "An operator sent a test notification", Notifiable: true},

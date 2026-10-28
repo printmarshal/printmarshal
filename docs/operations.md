@@ -335,6 +335,19 @@ example file: [`deploy/printmarshal.example.json`](../deploy/printmarshal.exampl
 | `auth.secureCookies` | `PM_SECURE_COOKIES` | `false` | Mark the session cookie `Secure`; **set `true` behind TLS** |
 | `telemetry.retention` | — | `2160h` (90 d) | Telemetry samples older than this are pruned by the scheduler |
 
+### Exports and SIEM (`export`)
+
+| JSON | Env | Default | Meaning |
+| --- | --- | --- | --- |
+| `export.syslog.address` | `PM_EXPORT_SYSLOG` | off | `udp://`, `tcp://` or `tls://host:port` collector for security events |
+| `export.syslog.format` | `PM_EXPORT_SYSLOG_FORMAT` | `syslog` | `syslog` (RFC 5424 + structured data), `cef` or `json` |
+| `export.file.path` | `PM_EXPORT_FILE` | off | JSON-lines file with size rotation (`PM_EXPORT_FILE_MAX_MB`, `PM_EXPORT_FILE_KEEP`) |
+| `export.http.url` | `PM_EXPORT_HTTP` | off | HTTP collector for JSON-lines batches; bearer token from the variable named by `PM_EXPORT_HTTP_TOKEN_ENV` |
+| `export.ingestListen` | `PM_EXPORT_INGEST_LISTEN` | off | UDP syslog receiver for printer logs, e.g. `0.0.0.0:1514` |
+| `export.ingestRetention` | `PM_EXPORT_INGEST_RETENTION` | `720h` | Device log retention |
+
+Every field, the formats, the CEF mapping and the sync API are in [export.md](export.md).
+
 ### Notifiers (`notifiers[]`, file only)
 
 | Field | Applies to | Meaning |

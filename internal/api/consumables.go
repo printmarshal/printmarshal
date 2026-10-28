@@ -126,7 +126,7 @@ func (s *Server) afterStockChange(ctx context.Context, id string, relink bool) {
 		}
 	}
 	s.Fleet.ReconcileConsumables(ctx)
-	s.Hub.Publish(model.Event{Type: "consumable.updated", Data: map[string]any{"id": id}})
+	s.publish(nil, model.Event{Type: "consumable.updated", Data: map[string]any{"id": id}})
 }
 
 func (s *Server) createConsumable(w http.ResponseWriter, r *http.Request) {
@@ -483,7 +483,7 @@ func (s *Server) dismissReplacement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r.Context(), r, "consumable.replacement.dismiss", ev.ConsumableID, nil, map[string]any{"event": id, "device": ev.DeviceID}, "ok")
-	s.Hub.Publish(model.Event{Type: "consumable.updated", Data: map[string]any{"id": ev.ConsumableID}})
+	s.publish(r, model.Event{Type: "consumable.updated", Data: map[string]any{"id": ev.ConsumableID}})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -575,7 +575,7 @@ func (s *Server) linkSupply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r.Context(), r, "consumable.link", d.ID, nil, map[string]any{"supply": sp.Description, "slot": idx, "consumableId": body.ConsumableID}, "ok")
-	s.Hub.Publish(model.Event{Type: "consumable.updated", Data: map[string]any{"id": body.ConsumableID, "deviceId": d.ID}})
+	s.publish(r, model.Event{Type: "consumable.updated", Data: map[string]any{"id": body.ConsumableID, "deviceId": d.ID}})
 	writeJSON(w, http.StatusOK, l)
 }
 
@@ -591,7 +591,7 @@ func (s *Server) unlinkSupply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r.Context(), r, "consumable.unlink", id, map[string]any{"slot": idx}, nil, "ok")
-	s.Hub.Publish(model.Event{Type: "consumable.updated", Data: map[string]any{"deviceId": id}})
+	s.publish(r, model.Event{Type: "consumable.updated", Data: map[string]any{"deviceId": id}})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
