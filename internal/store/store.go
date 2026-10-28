@@ -123,6 +123,7 @@ type Store interface {
 	CatalogStore
 	ReportStore
 	TokenStore
+	LogStore
 
 	Close() error
 

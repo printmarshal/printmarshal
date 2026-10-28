@@ -80,6 +80,52 @@ type Config struct {
 	Telemetry struct {
 		Retention Duration `json:"retention"` // samples older than this are down-sampled/pruned
 	} `json:"telemetry"`
+
+	// Export is the SIEM / log export and the printer syslog receiver (docs/export.md).
+	Export Export `json:"export"`
+}
+
+// Export configures the security-event export sinks and the printer syslog
+// receiver (audit A12). Every sink is optional; an empty address disables it.
+type Export struct {
+	// Buffer is the number of events queued for the export worker before
+	// new ones are dropped (and counted) so the event bus never blocks.
+	Buffer int `json:"buffer,omitempty"`
+
+	Syslog struct {
+		// Address is udp://host:514, tcp://host:6514 or tls://host:6514.
+		Address string `json:"address"`
+		// Format is "syslog" (RFC 5424 with structured data), "cef" or "json".
+		Format string `json:"format"`
+		// Facility is the syslog facility number (default 16 = local0).
+		Facility int `json:"facility,omitempty"`
+		// TLSInsecure skips server certificate verification for tls://.
+		TLSInsecure bool `json:"tlsInsecure,omitempty"`
+		// CAFile is a PEM bundle that verifies the tls:// server.
+		CAFile string `json:"caFile,omitempty"`
+	} `json:"syslog"`
+
+	File struct {
+		Path      string `json:"path"`                // JSON lines, appended
+		MaxSizeMB int    `json:"maxSizeMb,omitempty"` // rotate above this size (default 50)
+		Keep      int    `json:"keep,omitempty"`      // rotated files to keep (default 5)
+	} `json:"file"`
+
+	HTTP struct {
+		URL           string   `json:"url"`                     // POST target for JSON-lines batches
+		TokenEnv      string   `json:"tokenEnv,omitempty"`      // env var holding a bearer token
+		BatchSize     int      `json:"batchSize,omitempty"`     // events per POST (default 100)
+		FlushInterval Duration `json:"flushInterval,omitempty"` // send a partial batch after this (default 5s)
+		Timeout       Duration `json:"timeout,omitempty"`       // per attempt (default 10s)
+	} `json:"http"`
+
+	// IngestListen is the UDP address the printer syslog receiver binds
+	// (e.g. "0.0.0.0:1514"); empty = off.
+	IngestListen string `json:"ingestListen"`
+	// IngestRetention prunes device log lines older than this (default 30 days).
+	IngestRetention Duration `json:"ingestRetention,omitempty"`
+	// IngestRatePerMinute caps lines handled per source address (default 120).
+	IngestRatePerMinute int `json:"ingestRatePerMinute,omitempty"`
 }
 
 // OIDC configures the optional OpenID Connect sign-in (docs/auth.md).
@@ -179,6 +225,16 @@ func Default() *Config {
 	c.Jobs.Workers = 4
 	c.Auth.SessionTTL = Duration(30 * 24 * time.Hour)
 	c.Telemetry.Retention = Duration(90 * 24 * time.Hour)
+	c.Export.Buffer = 4096
+	c.Export.Syslog.Format = "syslog"
+	c.Export.Syslog.Facility = 16
+	c.Export.File.MaxSizeMB = 50
+	c.Export.File.Keep = 5
+	c.Export.HTTP.BatchSize = 100
+	c.Export.HTTP.FlushInterval = Duration(5 * time.Second)
+	c.Export.HTTP.Timeout = Duration(10 * time.Second)
+	c.Export.IngestRetention = Duration(30 * 24 * time.Hour)
+	c.Export.IngestRatePerMinute = 120
 	return c
 }
 
@@ -241,6 +297,22 @@ func Load(path string) (*Config, error) {
 	envStr("PM_OIDC_CLIENT_ID", &c.Auth.OIDC.ClientID)
 	envStr("PM_OIDC_CLIENT_SECRET_ENV", &c.Auth.OIDC.ClientSecretEnv)
 	envStr("PM_OIDC_REDIRECT_URL", &c.Auth.OIDC.RedirectURL)
+	envStr("PM_EXPORT_SYSLOG", &c.Export.Syslog.Address)
+	envStr("PM_EXPORT_SYSLOG_FORMAT", &c.Export.Syslog.Format)
+	envInt("PM_EXPORT_SYSLOG_FACILITY", &c.Export.Syslog.Facility)
+	envBool("PM_EXPORT_SYSLOG_TLS_INSECURE", &c.Export.Syslog.TLSInsecure)
+	envStr("PM_EXPORT_SYSLOG_CA_FILE", &c.Export.Syslog.CAFile)
+	envStr("PM_EXPORT_FILE", &c.Export.File.Path)
+	envInt("PM_EXPORT_FILE_MAX_MB", &c.Export.File.MaxSizeMB)
+	envInt("PM_EXPORT_FILE_KEEP", &c.Export.File.Keep)
+	envStr("PM_EXPORT_HTTP", &c.Export.HTTP.URL)
+	envStr("PM_EXPORT_HTTP_TOKEN_ENV", &c.Export.HTTP.TokenEnv)
+	envInt("PM_EXPORT_HTTP_BATCH", &c.Export.HTTP.BatchSize)
+	envDur("PM_EXPORT_HTTP_FLUSH", &c.Export.HTTP.FlushInterval)
+	envInt("PM_EXPORT_BUFFER", &c.Export.Buffer)
+	envStr("PM_EXPORT_INGEST_LISTEN", &c.Export.IngestListen)
+	envDur("PM_EXPORT_INGEST_RETENTION", &c.Export.IngestRetention)
+	envInt("PM_EXPORT_INGEST_RATE", &c.Export.IngestRatePerMinute)
 	if c.DSN == "" {
 		c.DSN = c.DataDir + "/printmarshal.db"
 	}

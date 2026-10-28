@@ -123,7 +123,8 @@ func (s *Server) Handler() http.Handler {
 	s.printProviderRoutes(mux)
 	s.eventRoutes(mux)
 	s.reportRoutes(mux)
-	s.tokenRoutes(mux) // API tokens and OIDC sign-in (tokens.go, oidc.go)
+	s.tokenRoutes(mux)  // API tokens and OIDC sign-in (tokens.go, oidc.go)
+	s.exportRoutes(mux) // SIEM export status, device logs, incremental sync (docs/export.md)
 
 	// Users, audit, notifications, settings
 	mux.Handle("GET /api/users", s.require(model.RoleAdmin, s.listUsers))
@@ -472,7 +473,7 @@ func (s *Server) patchDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r.Context(), r, "device.patch", id, operatorFields(before), operatorFields(d), "ok")
-	s.Hub.Publish(model.Event{Type: "device.updated", Data: d})
+	s.publish(r, model.Event{Type: "device.updated", Data: d})
 	writeJSON(w, http.StatusOK, d)
 }
 
@@ -491,8 +492,9 @@ func (s *Server) deleteDevice(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	s.tombstone(r.Context(), "devices", id) // sync clients learn about the deletion (docs/export.md)
 	s.audit(r.Context(), r, "device.delete", id, map[string]any{"address": before.Address, "model": before.Model, "serial": before.Serial}, nil, "ok")
-	s.Hub.Publish(model.Event{Type: "device.deleted", Data: map[string]any{"id": id}})
+	s.publish(r, model.Event{Type: "device.deleted", Data: map[string]any{"id": id}})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -520,7 +522,7 @@ func (s *Server) setDeviceState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r.Context(), r, "device.state", id, map[string]any{"state": before.State}, map[string]any{"state": d.State}, "ok")
-	s.Hub.Publish(model.Event{Type: "device.updated", Data: d})
+	s.publish(r, model.Event{Type: "device.updated", Data: d})
 	writeJSON(w, http.StatusOK, d)
 }
 
@@ -869,7 +871,7 @@ func (s *Server) ackAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r.Context(), r, "alert.ack", a.ID, nil, map[string]any{"device": a.DeviceID, "key": a.Key}, "ok")
-	s.Hub.Publish(model.Event{Type: "alert.acked", Data: a})
+	s.publish(r, model.Event{Type: "alert.acked", Data: a})
 	writeJSON(w, http.StatusOK, a)
 }
 
@@ -880,7 +882,7 @@ func (s *Server) clearAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r.Context(), r, "alert.clear", a.ID, nil, map[string]any{"device": a.DeviceID, "key": a.Key}, "ok")
-	s.Hub.Publish(model.Event{Type: "alert.cleared", Data: a})
+	s.publish(r, model.Event{Type: "alert.cleared", Data: a})
 	writeJSON(w, http.StatusOK, a)
 }
 

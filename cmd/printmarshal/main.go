@@ -36,6 +36,7 @@ import (
 	"printmarshal/internal/printprovider"
 	"printmarshal/internal/secrets"
 	"printmarshal/internal/security"
+	"printmarshal/internal/siem"
 	"printmarshal/internal/store"
 	"printmarshal/internal/trap"
 	"printmarshal/internal/web"
@@ -143,6 +144,10 @@ func run(cfgPath string) error {
 	notifier := alerts.NewNotifier(cfg.Notifiers, st, log)
 	notifier.Attach(bus)
 	go notifier.Run(ctx)
+	exporter := siem.New(cfg.Export, st, log, version) // SIEM/log export sinks + printer syslog receiver (docs/export.md)
+	exporter.Attach(bus)
+	go exporter.Run(ctx)
+	api.SetExport(exporter)
 	runner := jobs.New(st, log, cfg.Jobs.Workers, bus.Publish)
 	defer runner.Stop()
 

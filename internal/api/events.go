@@ -84,3 +84,19 @@ func (s *Server) testNotifier(w http.ResponseWriter, r *http.Request) {
 	s.audit(r.Context(), r, "notifier.test", name, nil, nil, "ok")
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
+
+// publish sends an API-originated event through the bus (so notifiers and
+// exporters see it too), falling back to the hub alone in tests without a bus.
+func (s *Server) publish(r *http.Request, e model.Event) {
+	if s.Bus != nil {
+		origin := events.System
+		if r != nil {
+			origin = events.Origin{Source: "operator", Actor: actor(r), IP: clientIP(r)}
+		}
+		s.Bus.PublishFrom(e, origin)
+		return
+	}
+	if s.Hub != nil {
+		s.Hub.Publish(e)
+	}
+}
