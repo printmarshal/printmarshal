@@ -2,6 +2,8 @@
   "listen": ":8080",
   "dataDir": "/data",
   "database": "sqlite",
+  "dsn": "/data/printmarshal.db",
+  "_dsn_note": "database: sqlite -> dsn is the file path (default <dataDir>/printmarshal.db); database: postgres -> dsn is e.g. postgres://printmarshal:PASSWORD@db:5432/printmarshal?sslmode=verify-full&pool_max_conns=16 (prefer PM_DSN from a secret over putting the password here)",
   "poll": { "interval": "5m", "concurrency": 32, "snmpTimeout": "2s", "snmpRetries": 1, "ippTimeout": "4s", "ippInsecureTls": true },
   "discovery": {
     "enabled": false,

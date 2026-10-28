@@ -68,10 +68,14 @@ CREATE TABLE IF NOT EXISTS credentials (
   scope TEXT NOT NULL DEFAULT '',
   username TEXT NOT NULL DEFAULT '',
   priority BIGINT NOT NULL DEFAULT 0,
+  purpose TEXT NOT NULL DEFAULT 'read',
   secret BYTEA NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
+
+-- Migration 3 (audit A19) for databases created before the purpose column existed.
+ALTER TABLE credentials ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'read';
 
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,

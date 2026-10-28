@@ -11,8 +11,7 @@ import (
 // Audit A19: ResolveCreds hands out read-capable credentials only,
 // ResolveWriteCreds write-capable ones only, and a device with nothing
 // write-capable in scope gets ErrNoWriteCredential, never a read credential.
-func TestCredentialPurposeResolution(t *testing.T) {
-	s := openTest(t)
+func testCredentialPurposeResolution(t *testing.T, s testStore) {
 	ctx := context.Background()
 	mk := func(name, scope string, purpose model.CredentialPurpose, prio int, community string) *model.Credential {
 		t.Helper()
@@ -105,7 +104,7 @@ func TestCredentialPurposeResolution(t *testing.T) {
 // The purpose column is added by a guarded ALTER TABLE; a row written without
 // it (a pre-migration database) reads back as a read credential.
 func TestCredentialPurposeMigrationDefault(t *testing.T) {
-	s := openTest(t)
+	s := openSQLiteTest(t).(*SQLite)
 	ctx := context.Background()
 	enc, err := s.box.Seal([]byte(`{"community":"oldComm"}`))
 	if err != nil {

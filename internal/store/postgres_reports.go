@@ -16,6 +16,20 @@ import (
 
 const pgDay = `to_char(at AT TIME ZONE 'UTC','YYYY-MM-DD')`
 
+// deviceClausePG is deviceClause with a boolean "match nothing" predicate
+// (PostgreSQL does not accept SQLite's bare 0 in a WHERE conjunction).
+func deviceClausePG(col string, ids []string, where *[]string, args *[]any) {
+	if ids == nil {
+		return
+	}
+	if len(ids) == 0 {
+		*where = append(*where, "FALSE")
+		return
+	}
+	*where = append(*where, col+" IN ("+placeholders(len(ids))+")")
+	*args = append(*args, toAny(ids)...)
+}
+
 func rangeWherePG(col string, r ReportRange, metric string) ([]string, []any) {
 	where := []string{col + ">=?", col + "<?"}
 	args := []any{pgt(r.From), pgt(r.To)}
@@ -23,7 +37,7 @@ func rangeWherePG(col string, r ReportRange, metric string) ([]string, []any) {
 		where = append([]string{"metric=?"}, where...)
 		args = append([]any{metric}, args...)
 	}
-	deviceClause("device_id", r.DeviceIDs, &where, &args)
+	deviceClausePG("device_id", r.DeviceIDs, &where, &args)
 	return where, args
 }
 
@@ -103,7 +117,7 @@ func (s *Postgres) DailyTelemetry(ctx context.Context, metric string, r ReportRa
 func (s *Postgres) LastBefore(ctx context.Context, metric string, before time.Time, deviceIDs []string) ([]LabelValue, error) {
 	where := []string{"metric=?", "at<?"}
 	args := []any{metric, pgt(before)}
-	deviceClause("device_id", deviceIDs, &where, &args)
+	deviceClausePG("device_id", deviceIDs, &where, &args)
 	rows, err := pgQuery(ctx, s.db, `SELECT DISTINCT ON (device_id,label) device_id,label,value,at FROM telemetry WHERE `+strings.Join(where, " AND ")+` ORDER BY device_id,label,at DESC`, args...)
 	if err != nil {
 		return nil, err

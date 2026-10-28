@@ -93,9 +93,10 @@ func (s *Postgres) migrate(ctx context.Context) error {
 		}
 	}
 	// Versions match the SQLite numbering: 1 = initial schema, 2 = the legacy
-	// stock migration, which has nothing to do on a database that never had
-	// the phase-2 table but is recorded so later migrations number the same.
-	for _, v := range []int{1, 2} {
+	// stock migration (nothing to do on a database that never had the phase-2
+	// table), 3 = credentials.purpose (the ALTER ... IF NOT EXISTS above).
+	// They are recorded so later migrations number the same on both backends.
+	for _, v := range []int{1, 2, 3} {
 		if _, err := conn.ExecContext(ctx, `INSERT INTO schema_migrations(version, applied_at) VALUES ($1, $2) ON CONFLICT DO NOTHING`, v, nowUTC()); err != nil {
 			return err
 		}

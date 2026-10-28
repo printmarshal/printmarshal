@@ -183,6 +183,7 @@ and/or environment variables:
 | --- | --- | --- |
 | `PM_LISTEN` | HTTP listen address | `:8080` |
 | `PM_DATA_DIR` | SQLite database and encryption key | `./data` |
+| `PM_DATABASE` / `PM_DSN` | `sqlite` (file in the data dir) or `postgres` with a `postgres://…` DSN — see [operations guide](docs/operations.md#postgresql) | `sqlite` |
 | `PM_ADMIN_PASSWORD` | Initial admin password (first start only) | generated |
 | `PM_SECRET_KEY` | Base64 32-byte key for credentials at rest | generated into `data/secret.key` |
 | `PM_POLL_INTERVAL` | Scheduled poll cadence | `5m` |
@@ -212,7 +213,7 @@ cmd/printmarshal      server entry point          cmd/pm-sim        SNMP+IPP pri
 internal/engine       capability model, driver registry, identify/poll
 internal/driver/snmp  SNMP driver (RFC 3418/2863/2790/3805)   internal/driver/ipp  IPP driver (RFC 8010/8011, PWG 5100.13)
 internal/discovery    mDNS, WS-Discovery, active scan          internal/fleet       orchestration: discovery runs, polls, alerts
-internal/store        Store interface + SQLite                  internal/jobs        worker pool, resumable jobs
+internal/store        Store interface + SQLite / PostgreSQL     internal/jobs        worker pool, resumable jobs
 internal/alerts       rules + durable notifier                  internal/trap        SNMP trap listener
 internal/events       event catalogue, envelope and bus         internal/catalog     device model catalogue
 internal/configmgmt   configuration (phases 3–4)                internal/security    policies, remediation, PKI (phase 5)

@@ -96,8 +96,10 @@ func run(cfgPath string) error {
 	switch cfg.Database {
 	case "", "sqlite":
 		st, err = store.OpenSQLite(cfg.DSN, box)
+	case "postgres":
+		st, err = store.OpenPostgres(context.Background(), cfg.DSN, box)
 	default:
-		err = fmt.Errorf("datastore %q is not implemented yet (sqlite is the default)", cfg.Database)
+		err = fmt.Errorf("unknown datastore %q (sqlite or postgres)", cfg.Database)
 	}
 	if err != nil {
 		return err

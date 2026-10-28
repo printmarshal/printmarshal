@@ -16,8 +16,8 @@ import (
 type Config struct {
 	Listen   string `json:"listen"`   // HTTP listen address
 	DataDir  string `json:"dataDir"`  // SQLite DB, key file
-	Database string `json:"database"` // "sqlite" (default) | "postgres" (reserved)
-	DSN      string `json:"dsn"`      // datastore DSN; defaults to <dataDir>/printmarshal.db
+	Database string `json:"database"` // "sqlite" (default) | "postgres"
+	DSN      string `json:"dsn"`      // SQLite file path (defaults to <dataDir>/printmarshal.db) or a postgres:// URL
 
 	Poll struct {
 		SNMPPort       int      `json:"snmpPort"`     // 161; override for simulators

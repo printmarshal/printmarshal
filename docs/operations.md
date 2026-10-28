@@ -289,8 +289,55 @@ example file: [`deploy/printmarshal.example.json`](../deploy/printmarshal.exampl
 | --- | --- | --- | --- |
 | `listen` | `PM_LISTEN` | `:8080` | HTTP listen address for UI and API |
 | `dataDir` | `PM_DATA_DIR` | `./data` | Directory for the database, `secret.key` and `firmware/` |
-| `database` | `PM_DATABASE` | `sqlite` | Datastore; only `sqlite` is implemented (`postgres` reserved, refused at start) |
-| `dsn` | `PM_DSN` | `<dataDir>/printmarshal.db` | SQLite file path |
+| `database` | `PM_DATABASE` | `sqlite` | Datastore: `sqlite` (single file in the data directory) or `postgres` (see [PostgreSQL](#postgresql)) |
+| `dsn` | `PM_DSN` | `<dataDir>/printmarshal.db` | SQLite file path, or the PostgreSQL connection URL when `database` is `postgres` |
+
+### PostgreSQL
+
+`database: postgres` keeps every feature of the SQLite mode but stores the state in a
+PostgreSQL server (14 or newer; tested against 16), which is the scale-out option of
+the spec (§5): several hundred thousand telemetry rows a day, a database the DBAs
+already back up, and a server that is not tied to one node's disk. The data directory
+is still needed for `secret.key` (unless `PM_SECRET_KEY` is set), the generated
+admin password and uploaded firmware images.
+
+```bash
+createdb printmarshal                                  # or let the DBA hand you an empty database
+PM_DATABASE=postgres \
+PM_DSN='postgres://printmarshal:secret@db.example.internal:5432/printmarshal?sslmode=verify-full&pool_max_conns=16' \
+PM_ADMIN_PASSWORD=change-me ./bin/printmarshal
+```
+
+- **DSN.** A `postgres://user:password@host:port/dbname?…` URL or a libpq-style
+  `host=… dbname=…` string (anything [pgx](https://github.com/jackc/pgx) accepts;
+  `PGHOST`/`PGPASSWORD`/`PGSSLMODE` and `~/.pgpass` are honoured). Keep the password
+  out of the JSON file: put the DSN in `PM_DSN` from the platform's secret store.
+- **TLS.** `sslmode=verify-full` with `sslrootcert=/path/ca.pem` in production;
+  `require` encrypts without verifying the server; `disable` only on a loopback
+  socket or a private network you trust.
+- **Pooling.** The server opens a connection pool per process: `pool_max_conns`
+  (default 4, use 8–16 for the larger tiers in [Sizing](#sizing)), `pool_min_conns`,
+  `pool_max_conn_lifetime`, `pool_max_conn_idle_time` in the DSN. One pool per
+  PrintMarshal process, so size the server's `max_connections` for
+  `instances × pool_max_conns` plus your other clients. The connection parameters are
+  also where `search_path=` or `application_name=` go.
+- **Privileges.** The role needs `CREATE` on the database's schema (it creates its
+  tables on first start) and ordinary DML afterwards; no superuser.
+- **Migrations** run automatically at start under an advisory lock, so two instances
+  starting at once do not race; `schema_migrations` records the versions, which are
+  numbered the same as the SQLite ones. Columns have native types (`TIMESTAMPTZ`,
+  `BOOLEAN`, `JSONB`, `BYTEA`), one table per SQLite table.
+- **Backup.** Use the database's own tooling instead of `pm-backup`:
+  `pg_dump -Fc -d "$PM_DSN" -f printmarshal-$(date -u +%Y%m%dT%H%M%SZ).dump` (consistent
+  while the server runs) plus `secret.key` / `PM_SECRET_KEY` and `firmware/`. Restore
+  with `pg_restore -d <empty database> file.dump`, then start the server with the same
+  secret key. Point-in-time recovery, replication and HA are the database's job.
+- **Moving from SQLite** is not automated yet: start a fresh PostgreSQL instance,
+  recreate users, credentials and groups, and run a discovery; telemetry history stays
+  in the old file.
+- **Multiple instances** against one database are safe for the API and the UI, but
+  the scheduler, trap listener and job runner still assume a single process: run one
+  active instance, use the database for durability and a quick restart elsewhere.
 
 ### Polling (`poll`)
 
@@ -430,7 +477,9 @@ users, HTTP logins). It is loaded in this order: `PM_SECRET_KEY` (base64 of 32 b
 ## Backups and restore
 
 What to back up: `printmarshal.db` (consistently), `secret.key` **or** the
-`PM_SECRET_KEY` secret, `firmware/`, and your JSON config. The database is in WAL mode
+`PM_SECRET_KEY` secret, `firmware/`, and your JSON config. (With
+`database: postgres` the database part is a `pg_dump`, see [PostgreSQL](#postgresql);
+the rest of this section still applies to the data directory.) The database is in WAL mode
 and the server keeps one connection open, so copying the file while it runs is unsafe;
 use the SQLite online-backup API.
 
@@ -682,9 +731,11 @@ Guidance:
   timeout. Scan at most the subnets printers live in.
 - Faster than `interval 1m` rarely helps: traps deliver urgent events immediately
   (configure them), and supplies change slowly.
-- SQLite on a local SSD comfortably handles this range on one instance; there is no
-  multi-instance or Postgres mode yet (`database: postgres` is reserved), so split by
-  site rather than by cluster. Measure the real database growth after a week with
-  `du -sh <dataDir>` and adjust `telemetry.retention`.
+- SQLite on a local SSD comfortably handles this range on one instance. For the
+  largest tiers, or when the state must live on a managed database rather than one
+  node's disk, switch to [PostgreSQL](#postgresql); the process itself still runs as
+  one active instance (scheduler, traps and jobs are in-process), so split by site
+  rather than by cluster. Measure the real database growth after a week
+  (`du -sh <dataDir>` or `pg_database_size`) and adjust `telemetry.retention`.
 - The resource defaults in the manifests (requests 100m/128Mi, limit 512Mi) match the
   first two rows; raise the memory limit to 1–2 GiB for the larger tiers.
