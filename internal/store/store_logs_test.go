@@ -36,8 +36,7 @@ func walk(t *testing.T, fetch func(ctx context.Context, after SyncCursor, limit 
 	return nil
 }
 
-func TestSyncDevicesWithTombstones(t *testing.T) {
-	s := openTest(t)
+func testSyncDevicesWithTombstones(t *testing.T, s testStore) {
 	ctx := context.Background()
 	var ids []string
 	for i := 0; i < 5; i++ {
@@ -106,8 +105,7 @@ func TestSyncDevicesWithTombstones(t *testing.T) {
 	}
 }
 
-func TestSyncAuditAlertsJobs(t *testing.T) {
-	s := openTest(t)
+func testSyncAuditAlertsJobs(t *testing.T, s testStore) {
 	ctx := context.Background()
 	for i := 0; i < 5; i++ {
 		if err := s.AddAudit(ctx, &model.AuditEntry{Actor: "kim", Action: "x", Target: strconv.Itoa(i), Result: "ok"}); err != nil {
@@ -158,8 +156,7 @@ func TestSyncAuditAlertsJobs(t *testing.T) {
 	}
 }
 
-func TestDeviceLogs(t *testing.T) {
-	s := openTest(t)
+func testDeviceLogs(t *testing.T, s testStore) {
 	ctx := context.Background()
 	for i := 0; i < 3; i++ {
 		if err := s.AddDeviceLog(ctx, &model.DeviceLog{DeviceID: "d1", At: time.Now().Add(time.Duration(-i) * time.Hour), Facility: 4, Severity: 2, Message: "m" + strconv.Itoa(i)}); err != nil {

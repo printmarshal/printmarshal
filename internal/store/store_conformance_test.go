@@ -37,6 +37,10 @@ func runStoreTests(t *testing.T, open func(t *testing.T) testStore) {
 		{"AssessmentsLatestAndHistory", testAssessmentsLatestAndHistory},
 		{"CAProfilesAndCertificates", testCAProfilesAndCertificates},
 		{"UsersSessionsOutboxAudit", testUsersSessionsOutboxAudit},
+		{"APITokens", testAPITokens},
+		{"SyncDevicesWithTombstones", testSyncDevicesWithTombstones},
+		{"SyncAuditAlertsJobs", testSyncAuditAlertsJobs},
+		{"DeviceLogs", testDeviceLogs},
 	} {
 		t.Run(tc.name, func(t *testing.T) { tc.fn(t, open(t)) })
 	}
