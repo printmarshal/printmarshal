@@ -14,6 +14,7 @@ const (
 	OIDSysDescr    = ".1.3.6.1.2.1.1.1.0"
 	OIDSysObjectID = ".1.3.6.1.2.1.1.2.0"
 	OIDSysUpTime   = ".1.3.6.1.2.1.1.3.0"
+	OIDSysContact  = ".1.3.6.1.2.1.1.4.0"
 	OIDSysName     = ".1.3.6.1.2.1.1.5.0"
 	OIDSysLocation = ".1.3.6.1.2.1.1.6.0"
 
@@ -27,8 +28,11 @@ const (
 	OIDHrPrinterDetectedError = ".1.3.6.1.2.1.25.3.5.1.2"
 	OIDHrDevicePrinterType    = ".1.3.6.1.2.1.25.3.1.5" // hrDevicePrinter
 
-	// Printer MIB (RFC 3805).
+	// Printer MIB (RFC 3805). prtGeneralTable read-write objects used by write_config.
+	OIDPrtInputDefaultIndex   = ".1.3.6.1.2.1.43.5.1.1.6"
+	OIDPrtMarkerDefaultIndex  = ".1.3.6.1.2.1.43.5.1.1.8"
 	OIDPrtGeneralPrinterName  = ".1.3.6.1.2.1.43.5.1.1.16"
+	OIDPrtInputName           = ".1.3.6.1.2.1.43.8.2.1.13"
 	OIDPrtGeneralSerialNumber = ".1.3.6.1.2.1.43.5.1.1.17"
 	OIDPrtInputTable          = ".1.3.6.1.2.1.43.8.2.1"
 	OIDPrtOutputTable         = ".1.3.6.1.2.1.43.9.2.1"

@@ -19,11 +19,15 @@ type PDU struct {
 	Value any
 }
 
-// Session is the minimal SNMP read surface the driver needs. The production
+// Session is the minimal SNMP surface the driver needs. The production
 // implementation wraps gosnmp; tests and the simulator use a Fixture.
+//
+// Set is the only write primitive (SNMP SetRequest, RFC 3416 §4.2.5). Only the
+// write_config path calls it, never the read capabilities.
 type Session interface {
 	Get(ctx context.Context, oids []string) ([]PDU, error)
 	Walk(ctx context.Context, root string) ([]PDU, error)
+	Set(ctx context.Context, pdus []PDU) error
 	Close() error
 }
 
@@ -176,6 +180,31 @@ func (s *gosnmpSession) Walk(ctx context.Context, root string) ([]PDU, error) {
 		return nil, err
 	}
 	return convert(vars), nil
+}
+
+// Set issues one SetRequest with all bindings (atomic per RFC 3416 §4.2.5: the
+// agent applies all or none). A non-zero error-status is returned as an error
+// naming the failing binding.
+func (s *gosnmpSession) Set(ctx context.Context, pdus []PDU) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	vars := make([]gosnmp.SnmpPDU, 0, len(pdus))
+	for _, p := range pdus {
+		vars = append(vars, gosnmp.SnmpPDU{Name: p.OID, Type: p.Type, Value: p.Value})
+	}
+	pkt, err := s.g.Set(vars)
+	if err != nil {
+		return err
+	}
+	if pkt.Error != gosnmp.NoError {
+		which := ""
+		if i := int(pkt.ErrorIndex) - 1; i >= 0 && i < len(pdus) {
+			which = " at " + pdus[i].OID
+		}
+		return fmt.Errorf("snmp set error %s%s", pkt.Error, which)
+	}
+	return nil
 }
 
 func (s *gosnmpSession) Close() error { return s.g.Close() }

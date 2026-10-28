@@ -1,6 +1,12 @@
 package model
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+)
 
 // --- Configuration management (spec §8.4) ------------------------------------
 
@@ -122,4 +128,213 @@ type ConfigSnapshot struct {
 	DeviceID string          `json:"deviceId"`
 	Document *ConfigDocument `json:"document"`
 	At       time.Time       `json:"at"`
+}
+
+// --- Additive extensions used by the configuration service -------------------
+
+// ConfigTarget selects the devices a profile is applied to or checked against:
+// explicit device ids and/or every device of a group (spec §8.4 "a profile
+// targets a device or a group").
+type ConfigTarget struct {
+	DeviceIDs []string `json:"deviceIds,omitempty"`
+	GroupID   string   `json:"groupId,omitempty"`
+}
+
+// Empty reports whether the target selects nothing.
+func (t ConfigTarget) Empty() bool { return len(t.DeviceIDs) == 0 && t.GroupID == "" }
+
+// WriteRecord is a persisted WriteResult with its provenance, so a write can be
+// listed, audited and reverted later.
+type WriteRecord struct {
+	ID        string          `json:"id"`
+	JobID     string          `json:"jobId,omitempty"`
+	ProfileID string          `json:"profileId,omitempty"` // "" for ad-hoc changes
+	RevertOf  string          `json:"revertOf,omitempty"`  // write record this one reverted
+	Actor     string          `json:"actor"`
+	Changes   []SettingChange `json:"changes"` // what was requested
+	Result    WriteResult     `json:"result"`
+	Written   int             `json:"written"`
+	Failed    int             `json:"failed"`
+	Skipped   int             `json:"skipped"`
+	Unchanged int             `json:"unchanged"`
+}
+
+// Reversible reports whether the record holds previous values that a revert can re-apply.
+func (w *WriteRecord) Reversible() bool {
+	return w != nil && !w.Result.DryRun && len(w.Result.Rollback) > 0
+}
+
+// Count fills the per-status counters from the result.
+func (w *WriteRecord) Count() {
+	w.Written, w.Failed, w.Skipped, w.Unchanged = 0, 0, 0, 0
+	for _, r := range w.Result.Results {
+		switch r.Status {
+		case SettingWritten, SettingWouldWrite:
+			w.Written++
+		case SettingFailed:
+			w.Failed++
+		case SettingSkipped:
+			w.Skipped++
+		case SettingUnchanged:
+			w.Unchanged++
+		}
+	}
+}
+
+// ConfigDiffItem is one key that differs between two configuration documents.
+type ConfigDiffItem struct {
+	Key   string `json:"key"`
+	Name  string `json:"name,omitempty"`
+	Area  string `json:"area,omitempty"`
+	A     any    `json:"a"`
+	B     any    `json:"b"`
+	OnlyA bool   `json:"onlyA,omitempty"` // present only in A
+	OnlyB bool   `json:"onlyB,omitempty"` // present only in B
+}
+
+// ConfigDiff compares two documents.
+type ConfigDiff struct {
+	A     string           `json:"a"` // device id
+	B     string           `json:"b"`
+	Items []ConfigDiffItem `json:"items"`
+	Same  int              `json:"same"`
+}
+
+// IsSecretKey reports whether a catalogue key holds a secret; such values are
+// never stored in snapshots, write records or audit entries.
+func IsSecretKey(key string) bool {
+	d, ok := CatalogByKey[key]
+	return ok && d.Type == "secret"
+}
+
+// RedactedValue replaces secret values wherever they would otherwise be persisted.
+const RedactedValue = "<redacted>"
+
+// CoerceValue converts a desired value (typically decoded from JSON, where every
+// number is a float64) to the catalogue type of key: int, bool, string, enum
+// (validated against Options), list ([]string) or secret (string). Unknown keys
+// are returned unchanged.
+func CoerceValue(key string, v any) (any, error) {
+	def, ok := CatalogByKey[key]
+	if !ok {
+		return v, nil
+	}
+	switch def.Type {
+	case "int":
+		switch x := v.(type) {
+		case int:
+			return x, nil
+		case int32:
+			return int(x), nil
+		case int64:
+			return int(x), nil
+		case float64:
+			if x != float64(int(x)) {
+				return nil, fmt.Errorf("%s: expected an integer, got %v", key, v)
+			}
+			return int(x), nil
+		case string:
+			n, err := strconv.Atoi(strings.TrimSpace(x))
+			if err != nil {
+				return nil, fmt.Errorf("%s: expected an integer, got %q", key, x)
+			}
+			return n, nil
+		}
+		return nil, fmt.Errorf("%s: expected an integer, got %T", key, v)
+	case "bool":
+		switch x := v.(type) {
+		case bool:
+			return x, nil
+		case string:
+			b, err := strconv.ParseBool(strings.TrimSpace(x))
+			if err != nil {
+				return nil, fmt.Errorf("%s: expected a boolean, got %q", key, x)
+			}
+			return b, nil
+		case float64:
+			return x != 0, nil
+		case int:
+			return x != 0, nil
+		}
+		return nil, fmt.Errorf("%s: expected a boolean, got %T", key, v)
+	case "list":
+		switch x := v.(type) {
+		case []string:
+			return x, nil
+		case []any:
+			out := make([]string, 0, len(x))
+			for _, e := range x {
+				out = append(out, fmt.Sprint(e))
+			}
+			return out, nil
+		case string:
+			var out []string
+			for _, p := range strings.Split(x, ",") {
+				if p = strings.TrimSpace(p); p != "" {
+					out = append(out, p)
+				}
+			}
+			return out, nil
+		}
+		return nil, fmt.Errorf("%s: expected a list, got %T", key, v)
+	case "enum":
+		s := fmt.Sprint(v)
+		if len(def.Options) > 0 {
+			for _, o := range def.Options {
+				if fmt.Sprint(o) == s {
+					return s, nil
+				}
+			}
+			return nil, fmt.Errorf("%s: %q is not one of %v", key, s, def.Options)
+		}
+		return s, nil
+	default: // string, secret
+		if v == nil {
+			return "", nil
+		}
+		if s, ok := v.(string); ok {
+			return s, nil
+		}
+		return fmt.Sprint(v), nil
+	}
+}
+
+// ValuesEqual compares two setting values loosely: numbers regardless of their
+// Go type, strings exactly, lists element-wise, everything else by JSON form.
+func ValuesEqual(a, b any) bool {
+	if fa, ok := toFloat(a); ok {
+		if fb, ok := toFloat(b); ok {
+			return fa == fb
+		}
+		return false
+	}
+	switch x := a.(type) {
+	case string:
+		y, ok := b.(string)
+		return ok && x == y
+	case bool:
+		y, ok := b.(bool)
+		return ok && x == y
+	case nil:
+		return b == nil
+	}
+	ja, _ := json.Marshal(a)
+	jb, _ := json.Marshal(b)
+	return string(ja) == string(jb)
+}
+
+func toFloat(v any) (float64, bool) {
+	switch x := v.(type) {
+	case int:
+		return float64(x), true
+	case int32:
+		return float64(x), true
+	case int64:
+		return float64(x), true
+	case float32:
+		return float64(x), true
+	case float64:
+		return x, true
+	}
+	return 0, false
 }

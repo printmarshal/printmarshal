@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gosnmp/gosnmp"
 )
@@ -25,8 +26,14 @@ import (
 // TYPE is one of STRING, HEX (aa:bb:cc), INTEGER, GAUGE, COUNTER32, COUNTER64,
 // TIMETICKS, OID, IPADDRESS, NULL.
 type Fixture struct {
+	mu   sync.RWMutex
 	pdus []PDU
 	idx  map[string]int
+	sets []PDU
+	// Writable makes Set apply the bindings (the simulator's mode). When false
+	// (the default for tests) Set records the attempt and rejects it with
+	// notWritable, so a test can assert that a dry run never reached it.
+	Writable bool
 }
 
 // LoadFixture reads a fixture file.
@@ -136,10 +143,18 @@ func parseFixtureValue(oid, typ, val string) (PDU, error) {
 }
 
 // All returns every binding in OID order.
-func (f *Fixture) All() []PDU { return f.pdus }
+func (f *Fixture) All() []PDU {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	out := make([]PDU, len(f.pdus))
+	copy(out, f.pdus)
+	return out
+}
 
 // Get returns the exact bindings; missing OIDs come back as NoSuchInstance.
 func (f *Fixture) Get(_ context.Context, oids []string) ([]PDU, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	out := make([]PDU, 0, len(oids))
 	for _, o := range oids {
 		if i, ok := f.idx[o]; ok {
@@ -153,6 +168,8 @@ func (f *Fixture) Get(_ context.Context, oids []string) ([]PDU, error) {
 
 // Walk returns every binding under root.
 func (f *Fixture) Walk(_ context.Context, root string) ([]PDU, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	prefix := strings.TrimSuffix(root, ".") + "."
 	var out []PDU
 	for _, p := range f.pdus {
@@ -165,11 +182,89 @@ func (f *Fixture) Walk(_ context.Context, root string) ([]PDU, error) {
 
 // Next returns the first binding whose OID sorts after oid (GetNext semantics).
 func (f *Fixture) Next(oid string) (PDU, bool) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	i := sort.Search(len(f.pdus), func(i int) bool { return CompareOID(f.pdus[i].OID, oid) > 0 })
 	if i >= len(f.pdus) {
 		return PDU{}, false
 	}
 	return f.pdus[i], true
+}
+
+// Set implements Session. Every attempt is recorded (see Sets). Unless the
+// fixture is Writable the request is rejected with notWritable, mirroring an
+// agent whose community has no write access; when Writable, bindings for OIDs
+// the image already holds are updated and unknown OIDs are rejected with
+// noCreation.
+func (f *Fixture) Set(_ context.Context, pdus []PDU) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sets = append(f.sets, pdus...)
+	if !f.Writable {
+		return fmt.Errorf("snmp set error notWritable (fixture is read-only)")
+	}
+	for _, p := range pdus {
+		if _, ok := f.idx[p.OID]; !ok {
+			return fmt.Errorf("snmp set error noCreation at %s", p.OID)
+		}
+	}
+	for _, p := range pdus {
+		f.putLocked(p.OID, p.Type, p.Value)
+	}
+	return nil
+}
+
+// Sets returns every binding handed to Set so far, in order.
+func (f *Fixture) Sets() []PDU {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	out := make([]PDU, len(f.sets))
+	copy(out, f.sets)
+	return out
+}
+
+// ResetSets forgets the recorded Set attempts.
+func (f *Fixture) ResetSets() {
+	f.mu.Lock()
+	f.sets = nil
+	f.mu.Unlock()
+}
+
+// Put inserts or replaces one binding directly (the simulator uses it to
+// reflect writes). Strings become OctetString, ints Integer; any other value
+// keeps the existing binding's type or is stored as given.
+func (f *Fixture) Put(oid string, value any) {
+	if !strings.HasPrefix(oid, ".") {
+		oid = "." + oid
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	typ := gosnmp.Null
+	if i, ok := f.idx[oid]; ok {
+		typ = f.pdus[i].Type
+	}
+	switch v := value.(type) {
+	case string:
+		typ, value = gosnmp.OctetString, []byte(v)
+	case []byte:
+		typ = gosnmp.OctetString
+	case int:
+		typ = gosnmp.Integer
+	}
+	f.putLocked(oid, typ, value)
+}
+
+func (f *Fixture) putLocked(oid string, typ gosnmp.Asn1BER, value any) {
+	if i, ok := f.idx[oid]; ok {
+		f.pdus[i] = PDU{OID: oid, Type: typ, Value: value}
+		return
+	}
+	f.pdus = append(f.pdus, PDU{OID: oid, Type: typ, Value: value})
+	sort.Slice(f.pdus, func(i, j int) bool { return CompareOID(f.pdus[i].OID, f.pdus[j].OID) < 0 })
+	f.idx = make(map[string]int, len(f.pdus))
+	for i, p := range f.pdus {
+		f.idx[p.OID] = i
+	}
 }
 
 // Close is a no-op.

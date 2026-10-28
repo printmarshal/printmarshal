@@ -40,6 +40,11 @@ What works today:
   automatic stock decrement, consumption forecasting ("days remaining", "reorder
   soon", or an honest "unknown" until there is enough history), and CSV import/export.
   Stock management only: cost and reorder fields are optional references.
+- **Configuration** ([docs](docs/configuration.md)) — normalised config documents read
+  over IPP (`Get-Printer-Attributes`) and SNMP (system group, Printer MIB) and merged
+  per key, snapshots, device-vs-device diff, named profiles, drift reports, and gated
+  writes (IPP `Set-Printer-Attributes`, SNMP SET) that run as jobs with a dry run,
+  per-setting results, rollback/revert and an audit entry for every write.
 - **Inventory** — operator fields (display name, location, asset tag, notes) that scans
   never overwrite, lifecycle states with validated transitions, static and rule-based
   groups, search/sort/filter, CSV export of devices and supplies.

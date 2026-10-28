@@ -49,6 +49,20 @@ const (
 // OpGetPrinterAttributes is the operation id (RFC 8011 §4.2.5).
 const OpGetPrinterAttributes uint16 = 0x000B
 
+// OpSetPrinterAttributes is the operation id (RFC 3380 §4.1), the only IPP
+// write the configuration feature issues.
+const OpSetPrinterAttributes uint16 = 0x0013
+
+// IPP status codes used by the driver (RFC 8011 Appendix B, RFC 3380 §8).
+const (
+	StatusOK                          uint16 = 0x0000
+	StatusOKIgnoredOrSubstituted      uint16 = 0x0001
+	StatusOKConflicting               uint16 = 0x0002
+	StatusClientErrorNotPossible      uint16 = 0x0403
+	StatusClientErrorAttrsNotSettable uint16 = 0x0413 // RFC 3380 §8.1
+	StatusServerErrorOpNotSupported   uint16 = 0x0501
+)
+
 // Attribute is one IPP attribute with one or more values.
 type Attribute struct {
 	Tag    byte

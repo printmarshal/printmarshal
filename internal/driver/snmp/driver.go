@@ -34,6 +34,7 @@ func (d *Driver) Capabilities() []model.Capability {
 	return []model.Capability{
 		model.CapIdentify, model.CapReadStatus, model.CapReadSupplies,
 		model.CapReadTrays, model.CapReadCounters, model.CapSubscribeAlerts,
+		model.CapReadConfig, model.CapWriteConfig,
 	}
 }
 
@@ -47,6 +48,9 @@ func (d *Driver) Priority(cap model.Capability) int {
 	switch cap {
 	case model.CapIdentify, model.CapReadStatus, model.CapReadSupplies, model.CapReadTrays, model.CapReadCounters:
 		return 50
+	case model.CapReadConfig, model.CapWriteConfig:
+		// IPP (40) exposes far more settings; SNMP fills in the system group.
+		return 30
 	}
 	return 10
 }
@@ -128,7 +132,9 @@ func (d *Driver) Identify(ctx context.Context, address string, creds model.Creds
 		}
 	}
 
-	id.Capabilities = []model.Capability{model.CapIdentify, model.CapReadStatus, model.CapSubscribeAlerts}
+	// The system group is always readable and (with a write community / v3 user)
+	// writable, so every SNMP printer gets read_config and write_config.
+	id.Capabilities = []model.Capability{model.CapIdentify, model.CapReadStatus, model.CapSubscribeAlerts, model.CapReadConfig, model.CapWriteConfig}
 	if sup, err := s.Walk(ctx, OIDPrtMarkerSuppliesTable+"."+strconv.Itoa(colSuppliesLevel)); err == nil && len(sup) > 0 {
 		id.Capabilities = append(id.Capabilities, model.CapReadSupplies)
 	}
