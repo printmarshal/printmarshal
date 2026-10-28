@@ -111,6 +111,7 @@ func (s *Server) Handler() http.Handler {
 	// Credentials (write-only secrets)
 	mux.Handle("GET /api/credentials", s.require(model.RoleOperator, s.listCredentials))
 	mux.Handle("POST /api/credentials", s.require(model.RoleAdmin, s.createCredential))
+	mux.Handle("PATCH /api/credentials/{id}", s.require(model.RoleAdmin, s.patchCredential))
 	mux.Handle("DELETE /api/credentials/{id}", s.require(model.RoleAdmin, s.deleteCredential))
 
 	// Consumables stock inventory and installed-supply links (consumables.go)
@@ -899,15 +900,23 @@ func (s *Server) listCredentials(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createCredential(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Name     string               `json:"name"`
-		Type     model.CredentialType `json:"type"`
-		Scope    string               `json:"scope"`
-		Username string               `json:"username"`
-		Priority int                  `json:"priority"`
-		Secret   model.Secret         `json:"secret"`
+		Name     string                  `json:"name"`
+		Type     model.CredentialType    `json:"type"`
+		Scope    string                  `json:"scope"`
+		Username string                  `json:"username"`
+		Priority int                     `json:"priority"`
+		Purpose  model.CredentialPurpose `json:"purpose"` // read (default) | write | both
+		Secret   model.Secret            `json:"secret"`
 	}
 	if err := readJSON(r, &body); err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if body.Purpose == "" {
+		body.Purpose = model.PurposeRead
+	}
+	if !body.Purpose.Valid() {
+		writeErr(w, http.StatusBadRequest, `purpose must be "read", "write" or "both"`)
 		return
 	}
 	switch body.Type {
@@ -930,13 +939,13 @@ func (s *Server) createCredential(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, `scope must be "", "device:<id>" or "group:<id>"`)
 		return
 	}
-	c := &model.Credential{Name: body.Name, Type: body.Type, Scope: body.Scope, Username: body.Username, Priority: body.Priority}
+	c := &model.Credential{Name: body.Name, Type: body.Type, Scope: body.Scope, Username: body.Username, Priority: body.Priority, Purpose: body.Purpose}
 	if err := s.Store.CreateCredential(r.Context(), c, &body.Secret); err != nil {
 		s.fail(w, err)
 		return
 	}
 	// Audit records metadata only; never the secret.
-	s.audit(r.Context(), r, "credential.create", c.ID, nil, map[string]any{"name": c.Name, "type": c.Type, "scope": c.Scope}, "ok")
+	s.audit(r.Context(), r, "credential.create", c.ID, nil, map[string]any{"name": c.Name, "type": c.Type, "scope": c.Scope, "purpose": c.Purpose}, "ok")
 	cs, _ := s.Store.ListCredentials(r.Context())
 	for _, cc := range cs {
 		if cc.ID == c.ID {
@@ -945,6 +954,45 @@ func (s *Server) createCredential(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusCreated, c)
+}
+
+// patchCredential changes a credential's purpose (audit A19): the only
+// mutable metadata, since promoting a read credential to write is a security
+// decision that must be explicit and audited. Secrets are never updated here;
+// store a new credential instead.
+func (s *Server) patchCredential(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var body struct {
+		Purpose model.CredentialPurpose `json:"purpose"`
+	}
+	if err := readJSON(r, &body); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if !body.Purpose.Valid() {
+		writeErr(w, http.StatusBadRequest, `purpose must be "read", "write" or "both"`)
+		return
+	}
+	ws, ok := s.Store.(store.WriteCredentialStore)
+	if !ok {
+		writeErr(w, http.StatusNotImplemented, "this store cannot change credential purposes")
+		return
+	}
+	var before model.CredentialPurpose
+	if cs, err := s.Store.ListCredentials(r.Context()); err == nil {
+		for _, c := range cs {
+			if c.ID == id {
+				before = c.Purpose
+			}
+		}
+	}
+	c, err := ws.SetCredentialPurpose(r.Context(), id, body.Purpose)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.audit(r.Context(), r, "credential.update", id, map[string]any{"purpose": before}, map[string]any{"name": c.Name, "type": c.Type, "scope": c.Scope, "purpose": c.Purpose}, "ok")
+	writeJSON(w, http.StatusOK, c)
 }
 
 func (s *Server) deleteCredential(w http.ResponseWriter, r *http.Request) {

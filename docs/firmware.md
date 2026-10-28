@@ -74,8 +74,17 @@ every device in wave 1.
 4. Audit: every real delivery attempt — accepted, rejected or errored — writes an
    audit entry (`firmware.update`, actor = the operator who started the campaign).
 5. Verification: the device is polled until the firmware it reports equals the
-   package version, up to `verifyTimeoutSecs` (default 15 minutes). A device that
-   never reports the new version is `failed` with the version it does report.
+   package version, up to `verifyTimeoutSecs` (default 15 minutes). The verdict
+   uses the same words as configuration writes (audit A20) in the row message
+   and the job result's `data.outcome`: `verified` (device reports the package
+   version → `succeeded`), `diverged` (it still reports another version at the
+   deadline → `failed`, with that version), `unverifiable` (it reported no
+   version at all → `failed`).
+
+A real delivery is handed only write-purpose credentials (audit A19,
+"Credentials and purposes" in `docs/configuration.md`); a device with no write
+credential bound is `failed` before the driver is called, with an audit entry
+of result `refused`. Dry runs validate with read credentials.
 
 Live updates are published as `firmware.campaign.updated` and
 `firmware.device.updated` events on `/api/stream`.

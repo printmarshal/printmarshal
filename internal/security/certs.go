@@ -276,8 +276,12 @@ func (s *Service) enrollDevice(ctx context.Context, dev *model.Device, profile *
 
 // install hands an issued certificate (and its key) to a manage_certs driver.
 func (s *Service) install(ctx context.Context, dev *model.Device, issued *model.IssuedCertificate, keyPEM string, cm engine.CertManager, driver, actor, jobID string) error {
-	creds := s.creds(ctx, dev)
-	_, err := cm.InstallCertificate(ctx, dev, creds, model.CertRequest{Use: issued.Use, CommonName: issued.Subject, CertPEM: issued.CertPEM, KeyPEM: keyPEM, ChainPEM: issued.ChainPEM}, model.WriteOptions{})
+	// Installing is a write: it needs a write credential bound to the device
+	// (audit A19); without one the private key is never handed to the driver.
+	creds, err := s.writeCreds(ctx, dev)
+	if err == nil {
+		_, err = cm.InstallCertificate(ctx, dev, creds, model.CertRequest{Use: issued.Use, CommonName: issued.Subject, CertPEM: issued.CertPEM, KeyPEM: keyPEM, ChainPEM: issued.ChainPEM}, model.WriteOptions{})
+	}
 	result := "ok"
 	if err != nil {
 		result = "failed: " + err.Error()

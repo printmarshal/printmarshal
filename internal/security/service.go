@@ -105,13 +105,30 @@ func (s *Service) emit(typ string, data any) {
 	}
 }
 
+// creds resolves a device's read credentials: assessments, gathers, dry runs
+// and certificate listings only read.
 func (s *Service) creds(ctx context.Context, dev *model.Device) model.Creds {
-	if s.Fleet != nil {
-		return s.Fleet.Creds(ctx, dev)
-	}
-	groups, _ := s.Store.GroupsForDevice(ctx, dev.ID)
-	c, _ := s.Store.ResolveCreds(ctx, dev.ID, groups)
+	c, _ := s.credsFor(ctx, dev, model.PurposeRead)
 	return c
+}
+
+// writeCreds resolves the credentials a real write (remediation, rotation,
+// certificate installation) may use (audit A19). It fails with
+// store.ErrNoWriteCredential when nothing write-capable is bound to the
+// device, its groups or globally; callers fail the device, never fall back.
+func (s *Service) writeCreds(ctx context.Context, dev *model.Device) (model.Creds, error) {
+	c, err := s.credsFor(ctx, dev, model.PurposeWrite)
+	if err != nil && !errors.Is(err, store.ErrNoWriteCredential) {
+		err = fmt.Errorf("resolve write credentials: %w", err)
+	}
+	return c, err
+}
+
+func (s *Service) credsFor(ctx context.Context, dev *model.Device, purpose model.CredentialPurpose) (model.Creds, error) {
+	if s.Fleet != nil {
+		return s.Fleet.CredsFor(ctx, dev, purpose)
+	}
+	return store.CredsFor(ctx, s.Store, dev, purpose)
 }
 
 func (s *Service) concurrency() int {

@@ -4,7 +4,7 @@ import type { Job, JobResult } from '../../types'
 import { useEvents } from '../../ws'
 import { Ic } from '../icons'
 import { EmptyState, Pill, Seg, Tag } from '../ui'
-import type { Catalog, CatalogDef, SettingResultStatus } from '../../types-config'
+import type { Catalog, CatalogDef, SettingResultStatus, WriteOutcome } from '../../types-config'
 
 // --- catalogue ----------------------------------------------------------------
 
@@ -126,6 +126,17 @@ export function ResultPill({ status, xs }: { status: SettingResultStatus | strin
     case 'skipped': return <Pill tone="off" xs={xs}>Skipped</Pill>
     case 'failed': return <Pill tone="crit" xs={xs}>Failed</Pill>
     default: return <Pill tone="unk" xs={xs}>{status}</Pill>
+  }
+}
+
+/** Read-back verdict of a written setting (audit A20): verified = in effect, written = accepted but not re-read, diverged = the device reports something else, unverifiable = no reader for the key. */
+export function OutcomePill({ outcome, xs }: { outcome: WriteOutcome | string; xs?: boolean }) {
+  switch (outcome) {
+    case 'verified': return <Pill tone="ok" xs={xs} title="Read back from the device and equal to the desired value">Verified</Pill>
+    case 'written': return <Pill tone="info" xs={xs} title="The device accepted the write; the read-back failed, so it is not verified">Accepted</Pill>
+    case 'diverged': return <Pill tone="warn" xs={xs} title="The device accepted the write but reports a different value">Diverged</Pill>
+    case 'unverifiable': return <Pill tone="off" xs={xs} title="No driver can read this setting back">Unverifiable</Pill>
+    default: return <Pill tone="unk" xs={xs}>{outcome}</Pill>
   }
 }
 

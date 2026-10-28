@@ -60,6 +60,10 @@ func newSecurityTestServer(t *testing.T) (*httptest.Server, *Server, *apiFakeDri
 	svc := security.New(s.Fleet.DepsOf())
 	svc.TLSProbe, svc.PortProbe = nil, nil // no network I/O in tests
 	s.Security = svc
+	// Real remediation and rotation need a write credential bound (audit A19).
+	if err := s.Store.CreateCredential(context.Background(), &model.Credential{Name: "admin rw", Type: model.CredAdminPassword, Username: "admin", Purpose: model.PurposeWrite}, &model.Secret{Password: "harnessWritePw"}); err != nil {
+		t.Fatal(err)
+	}
 	return ts, s, fake
 }
 

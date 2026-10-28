@@ -51,8 +51,13 @@ func (s *Service) runRemediate(ctx context.Context, jc *jobs.Context) error {
 		if res.Failed > 0 {
 			status = "error"
 		}
-		return status, fmt.Sprintf("%d %s, %d skipped, %d failed", res.Written, verb, res.Skipped, res.Failed),
-			map[string]any{"dryRun": dryRun, "items": res.Items, "written": res.Written, "skipped": res.Skipped, "failed": res.Failed}
+		msg := fmt.Sprintf("%d %s, %d skipped, %d failed", res.Written, verb, res.Skipped, res.Failed)
+		if !dryRun && res.Written > 0 {
+			msg += fmt.Sprintf(" (%d verified, %d diverged)", res.Verified, res.Diverged)
+		}
+		return status, msg,
+			map[string]any{"dryRun": dryRun, "items": res.Items, "written": res.Written, "skipped": res.Skipped, "failed": res.Failed,
+				"verified": res.Verified, "diverged": res.Diverged}
 	})
 	return nil
 }
@@ -89,6 +94,25 @@ func (s *Service) RemediateDevice(ctx context.Context, dev *model.Device, policy
 	if len(changes) == 0 {
 		count(res)
 		return res, nil
+	}
+
+	// A dry run only reads; a real remediation needs a write credential bound
+	// to the device (audit A19) and fails every planned item otherwise. A
+	// device with no writer at all is reported as skipped below instead.
+	if !opts.DryRun && len(s.writers(dev)) > 0 {
+		wc, err := s.writeCreds(ctx, dev)
+		if err != nil {
+			for i := range res.Items {
+				if res.Items[i].Status == "" {
+					res.Items[i].Status, res.Items[i].Message = model.RemediationFailed, err.Error()
+				}
+			}
+			count(res)
+			_ = s.Store.AddAudit(ctx, &model.AuditEntry{Actor: actor, Action: "security.remediate", Target: dev.ID,
+				After: map[string]any{"policyId": policy.ID, "jobId": jobID, "reason": err.Error()}, Result: "refused"})
+			return res, nil
+		}
+		creds = wc
 	}
 
 	written, err := s.applyChanges(ctx, dev, creds, changes, model.WriteOptions{DryRun: opts.DryRun})
@@ -133,21 +157,73 @@ func (s *Service) RemediateDevice(ctx context.Context, dev *model.Device, policy
 	}
 	count(res)
 	if !opts.DryRun && len(after) > 0 {
-		_ = s.Store.AddAudit(ctx, &model.AuditEntry{Actor: actor, Action: "security.remediate", Target: dev.ID,
-			Before: before, After: map[string]any{"policyId": policy.ID, "jobId": jobID, "changes": after},
-			Result: fmt.Sprintf("%d written, %d failed", res.Written, res.Failed)})
-		s.emit("security.remediated", res)
-		// Refresh compliance and alerts after a real change.
-		if _, err := s.AssessDevice(ctx, dev, policy, jobID); err != nil {
+		// Re-assess after a real change (audit A20): the item's outcome is only
+		// "verified" when the policy item passes on the read-back; "diverged"
+		// carries what the device reports now.
+		outcomes := map[string]any{}
+		assessed, err := s.AssessDevice(ctx, dev, policy, jobID)
+		if err != nil {
 			s.warn("re-assess after remediation", dev, "", err)
 		}
+		verifyRemediation(res, assessed)
+		for _, it := range res.Items {
+			if it.Outcome != "" {
+				outcomes[it.Key] = string(it.Outcome)
+			}
+		}
+		result := fmt.Sprintf("%d written, %d failed", res.Written, res.Failed)
+		if res.Diverged > 0 {
+			result += fmt.Sprintf(", %d diverged", res.Diverged)
+		}
+		_ = s.Store.AddAudit(ctx, &model.AuditEntry{Actor: actor, Action: "security.remediate", Target: dev.ID,
+			Before: before, After: map[string]any{"policyId": policy.ID, "jobId": jobID, "changes": after, "outcomes": outcomes},
+			Result: result})
+		s.emit("security.remediated", res)
 	}
 	return res, nil
 }
 
+// verifyRemediation fills the Outcome of every written item from the
+// assessment taken after the write: pass = verified, fail = diverged (with the
+// read-back value, redacted for secrets), unknown = unverifiable (the setting
+// is not readable on this device), and written when no assessment could be
+// made (accepted, not verified).
+func verifyRemediation(res *model.RemediationResult, a *model.Assessment) {
+	byItem := map[string]model.ItemResult{}
+	if a != nil {
+		for _, r := range a.Items {
+			byItem[r.ItemID] = r
+		}
+	}
+	for i := range res.Items {
+		it := &res.Items[i]
+		if it.Status != model.RemediationWritten {
+			continue
+		}
+		r, ok := byItem[it.ItemID]
+		switch {
+		case a == nil || !ok:
+			it.Outcome = model.OutcomeWritten
+		case r.Status == model.ItemPass:
+			it.Outcome = model.OutcomeVerified
+		case r.Status == model.ItemFail:
+			it.Outcome, it.ReadBack = model.OutcomeDiverged, displayValue(it.Key, r.Current)
+		default:
+			it.Outcome = model.OutcomeUnverifiable
+		}
+	}
+	count(res)
+}
+
 func count(res *model.RemediationResult) {
-	res.Written, res.Skipped, res.Failed = 0, 0, 0
+	res.Written, res.Skipped, res.Failed, res.Verified, res.Diverged = 0, 0, 0, 0, 0
 	for _, it := range res.Items {
+		switch it.Outcome {
+		case model.OutcomeVerified:
+			res.Verified++
+		case model.OutcomeDiverged:
+			res.Diverged++
+		}
 		switch it.Status {
 		case model.RemediationWritten, model.RemediationWouldWrite:
 			res.Written++

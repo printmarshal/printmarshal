@@ -63,29 +63,29 @@ func (s *Service) thresholds() alerts.Thresholds {
 	}
 }
 
-// Creds resolves credentials for a device (device scope > group scope > global).
+// Creds resolves the read credentials for a device (device scope > group
+// scope > global). Everything in this package is read-only, so this is the
+// only purpose it needs; write-side services call CredsFor with PurposeWrite.
 func (s *Service) Creds(ctx context.Context, dev *model.Device) model.Creds {
-	var groups []string
-	if dev != nil && dev.ID != "" {
-		groups, _ = s.Store.GroupsForDevice(ctx, dev.ID)
-		// Rule-based groups also contribute scope.
-		if all, err := s.Store.ListGroups(ctx); err == nil {
-			for _, g := range all {
-				if g.Kind == "rule" && store.MatchRule(g.Rule, dev) {
-					groups = append(groups, g.ID)
-				}
-			}
-		}
-	}
-	id := ""
-	if dev != nil {
-		id = dev.ID
-	}
-	creds, err := s.Store.ResolveCreds(ctx, id, groups)
-	if err != nil {
-		s.Log.Warn("resolve credentials", "device", id, "err", err)
-	}
+	creds, _ := s.CredsFor(ctx, dev, model.PurposeRead)
 	return creds
+}
+
+// CredsFor resolves a device's credentials for a purpose (audit A19). Read
+// resolution logs and swallows store errors (an empty Creds falls back to the
+// driver defaults); write resolution returns store.ErrNoWriteCredential when
+// nothing write-capable is bound, and callers must fail the device rather
+// than fall back to a read credential.
+func (s *Service) CredsFor(ctx context.Context, dev *model.Device, purpose model.CredentialPurpose) (model.Creds, error) {
+	creds, err := store.CredsFor(ctx, s.Store, dev, purpose)
+	if err != nil && !errors.Is(err, store.ErrNoWriteCredential) {
+		id := ""
+		if dev != nil {
+			id = dev.ID
+		}
+		s.Log.Warn("resolve credentials", "device", id, "purpose", purpose, "err", err)
+	}
+	return creds, err
 }
 
 // IdentifyAndUpsert identifies an address and records it (spec §8.1).

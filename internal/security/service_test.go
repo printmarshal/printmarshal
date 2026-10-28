@@ -30,10 +30,12 @@ type fakeDriver struct {
 	dryRuns  int
 	failKeys map[string]bool
 	skipKeys map[string]bool
+	// stickKeys are accepted ("written") but the device silently keeps the old value.
+	stickKeys map[string]bool
 }
 
 func newFake(name string, doc map[string]any) *fakeDriver {
-	return &fakeDriver{name: name, doc: doc, failKeys: map[string]bool{}, skipKeys: map[string]bool{}}
+	return &fakeDriver{name: name, doc: doc, failKeys: map[string]bool{}, skipKeys: map[string]bool{}, stickKeys: map[string]bool{}}
 }
 
 func (f *fakeDriver) Name() string { return f.name }
@@ -75,7 +77,9 @@ func (f *fakeDriver) WriteSecurity(_ context.Context, d *model.Device, _ model.C
 		default:
 			r.Status = model.SettingWritten
 			res.Rollback = append(res.Rollback, model.SettingChange{Key: c.Key, Value: f.doc[c.Key]})
-			f.doc[c.Key] = c.Value
+			if !f.stickKeys[c.Key] {
+				f.doc[c.Key] = c.Value
+			}
 			f.writes = append(f.writes, c)
 		}
 		res.Results = append(res.Results, r)
@@ -96,6 +100,8 @@ type harness struct {
 	runner *jobs.Runner
 	reg    *engine.Registry
 	logBuf *bytes.Buffer
+	// writeCred is the global write credential newHarness binds.
+	writeCred *model.Credential
 }
 
 func newHarness(t *testing.T) *harness {
@@ -116,7 +122,14 @@ func newHarness(t *testing.T) *harness {
 	fl := fleet.New(st, eng, runner, cfg, log, nil, nil)
 	svc := New(fl.DepsOf())
 	svc.TLSProbe, svc.PortProbe = nil, nil
-	return &harness{t: t, st: st, svc: svc, runner: runner, reg: reg, logBuf: buf}
+	h := &harness{t: t, st: st, svc: svc, runner: runner, reg: reg, logBuf: buf}
+	// Real writes need a write credential bound (audit A19); the harness binds
+	// one globally so the write-path tests exercise the writers.
+	h.writeCred = &model.Credential{Name: "admin rw", Type: model.CredAdminPassword, Username: "admin", Purpose: model.PurposeWrite}
+	if err := st.CreateCredential(context.Background(), h.writeCred, &model.Secret{Password: "harnessWritePw"}); err != nil {
+		t.Fatal(err)
+	}
+	return h
 }
 
 // device creates a device whose capability profile names the given drivers.
@@ -266,6 +279,16 @@ func TestDryRunPerformsNoWrite(t *testing.T) {
 	if res.Written != 2 || len(fake.writes) != 2 || fake.value("protocols.ftp.enabled") != false {
 		t.Errorf("real remediation: %+v writes=%v", res, fake.writes)
 	}
+	// The re-assessment after the write is the read-back (audit A20): both
+	// items pass on it, so they are verified, not merely written.
+	if res.Verified != 2 || res.Diverged != 0 {
+		t.Errorf("verified/diverged = %d/%d: %+v", res.Verified, res.Diverged, res.Items)
+	}
+	for _, it := range res.Items {
+		if it.Outcome != model.OutcomeVerified {
+			t.Errorf("item %s outcome = %q", it.ItemID, it.Outcome)
+		}
+	}
 	audit, _ = h.st.ListAudit(context.Background(), 100)
 	var found bool
 	for _, e := range audit {
@@ -398,7 +421,7 @@ func TestRotationNeverLeaksSecret(t *testing.T) {
 	if fake.value("protocols.snmp.readCommunity") != "public" || len(fake.writes) != 0 {
 		t.Fatal("dry run wrote to the device")
 	}
-	if cs, _ := h.st.ListCredentials(ctx); len(cs) != 0 {
+	if cs, _ := h.st.ListCredentials(ctx); len(cs) != 1 { // only the harness's write credential
 		t.Fatal("dry run stored a credential")
 	}
 
@@ -467,7 +490,7 @@ func TestRotationSkipsWhenNoWriterAndFailsWithoutStoring(t *testing.T) {
 	if done.Status != model.JobFailed || results[0].Data["status"] != "failed" {
 		t.Fatalf("failed write should fail the job: %+v %+v", done, results)
 	}
-	if cs, _ := h.st.ListCredentials(context.Background()); len(cs) != 0 {
+	if cs, _ := h.st.ListCredentials(context.Background()); len(cs) != 1 { // only the harness's write credential
 		t.Error("a credential was stored although the device rejected the write")
 	}
 	devNo := h.device("10.0.0.9", nil)

@@ -117,8 +117,9 @@ export default function DeviceConfigTab({ device, canOperate, hidden, onDrift }:
         <Card title="Write history" id="wh" sub="applies to this device, newest first" style={{ flex: '1 1 320px' }}>
           {writes.length === 0 ? <div className="cb cap">No writes recorded.</div> : (
             <div>{writes.map((w) => <div className="lrow" key={w.id}>
-              {w.result.dryRun ? <Pill tone="info" xs noIcon>dry run</Pill> : w.failed ? <Pill tone="crit" xs>{w.failed} failed</Pill> : <Pill tone="ok" xs>{w.written} written</Pill>}
-              <span style={{ flex: 1, minWidth: 0 }}>{w.profileId ? profiles.find((p) => p.id === w.profileId)?.name || 'profile' : w.revertOf ? 'revert' : 'ad-hoc'} · {w.changes.length} setting{w.changes.length === 1 ? '' : 's'}<div className="cap">{fmtTime(w.result.at)} · {w.actor}{w.jobId && <> · <Link to={`/jobs/${w.jobId}`}>job</Link></>}</div></span>
+              {w.result.dryRun ? <Pill tone="info" xs noIcon>dry run</Pill> : w.failed ? <Pill tone="crit" xs>{w.failed} failed</Pill> : w.diverged ? <Pill tone="warn" xs title="The device accepted the write but reports a different value">{w.diverged} diverged</Pill> : w.verified === w.written && w.written > 0 ? <Pill tone="ok" xs title="Read back from the device">{w.written} verified</Pill> : <Pill tone="ok" xs>{w.written} written</Pill>}
+              <span style={{ flex: 1, minWidth: 0 }}>{w.profileId ? profiles.find((p) => p.id === w.profileId)?.name || 'profile' : w.revertOf ? 'revert' : 'ad-hoc'} · {w.changes.length} setting{w.changes.length === 1 ? '' : 's'}<div className="cap">{fmtTime(w.result.at)} · {w.actor}{w.jobId && <> · <Link to={`/jobs/${w.jobId}`}>job</Link></>}</div>
+                {!w.result.dryRun && w.result.results.filter((x) => x.outcome === 'diverged').map((x) => <div className="cap" key={x.key} style={{ color: 'var(--warn)' }}>{x.key}: device reports <span className="mono">{String(x.readBack ?? '—')}</span></div>)}</span>
               {canOperate && !w.result.dryRun && (w.result.rollback?.length || 0) > 0 && <Btn sm variant="wr" onClick={() => setRevert([{ writeId: w.id, deviceId: device.id, label: deviceName(device) }])}>Revert…</Btn>}
             </div>)}</div>
           )}

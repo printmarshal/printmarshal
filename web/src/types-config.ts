@@ -24,11 +24,13 @@ export interface ConfigSnapshot { id: string; deviceId: string; document: Config
 export interface DeviceConfigResponse { document: ConfigDocument; snapshotId?: string; at?: string; fresh: boolean }
 
 export type SettingResultStatus = 'written' | 'unchanged' | 'would_write' | 'skipped' | 'failed'
-export interface SettingResult { key: string; status: SettingResultStatus; before?: unknown; after?: unknown; error?: string; driver?: string }
+/** Read-back verdict of a written setting after a real apply (audit A20): accepted is not the same as in effect. */
+export type WriteOutcome = 'written' | 'verified' | 'diverged' | 'unverifiable'
+export interface SettingResult { key: string; status: SettingResultStatus; before?: unknown; after?: unknown; error?: string; driver?: string; outcome?: WriteOutcome; readBack?: unknown }
 export interface WriteResult { deviceId: string; dryRun: boolean; results: SettingResult[]; at: string; rollback?: SettingChange[] }
 export interface WriteRecord {
   id: string; jobId?: string; profileId?: string; revertOf?: string; actor: string
-  changes: SettingChange[]; result: WriteResult; written: number; failed: number; skipped: number; unchanged: number
+  changes: SettingChange[]; result: WriteResult; written: number; failed: number; skipped: number; unchanged: number; verified?: number; diverged?: number
 }
 
 export interface DriftItem { key: string; name?: string; desired: unknown; current: unknown; missing: boolean }
@@ -41,7 +43,7 @@ export interface ConfigDiff { a: string; b: string; items: ConfigDiffItem[]; sam
 export interface ConfigTarget { deviceIds?: string[]; groupId?: string }
 
 /** `data` of a config.apply job result (per device). */
-export interface ApplyResultData { writeId?: string; dryRun?: boolean; results?: SettingResult[] }
+export interface ApplyResultData { writeId?: string; dryRun?: boolean; results?: SettingResult[]; verified?: number; diverged?: number }
 
 /** Payload of the `config.applied` live event. */
 export interface ConfigAppliedEvent { deviceId: string; jobId: string; writeId: string; dryRun: boolean }
