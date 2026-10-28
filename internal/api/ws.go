@@ -20,6 +20,11 @@ type Hub struct {
 	// Origins are extra Origin host patterns accepted besides same-origin
 	// (config auth.allowedOrigins). Empty means same-origin only.
 	Origins []string
+	// Authorize re-checks the caller's session while a stream is open; a
+	// revoked or expired session closes the stream within a minute (audit A05).
+	Authorize func(r *http.Request) bool
+	// RecheckEvery overrides the re-authorization interval (tests).
+	RecheckEvery time.Duration
 }
 
 // NewHub returns an empty hub.
@@ -70,10 +75,21 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer h.unsubscribe(ch)
 	ping := time.NewTicker(25 * time.Second)
 	defer ping.Stop()
+	every := h.RecheckEvery
+	if every <= 0 {
+		every = time.Minute
+	}
+	recheck := time.NewTicker(every)
+	defer recheck.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-recheck.C:
+			if h.Authorize != nil && !h.Authorize(r) {
+				_ = c.Close(websocket.StatusPolicyViolation, "session ended")
+				return
+			}
 		case <-ping.C:
 			pctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			err := c.Ping(pctx)

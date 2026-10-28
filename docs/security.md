@@ -1,4 +1,4 @@
-# Security: assess → remediate → report (spec §8.5, §11)
+# Security: assess â remediate â report (spec Â§8.5, Â§11)
 
 The security feature lives in `internal/security` (service and probes),
 `internal/security/enroll` (certificate enrollment clients), the
@@ -37,17 +37,17 @@ winning per key:
 
 1. every driver that implements `engine.SecurityReader` (`read_security`);
 2. every `engine.ConfigReader` (`read_config`), restricted to the security keys;
-3. every `engine.CertManager`'s certificate list → `security.cert.*`;
+3. every `engine.CertManager`'s certificate list â `security.cert.*`;
 4. the **TLS probe** (`tlsprobe.go`): a TLS handshake on 443 and 631 offering
    every cipher suite Go knows (printers often support only RSA key exchange),
    then one handshake per protocol version (1.0, 1.1, 1.2, 1.3) to find the
-   lowest the device still accepts → `security.tls.minVersion`, and the leaf
-   certificate → `security.cert.identityPresent / identitySelfSigned /
+   lowest the device still accepts â `security.tls.minVersion`, and the leaf
+   certificate â `security.cert.identityPresent / identitySelfSigned /
    identityExpiresAt / identityDaysLeft`;
 5. the **port probe** (`portprobe.go`): TCP connects to 21, 23, 80, 443, 515,
-   631, 9100 → `protocols.<name>.enabled` as *observed* values, and one SNMP
+   631, 9100 â `protocols.<name>.enabled` as *observed* values, and one SNMP
    v2c GET of `sysDescr.0` with the configured read communities (falling back to
-   `public`) → `protocols.snmp.v1v2cEnabled = true` when it answers. Silence over
+   `public`) â `protocols.snmp.v1v2cEnabled = true` when it answers. Silence over
    UDP is not reported as "disabled".
 
 Probe-derived settings carry `source: "probe"`, are read-only, and only fill
@@ -55,7 +55,7 @@ keys no driver reported. Nothing in the gather step writes to a device.
 
 ## Scoring
 
-`score = 100 × Σ weight(pass) / Σ weight(pass + fail)`, rounded to 0.1.
+`score = 100 Ã Î£ weight(pass) / Î£ weight(pass + fail)`, rounded to 0.1.
 Unknown items are counted but excluded from the denominator; a device whose
 every item is unknown scores 0 and is not compliant, because nothing was
 verified. `compliant` is `failed == 0 && passed > 0`.
@@ -70,13 +70,13 @@ feed `GET /api/compliance` (latest per device plus a fleet summary) and
 
 Created on first run when no policy exists: SNMP v1/v2c off (high,
 `managementPath: snmp`), SNMPv3 on, Telnet and FTP off (critical), HTTPS on,
-HTTP→HTTPS redirect (`managementPath: http`), TLS ≥ 1.2 (`managementPath: http`),
+HTTPâHTTPS redirect (`managementPath: http`), TLS â¥ 1.2 (`managementPath: http`),
 admin password set (critical, assess-only), identity certificate present and
 not expiring within 30 days (assess-only; renew by enrolling), raw port 9100
 off (medium, **assess-only** because it breaks most print queues), WSD / SLP /
 LLMNR off (low). Edit it like any policy.
 
-## Remediation and the management-path rule (spec §11)
+## Remediation and the management-path rule (spec Â§11)
 
 `POST /api/policies/{id}/remediate` runs as a job. **It is a dry run unless the
 body says `"dryRun": false`.** Per device it re-assesses, then plans one change
@@ -106,7 +106,7 @@ appear in results, audit or logs.
 (`installed`), what the TLS probe saw (`observed`), and what PrintMarshal
 issued (`issued`); add `?live=true` to probe now instead of reading the stored
 observations. Observations are stored so `CheckExpiry` needs no network I/O; it
-raises `cert:expiry` (warning ≤ 30 days, critical ≤ 7 days or expired) and runs
+raises `cert:expiry` (warning â¤ 30 days, critical â¤ 7 days or expired) and runs
 at the start of every assess job. `main` should also call
 `Security.CheckExpiry(ctx)` on a schedule (e.g. daily); that wiring is a
 one-line change in `cmd/printmarshal/main.go` that this feature did not make.
@@ -115,7 +115,7 @@ one-line change in `cmd/printmarshal/main.go` that this feature did not make.
 
 A **CA profile** (`POST /api/ca-profiles`, admin) names a protocol, a URL, an
 optional credential, an optional `caFingerprint` (SHA-256 of the enrollment
-server's TLS leaf or chain certificate, used instead of system roots — the
+server's TLS leaf or chain certificate, used instead of system roots â the
 normal way to reach a private CA), a `keyType` (`rsa2048` default, `rsa3072`,
 `ecdsa-p256`) and protocol `options`.
 
@@ -130,7 +130,7 @@ CA.
 | Protocol | Client | Credential | Limits |
 | --- | --- | --- | --- |
 | **SCEP** (RFC 8894) | `enroll/scep.go`: GetCACert, GetCACaps, PKIOperation (PKCSReq, GetCertInitial polling while the CA answers PENDING), SCEP attributes, PKCS#7 via `smallstep/pkcs7` | `password` = challenge password, sent as the PKCS#9 `challengePassword` CSR attribute | RSA keys only (the protocol encrypts to RSA); AES-256-CBC when the CA advertises `AES`, else the library's DES-CBC (no 3DES encrypt in the library); renewal (`RenewalReq`) not implemented |
-| **EST** (RFC 7030) | `enroll/est.go`: `/cacerts`, `/simpleenroll`, 202 + Retry-After polling, optional `options.label` | HTTP Basic (`username`/`password`) | TLS client-certificate auth (§3.3.2) and `/simplereenroll` not implemented; pin the server with `caFingerprint` for private CAs |
+| **EST** (RFC 7030) | `enroll/est.go`: `/cacerts`, `/simpleenroll`, 202 + Retry-After polling, optional `options.label` | HTTP Basic (`username`/`password`) | TLS client-certificate auth (Â§3.3.2) and `/simplereenroll` not implemented; pin the server with `caFingerprint` for private CAs |
 | **ACME** (RFC 8555) | `enroll/acme.go` on `golang.org/x/crypto/acme`: account, order, **dns-01** only, finalize, chain download | `pem` = account key (otherwise a fresh account per enrollment, which the job log says) ; `options.email` | Printers cannot answer http-01 / tls-alpn-01 (they own ports 80/443), so only DNS names can be ordered and IP SANs are refused. DNS is pluggable (`enroll.DNSProvider`); the built-in **manual** provider reports the `_acme-challenge` TXT record to create and, with `options.dnsWait` (e.g. `5m`), polls DNS until it appears. Without a wait the job fails with the record in its result (`dnsRecord`) |
 
 **No standards driver can install a certificate**: SNMP and IPP have no such
@@ -152,6 +152,31 @@ above the previous one so `ResolveCreds` picks it first. The secret never
 appears in job results, events, the audit entry (`security.rotate` records
 kind, driver and credential id) or logs; dry run reports which devices would
 change and stores nothing. A write that the device rejects stores nothing.
+
+## Transport, sessions and trust (application hardening)
+
+These controls came out of the enterprise integration audit (research folder,
+findings A03–A06, A13, A18) and apply to PrintMarshal itself rather than to the
+printers it manages.
+
+| Control | Behaviour | Setting |
+| --- | --- | --- |
+| Session cookie | `HttpOnly`, `SameSite=Strict`; `Secure` when `auth.secureCookies` is on. The server warns at start-up when it listens on a non-loopback address without secure cookies. | `PM_SECURE_COOKIES=true` behind TLS |
+| Tokens in URLs | Never accepted. Only the cookie or an `Authorization: Bearer` header carries a session. | — |
+| Live stream origins | `/api/stream` accepts same-origin WebSocket upgrades only; additional hosts must be listed. | `auth.allowedOrigins` |
+| Live stream lifetime | Every open stream re-validates its session once a minute and closes when the session was revoked or expired. | — |
+| Password change | Ends every other session of the account and records `auth.session.revoked`. | — |
+| Sign-in throttling | After 10 failed sign-ins from one address within a minute, further attempts get `429` for a minute; failures are recorded as `auth.failed`. | `auth.loginFailuresPerMinute` |
+| Authorization denials | A `403` from the role check is recorded as `auth.denied` with user, method and path. | — |
+| Audit writes | A failed audit write is logged at error level with the full action; every audit entry is also published as `audit.recorded` on the event bus for exporters. | — |
+| Initial admin password | When `PM_ADMIN_PASSWORD` is unset the generated password is written to `<dataDir>/initial-admin-password` (mode 0600) instead of the log. Delete the file after the first login. | `PM_ADMIN_PASSWORD` |
+| Trap trust | Traps are acted on only when they come from the address of a known device; `trap.allowedSources` (CIDRs) narrows the accepted sources further and `trap.ratePerMinute` (default 60) caps traps per source. Drops are logged at most once per source per minute. | `trap.allowedSources`, `trap.ratePerMinute` |
+| Readiness and metrics | `GET /readyz` checks the database; `GET /metrics` (viewer) serves Prometheus text with device, alert, job, outbox and HTTP counters. | — |
+
+TLS termination is expected at a reverse proxy or ingress (see
+`docs/operations.md`); the proxy must forward the `Host` header unchanged so
+the same-origin check on the stream keeps working. Client addresses used for
+throttling are the TCP peer, so a proxy should apply its own sign-in rate limit.
 
 ## API summary
 

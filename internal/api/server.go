@@ -53,6 +53,9 @@ func (s *Server) Handler() http.Handler {
 	if s.logins == nil {
 		s.logins = newLoginLimiter(s.Cfg.Auth.LoginFailuresPerMinute)
 	}
+	if s.Hub != nil && s.Hub.Authorize == nil {
+		s.Hub.Authorize = func(r *http.Request) bool { _, err := s.Auth.Authenticate(r); return err == nil }
+	}
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "version": s.Version})
