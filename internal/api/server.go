@@ -112,6 +112,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/audit", s.require(model.RoleOperator, s.listAudit))
 	mux.Handle("GET /api/notifications", s.require(model.RoleOperator, s.listNotifications))
 	mux.Handle("GET /api/settings", s.require(model.RoleViewer, s.getSettings))
+	mux.Handle("PATCH /api/settings", s.require(model.RoleAdmin, s.patchSettings))
+	mux.Handle("DELETE /api/settings", s.require(model.RoleAdmin, s.resetSettings))
 	mux.Handle("GET /api/drivers", s.require(model.RoleViewer, s.listDrivers))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -452,12 +454,25 @@ func (s *Server) pollDevice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) pollAll(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		DeviceIDs []string `json:"deviceIds"`
+		GroupID   string   `json:"groupId"`
 	}
 	if r.ContentLength > 0 {
 		if err := readJSON(r, &body); err != nil {
 			writeErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
+	}
+	if body.GroupID != "" {
+		ids, err := s.Fleet.GroupDeviceIDs(r.Context(), body.GroupID)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		if len(ids) == 0 {
+			writeErr(w, http.StatusBadRequest, "the group has no devices")
+			return
+		}
+		body.DeviceIDs = ids
 	}
 	j, err := s.Fleet.SubmitPoll(r.Context(), body.DeviceIDs, actor(r))
 	if err != nil {
@@ -908,19 +923,50 @@ func (s *Server) listNotifications(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
-	// Expose non-secret runtime settings only.
+	// Expose non-secret runtime settings only: effective values plus the file defaults.
 	notifiers := []map[string]any{}
 	for _, n := range s.Cfg.Notifiers {
 		notifiers = append(notifiers, map[string]any{"name": n.Name, "type": n.Type, "events": n.Events})
 	}
+	eff := s.Fleet.Runtime(r.Context())
 	writeJSON(w, http.StatusOK, map[string]any{
 		"version":   s.Version,
-		"poll":      map[string]any{"interval": s.Cfg.Poll.Interval, "concurrency": s.Cfg.Poll.Concurrency},
-		"discovery": map[string]any{"enabled": s.Cfg.Discovery.Enabled, "interval": s.Cfg.Discovery.Interval, "targets": s.Cfg.Discovery.Targets, "maxAddresses": s.Cfg.Discovery.MaxAddresses},
+		"poll":      map[string]any{"interval": eff.PollInterval, "concurrency": eff.PollConcurrency},
+		"discovery": map[string]any{"enabled": eff.DiscoveryEnabled, "interval": eff.DiscoveryInterval, "targets": eff.DiscoveryTargets, "maxAddresses": s.Cfg.Discovery.MaxAddresses},
 		"trap":      map[string]any{"enabled": s.Cfg.Trap.Enabled, "listen": s.Cfg.Trap.Listen},
-		"alerts":    s.Cfg.Alerts,
+		"alerts":    map[string]any{"supplyWarningPercent": eff.SupplyWarningPercent, "supplyCriticalPercent": eff.SupplyCriticalPercent, "offlineAfterFailures": eff.OfflineAfterFailures},
+		"telemetry": map[string]any{"retention": eff.TelemetryRetention},
+		"runtime":   eff,
+		"defaults":  s.Fleet.Defaults(),
 		"notifiers": notifiers,
 	})
+}
+
+// patchSettings saves runtime overrides (admin). Scheduler and alert rules pick
+// them up on the next tick; file/env values stay as the defaults.
+func (s *Server) patchSettings(w http.ResponseWriter, r *http.Request) {
+	cur := s.Fleet.Runtime(r.Context())
+	before := cur
+	if err := readJSON(r, &cur); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.Fleet.SaveRuntime(r.Context(), cur); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	s.audit(r.Context(), r, "settings.update", "runtime", map[string]any{"runtime": before}, map[string]any{"runtime": cur}, "ok")
+	writeJSON(w, http.StatusOK, s.Fleet.Runtime(r.Context()))
+}
+
+func (s *Server) resetSettings(w http.ResponseWriter, r *http.Request) {
+	before := s.Fleet.Runtime(r.Context())
+	if err := s.Fleet.ResetRuntime(r.Context()); err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.audit(r.Context(), r, "settings.reset", "runtime", map[string]any{"runtime": before}, nil, "ok")
+	writeJSON(w, http.StatusOK, s.Fleet.Runtime(r.Context()))
 }
 
 func (s *Server) listDrivers(w http.ResponseWriter, r *http.Request) {

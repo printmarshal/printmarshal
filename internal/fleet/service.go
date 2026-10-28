@@ -56,10 +56,11 @@ func (s *Service) emit(typ string, data any) {
 }
 
 func (s *Service) thresholds() alerts.Thresholds {
+	r := s.Runtime(context.Background())
 	return alerts.Thresholds{
-		SupplyWarningPercent:  s.Cfg.Alerts.SupplyWarningPercent,
-		SupplyCriticalPercent: s.Cfg.Alerts.SupplyCriticalPercent,
-		OfflineAfterFailures:  s.Cfg.Alerts.OfflineAfterFailures,
+		SupplyWarningPercent:  r.SupplyWarningPercent,
+		SupplyCriticalPercent: r.SupplyCriticalPercent,
+		OfflineAfterFailures:  r.OfflineAfterFailures,
 	}
 }
 
@@ -465,38 +466,37 @@ func maxInt(a, b int) int {
 // --- scheduler --------------------------------------------------------------
 
 // RunScheduler runs scheduled polls, optional scheduled discovery and
-// telemetry pruning until ctx ends.
+// telemetry pruning until ctx ends. Intervals are re-read from the runtime
+// settings on every tick so operator changes apply without a restart.
 func (s *Service) RunScheduler(ctx context.Context) {
-	poll := time.NewTicker(maxDur(s.Cfg.Poll.Interval.D(), 30*time.Second))
-	defer poll.Stop()
-	disc := time.NewTicker(maxDur(s.Cfg.Discovery.Interval.D(), 5*time.Minute))
-	defer disc.Stop()
-	prune := time.NewTicker(6 * time.Hour)
-	defer prune.Stop()
-
-	// Stock alerts reflect the current inventory straight away.
-	s.ReconcileConsumables(ctx)
-
-	// First poll shortly after start.
-	first := time.NewTimer(10 * time.Second)
-	defer first.Stop()
+	nextPoll := time.Now().Add(10 * time.Second) // first poll shortly after start
+	nextDisc := time.Now().Add(s.Runtime(ctx).DiscoveryInterval.D())
+	nextPrune := time.Now().Add(6 * time.Hour)
+	tick := time.NewTicker(5 * time.Second)
+	defer tick.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-first.C:
-			s.scheduledPoll(ctx)
-		case <-poll.C:
-			s.scheduledPoll(ctx)
-		case <-disc.C:
-			if s.Cfg.Discovery.Enabled {
-				if _, err := s.SubmitDiscovery(ctx, DiscoveryParams{Targets: s.Cfg.Discovery.Targets, ZeroConf: true}, "scheduler"); err != nil {
-					s.Log.Warn("scheduled discovery", "err", err)
-				}
+		case now := <-tick.C:
+			r := s.Runtime(ctx)
+			if now.After(nextPoll) {
+				s.scheduledPoll(ctx)
+				nextPoll = now.Add(maxDur(r.PollInterval.D(), 30*time.Second))
 			}
-		case <-prune.C:
-			if n, err := s.Store.PruneTelemetry(ctx, time.Now().Add(-s.Cfg.Telemetry.Retention.D())); err == nil && n > 0 {
-				s.Log.Info("pruned telemetry", "rows", n)
+			if now.After(nextDisc) {
+				if r.DiscoveryEnabled {
+					if _, err := s.SubmitDiscovery(ctx, DiscoveryParams{Targets: r.DiscoveryTargets, ZeroConf: true}, "scheduler"); err != nil {
+						s.Log.Warn("scheduled discovery", "err", err)
+					}
+				}
+				nextDisc = now.Add(maxDur(r.DiscoveryInterval.D(), 5*time.Minute))
+			}
+			if now.After(nextPrune) {
+				if n, err := s.Store.PruneTelemetry(ctx, now.Add(-r.TelemetryRetention.D())); err == nil && n > 0 {
+					s.Log.Info("pruned telemetry", "rows", n)
+				}
+				nextPrune = now.Add(6 * time.Hour)
 			}
 		}
 	}

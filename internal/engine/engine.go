@@ -111,6 +111,33 @@ func (r *Registry) For(d *model.Device, cap model.Capability) []Driver {
 	return out
 }
 
+// ForWithFallback returns For(d, cap) followed by every other registered
+// driver that declares cap and identified the device, so a failing pinned
+// driver can fall back to a sibling (e.g. IPP when SNMP times out).
+func (r *Registry) ForWithFallback(d *model.Device, cap model.Capability) []Driver {
+	primary := r.For(d, cap)
+	seen := map[string]bool{}
+	for _, p := range primary {
+		seen[p.Name()] = true
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var extra []Driver
+	for _, drv := range r.drivers {
+		if seen[drv.Name()] || !declares(drv, cap) {
+			continue
+		}
+		for _, m := range d.IdentifyMethods {
+			if m == drv.Name() {
+				extra = append(extra, drv)
+				break
+			}
+		}
+	}
+	sort.SliceStable(extra, func(i, j int) bool { return extra[i].Priority(cap) > extra[j].Priority(cap) })
+	return append(primary, extra...)
+}
+
 // Named returns the driver with the given name, if registered.
 func (r *Registry) Named(name string) Driver {
 	r.mu.RLock()
@@ -310,7 +337,7 @@ func (e *Engine) Poll(ctx context.Context, d *model.Device, creds model.Creds) *
 	defer release()
 
 	try := func(cap model.Capability, call func(Driver) error) {
-		drivers := e.Registry.For(d, cap)
+		drivers := e.Registry.ForWithFallback(d, cap)
 		if len(drivers) == 0 {
 			res.Errors[cap] = ErrUnsupported.Error()
 			return
