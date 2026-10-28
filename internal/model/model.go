@@ -316,17 +316,48 @@ const (
 	CredCertificate   CredentialType = "certificate"
 )
 
+// CredentialPurpose binds a credential to the kind of device access it may be
+// used for (audit A19). Read credentials serve discovery, identification,
+// polling, configuration/security reads and dry runs; only write credentials
+// are handed to configuration applies, security remediation and rotation,
+// certificate installation and firmware delivery. A device with no
+// write-capable credential bound cannot be written to.
+type CredentialPurpose string
+
+const (
+	PurposeRead  CredentialPurpose = "read"
+	PurposeWrite CredentialPurpose = "write"
+	PurposeBoth  CredentialPurpose = "both"
+)
+
+// Valid reports whether p is one of the known purposes.
+func (p CredentialPurpose) Valid() bool {
+	switch p {
+	case PurposeRead, PurposeWrite, PurposeBoth:
+		return true
+	}
+	return false
+}
+
+// CanRead reports whether a credential of this purpose may serve reads. The
+// empty purpose is the pre-purpose default, read.
+func (p CredentialPurpose) CanRead() bool { return p == PurposeRead || p == PurposeBoth || p == "" }
+
+// CanWrite reports whether a credential of this purpose may serve writes.
+func (p CredentialPurpose) CanWrite() bool { return p == PurposeWrite || p == PurposeBoth }
+
 // Credential metadata. The secret itself is never part of this struct; it lives
 // encrypted in the store and is resolved into a Creds value only inside the engine.
 type Credential struct {
-	ID        string         `json:"id"`
-	Name      string         `json:"name"`
-	Type      CredentialType `json:"type"`
-	Scope     string         `json:"scope"`              // "" = global, "device:<id>", "group:<id>"
-	Username  string         `json:"username,omitempty"` // non-secret part (SNMPv3 user / admin user)
-	Priority  int            `json:"priority"`
-	CreatedAt time.Time      `json:"createdAt"`
-	UpdatedAt time.Time      `json:"updatedAt"`
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Type      CredentialType    `json:"type"`
+	Scope     string            `json:"scope"`              // "" = global, "device:<id>", "group:<id>"
+	Username  string            `json:"username,omitempty"` // non-secret part (SNMPv3 user / admin user)
+	Priority  int               `json:"priority"`
+	Purpose   CredentialPurpose `json:"purpose"` // read (default) | write | both
+	CreatedAt time.Time         `json:"createdAt"`
+	UpdatedAt time.Time         `json:"updatedAt"`
 }
 
 // Secret is the secret half of a credential. It is encrypted at rest and must

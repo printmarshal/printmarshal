@@ -96,9 +96,26 @@ per failing item that has `remediate: true`:
 - Every real write is audited (`security.remediate`, actor, device, before /
   after per key; secrets redacted) and followed by a fresh assessment.
 
-`internal/security/service_test.go` has the safety tests the spec asks for:
-dry run performs no write, the last management path survives, secrets never
-appear in results, audit or logs.
+**Write credentials and verified outcomes (audit A19 / A20).** A real
+remediation — like rotation and certificate installation — is handed only
+credentials whose purpose is `write` or `both` (see "Credentials and purposes"
+in `docs/configuration.md`); when none is bound to the device, its groups or
+globally, every planned item is `failed` with "no write credential bound to
+this device or its groups …", nothing is written, and the audit entry says
+`refused`. The dry run keeps working with read credentials. After a real
+write, the re-assessment is the read-back: each written item gets an explicit
+`outcome` — `verified` when the policy item now passes, `diverged` (with
+`readBack`) when the device accepted the change but still fails the item,
+`unverifiable` when the setting is no longer readable, `written` when the
+re-assessment itself failed — and the result counts `verified` / `diverged`
+next to `written`. A remediation ticket should close on `verified`, not on
+`written`.
+
+`internal/security/service_test.go` and `purpose_test.go` have the safety
+tests the spec asks for: dry run performs no write, the last management path
+survives, secrets never appear in results, audit or logs, a device without a
+write credential is never written to, and a device that accepts a write but
+keeps the old value is reported as diverged.
 
 ## Certificates
 
@@ -148,7 +165,9 @@ dryRun}` (job `security.rotate`, dry run by default). Per device a new random
 24-character secret is written as `protocols.snmp.readCommunity` or
 `security.adminPassword` through the security/config writers; **only when the
 device accepts it** is a new device-scoped credential stored, with a priority
-above the previous one so `ResolveCreds` picks it first. The secret never
+above the previous one so `ResolveCreds` picks it first (purpose `read` for a
+community, `both` for an admin password). The write itself needs a write
+credential bound to the device; without one the device is `failed`. The secret never
 appears in job results, events, the audit entry (`security.rotate` records
 kind, driver and credential id) or logs; dry run reports which devices would
 change and stores nothing. A write that the device rejects stores nothing.

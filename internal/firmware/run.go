@@ -34,7 +34,7 @@ func (s *Service) runCampaign(ctx context.Context, jc *jobs.Context) error {
 	// up front so the job's results stand on their own.
 	for _, d := range devs {
 		if d.Status.Terminal() {
-			s.report(jc, d)
+			s.report(jc, d, "")
 		}
 	}
 
@@ -189,7 +189,7 @@ func (s *Service) finishCancelled(ctx context.Context, jc *jobs.Context, c *mode
 		if !d.Status.Terminal() {
 			d.FinishedAt = &now
 			s.setRow(ctx, d, model.CampaignDeviceSkipped, "campaign cancelled")
-			s.report(jc, d)
+			s.report(jc, d, "")
 		}
 	}
 	s.update(ctx, c.ID, func(c *model.Campaign) {
@@ -212,8 +212,10 @@ func (s *Service) setRow(ctx context.Context, row *model.CampaignDevice, status 
 	s.emit(EventDeviceUpdated, row)
 }
 
-// report mirrors a terminal row into the job's per-device results.
-func (s *Service) report(jc *jobs.Context, row *model.CampaignDevice) {
+// report mirrors a terminal row into the job's per-device results. outcome,
+// when set, is the post-delivery verification verdict (audit A20): verified,
+// diverged or unverifiable, using the same vocabulary as configuration writes.
+func (s *Service) report(jc *jobs.Context, row *model.CampaignDevice, outcome model.WriteOutcome) {
 	status := "ok"
 	switch row.Status {
 	case model.CampaignDeviceFailed:
@@ -222,6 +224,9 @@ func (s *Service) report(jc *jobs.Context, row *model.CampaignDevice) {
 		status = "skipped"
 	}
 	data := map[string]any{"wave": row.Wave, "fromVersion": row.FromVersion, "toVersion": row.ToVersion}
+	if outcome != "" {
+		data["outcome"] = string(outcome)
+	}
 	jc.Result(row.DeviceID, "", status, row.Message, data)
 }
 
@@ -232,7 +237,11 @@ func (s *Service) updateDevice(ctx context.Context, jc *jobs.Context, c *model.C
 	row.StartedAt = &start
 	done := func(status model.CampaignDeviceStatus, msg string) {
 		s.setRow(ctx, row, status, msg)
-		s.report(jc, row)
+		s.report(jc, row, "")
+	}
+	verdict := func(status model.CampaignDeviceStatus, outcome model.WriteOutcome, msg string) {
+		s.setRow(ctx, row, status, string(outcome)+": "+msg)
+		s.report(jc, row, outcome)
 	}
 
 	dev, err := s.Store.GetDevice(ctx, row.DeviceID)
@@ -279,8 +288,21 @@ func (s *Service) updateDevice(ctx context.Context, jc *jobs.Context, c *model.C
 	if c.DryRun {
 		mode = "dry run: validating"
 	}
+	// A dry run only validates, so read credentials suffice; a real delivery
+	// needs a write credential bound to the device (audit A19).
+	creds := s.Creds(ctx, dev)
+	if !c.DryRun {
+		wc, err := s.WriteCreds(ctx, dev)
+		if err != nil {
+			_ = s.Store.AddAudit(ctx, &model.AuditEntry{Actor: c.StartedBy, Action: "firmware.update", Target: dev.ID,
+				After: map[string]any{"campaignId": c.ID, "packageId": pkg.ID, "version": pkg.Version, "driver": drv, "reason": err.Error()}, Result: "refused"})
+			done(model.CampaignDeviceFailed, err.Error())
+			return
+		}
+		creds = wc
+	}
 	s.setRow(ctx, row, model.CampaignDeviceUpdating, fmt.Sprintf("%s %s via %s", mode, pkg.Version, drv))
-	res, err := up.UpdateFirmware(ctx, dev, s.Creds(ctx, dev), pkg, model.WriteOptions{DryRun: c.DryRun})
+	res, err := up.UpdateFirmware(ctx, dev, creds, pkg, model.WriteOptions{DryRun: c.DryRun})
 	if !c.DryRun {
 		s.auditDelivery(ctx, c, dev, pkg, drv, res, err)
 	}
@@ -318,12 +340,12 @@ func (s *Service) updateDevice(ctx context.Context, jc *jobs.Context, c *model.C
 		timeout = time.Duration(c.VerifyTimeoutSecs) * time.Second
 	}
 	s.setRow(ctx, row, model.CampaignDeviceVerifying, fmt.Sprintf("image accepted via %s; waiting up to %s for the device to report %s", drv, timeout, pkg.Version))
-	got, err := s.verify(ctx, dev, pkg.Version, timeout)
+	got, outcome, err := s.verify(ctx, dev, pkg.Version, timeout)
 	if err != nil {
-		done(model.CampaignDeviceFailed, "verification "+err.Error())
+		verdict(model.CampaignDeviceFailed, outcome, err.Error())
 		return
 	}
-	done(model.CampaignDeviceSucceeded, fmt.Sprintf("verified: device reports %s (was %s)", got, orNone(row.FromVersion)))
+	verdict(model.CampaignDeviceSucceeded, outcome, fmt.Sprintf("device reports %s (was %s)", got, orNone(row.FromVersion)))
 }
 
 // preflight re-reads the device and requires it reachable and idle. Transient
@@ -354,10 +376,14 @@ func (s *Service) preflight(ctx context.Context, dev *model.Device) (*model.Devi
 	return nil, last
 }
 
-// verify polls the device until it reports want or timeout elapses.
-func (s *Service) verify(ctx context.Context, dev *model.Device, want string, timeout time.Duration) (string, error) {
+// verify polls the device until it reports want or timeout elapses. The
+// outcome names the verdict (audit A20): verified when the device reports the
+// package version, diverged when it reports another version at the deadline,
+// unverifiable when it reported no version at all (offline, poll errors,
+// interrupted).
+func (s *Service) verify(ctx context.Context, dev *model.Device, want string, timeout time.Duration) (string, model.WriteOutcome, error) {
 	if s.Poll == nil {
-		return "", errors.New("failed: no poller configured")
+		return "", model.OutcomeUnverifiable, errors.New("no poller configured")
 	}
 	deadline := time.Now().Add(timeout)
 	last := ""
@@ -371,26 +397,28 @@ func (s *Service) verify(ctx context.Context, dev *model.Device, want string, ti
 				last = upd.Firmware
 			}
 			if upd.Status != nil && upd.Status.Online && upd.Firmware != "" && fwversion.Equal(upd.Firmware, want) {
-				return upd.Firmware, nil
+				return upd.Firmware, model.OutcomeVerified, nil
 			}
 		}
 		if time.Now().After(deadline) {
 			break
 		}
 		if err := sleepCtx(ctx, s.VerifyInterval); err != nil {
-			return last, fmt.Errorf("interrupted: %w", err)
+			return last, model.OutcomeUnverifiable, fmt.Errorf("verification interrupted: %w", err)
 		}
 	}
 	msg := fmt.Sprintf("timed out after %s waiting for the device to report %s", timeout, want)
+	outcome := model.OutcomeUnverifiable
 	if last != "" {
 		msg += "; device reports " + last
+		outcome = model.OutcomeDiverged
 	} else {
 		msg += "; device reported no version"
 	}
 	if lastErr != nil {
 		msg += " (last poll error: " + lastErr.Error() + ")"
 	}
-	return last, errors.New(msg)
+	return last, outcome, errors.New(msg)
 }
 
 // auditDelivery records every real delivery attempt (spec §11 "audit everything

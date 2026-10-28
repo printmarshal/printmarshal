@@ -6,12 +6,14 @@ import { Ic } from '../icons'
 import { Btn, Pill } from '../ui'
 import type { ApplyResultData, CatalogDef, SettingChange, SettingResult } from '../../types-config'
 import { areaLabel } from '../../types-config'
-import { Diff, ResultPill, fmtValue, settingName } from './shared'
+import { Diff, OutcomePill, ResultPill, fmtValue, settingName } from './shared'
 
 export type RowKind = 'change' | 'match' | 'skipped' | 'failed' | 'unreachable'
 export interface DeviceRow {
   deviceId: string; label: string; model: string; location: string; kind: RowKind; message: string
   writeId?: string; results: SettingResult[]; writes: number; failed: number; skipped: number; unchanged: number
+  /** Read-back split of the written settings (real applies only, audit A20). */
+  verified: number; diverged: number
 }
 export interface SettingRow { key: string; desired: unknown; befores: { value: string; n: number }[]; changing: number; skipped: number; failed: number; unchanged: number; reasons: string[] }
 export interface Analysis { rows: DeviceRow[]; settings: SettingRow[]; changing: DeviceRow[]; matching: DeviceRow[]; skippedRows: DeviceRow[]; writes: number; touched: string[] }
@@ -26,8 +28,10 @@ export function analyse(results: JobResult[], devices: Map<string, Device>, prof
     const failed = list.filter((x) => x.status === 'failed').length
     const skipped = list.filter((x) => x.status === 'skipped').length
     const unchanged = list.filter((x) => x.status === 'unchanged').length
+    const verified = list.filter((x) => x.outcome === 'verified').length
+    const diverged = list.filter((x) => x.outcome === 'diverged').length
     const kind: RowKind = list.length === 0 && r.status === 'error' ? 'unreachable' : failed > 0 ? 'failed' : writes > 0 ? 'change' : unchanged === 0 && skipped > 0 ? 'skipped' : 'match'
-    return { deviceId: r.deviceId || '', label: d ? deviceName(d) : r.address || r.deviceId || '?', model: d?.model || '', location: d?.location || '', kind, message: r.message || '', writeId: data.writeId, results: list, writes, failed, skipped, unchanged }
+    return { deviceId: r.deviceId || '', label: d ? deviceName(d) : r.address || r.deviceId || '?', model: d?.model || '', location: d?.location || '', kind, message: r.message || '', writeId: data.writeId, results: list, writes, failed, skipped, unchanged, verified, diverged }
   })
   const order: Record<RowKind, number> = { failed: 0, unreachable: 1, change: 2, skipped: 3, match: 4 }
   rows.sort((a, b) => order[a.kind] - order[b.kind] || a.label.localeCompare(b.label))
@@ -53,7 +57,11 @@ export function analyse(results: JobResult[], devices: Map<string, Device>, prof
 
 export function kindPill(row: DeviceRow, dry: boolean) {
   switch (row.kind) {
-    case 'change': return dry ? <Pill tone="warn" noIcon><Ic.pencil />{row.writes} change{row.writes === 1 ? '' : 's'}</Pill> : <Pill tone="ok">{row.writes} written</Pill>
+    case 'change':
+      if (dry) return <Pill tone="warn" noIcon><Ic.pencil />{row.writes} change{row.writes === 1 ? '' : 's'}</Pill>
+      if (row.diverged > 0) return <Pill tone="warn" title="The device accepted the write but reports a different value">{row.diverged} diverged · {row.writes} written</Pill>
+      if (row.verified === row.writes) return <Pill tone="ok" title="Read back from the device">{row.writes} verified</Pill>
+      return <Pill tone="ok">{row.writes} written{row.verified ? ` · ${row.verified} verified` : ''}</Pill>
     case 'match': return <Pill tone="ok">Already matches</Pill>
     case 'skipped': return <Pill tone="off">Skipped</Pill>
     case 'unreachable': return <Pill tone="off">Unreachable · skip</Pill>
@@ -113,8 +121,12 @@ export function DeviceRows({ rows, byKey, dry, initialOpen = 3 }: { rows: Device
                     <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                       {x.status === 'would_write' || x.status === 'written' ? <Diff before={x.before} after={x.after} def={byKey.get(x.key)} /> : x.status === 'unchanged' ? <span className="mono">{fmtValue(x.before ?? x.after, byKey.get(x.key))}</span> : <span className="cap">{x.error || (x.status === 'skipped' ? 'not supported by any driver on this device' : x.status)}</span>}
                       {x.driver && <span className="tag" title="driver">{x.driver}</span>}
+                      {x.outcome === 'diverged' && <span className="cap" style={{ color: 'var(--warn)' }}>device reports <span className="mono">{fmtValue(x.readBack, byKey.get(x.key))}</span></span>}
                     </span>
-                    <ResultPill status={x.status} xs />
+                    <span style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                      <ResultPill status={x.status} xs />
+                      {x.outcome && <OutcomePill outcome={x.outcome} xs />}
+                    </span>
                   </div>
                 ))}
                 {r.kind === 'unreachable' && <div className="cap" style={{ padding: '6px 0' }}>{r.message || 'Could not read the device.'} It is listed as skipped; re-run the preview when it is back, or check it from the drift report.</div>}

@@ -84,7 +84,17 @@ func (s *SQLite) migrate() error {
 	if err := s.migrateLegacyStock(); err != nil {
 		return fmt.Errorf("migrate stock: %w", err)
 	}
-	_, err = s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, ?)`, now())
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, ?)`, now()); err != nil {
+		return err
+	}
+	// Migration 3 (audit A19): purpose-bound credentials. The column is added
+	// with ALTER TABLE because the schema files are only ever CREATE statements;
+	// the guard makes it idempotent on fresh and existing databases alike, and
+	// the default keeps every pre-existing credential read-only.
+	if err := s.migrateCredentialPurpose(); err != nil {
+		return fmt.Errorf("migrate credential purpose: %w", err)
+	}
+	_, err = s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, ?)`, now())
 	return err
 }
 

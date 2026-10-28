@@ -76,10 +76,74 @@ simply absent from the document (not "unsupported").
 | `protocols.snmp.v1v2cEnabled` / `v3Enabled` | the version that answered | no (observed) |
 
 Writes are one `SetRequest` per setting (`snmp.Session.Set`), read back afterwards.
-SNMP SET needs write access: configure the write community (or an SNMPv3 user with
-write access) as a credential with the **highest priority** for the device, because
-the dialer uses the first credential that answers a read. A read-only community
-fails the setting with `notWritable`; nothing else is attempted.
+SNMP SET needs write access: store the write community (or an SNMPv3 user with
+write access) as a credential with purpose **write** (see "Credentials and
+purposes"); a real apply is handed only write-capable credentials, so the dialer
+cannot pick the polling community for a SET. A read-only community that is
+nevertheless marked `write` fails the setting with `notWritable`; nothing else is
+attempted.
+
+## Credentials and purposes (audit A19)
+
+Every stored credential has a **purpose**: `read` (the default, and what every
+credential stored before this field existed becomes), `write` or `both`.
+
+- **Read** credentials serve discovery, identification, polling, configuration
+  and security reads, drift reports and **dry runs** — everything that only reads.
+- **Write** credentials serve configuration applies and reverts, security
+  remediation and credential rotation, certificate installation and firmware
+  delivery. They are never used for a read, so a privileged community or admin
+  password does not become the polling default.
+- **Both** serves either side (an admin password that authenticates reads and
+  writes on the device's web service, for example).
+
+The store resolves them separately: `ResolveCreds` returns the read-capable set
+(`read` + `both`), `ResolveWriteCreds` the write-capable set (`write` + `both`),
+each device scope > group scope > global, then priority. Every write path
+(`configmgmt`, `security`, `firmware`) resolves write credentials through the
+same helper (`store.CredsFor` / `fleet.CredsFor` with `PurposeWrite`) and,
+when **nothing write-capable is bound** to the device, its groups or globally,
+**fails the per-device result** with `store.ErrNoWriteCredential` — "no write
+credential bound to this device or its groups; bind a credential with purpose
+"write" or "both" …" — writes nothing, and records an audit entry with result
+`refused`. A device that is only readable can never be written to by accident.
+Dry runs keep working with read credentials.
+
+A rotated SNMP community is stored as `read` (it *is* the new read community);
+a rotated admin password as `both`.
+
+`POST /api/credentials` accepts `purpose` (defaults to `read`), `GET
+/api/credentials` returns it, and `PATCH /api/credentials/{id} {purpose}`
+(admin) changes it — the only mutable credential field, audited as
+`credential.update` with the previous and new purpose. The Credentials page
+shows the purpose per row and has a selector in the create form.
+
+## Write outcomes (audit A20)
+
+A device *accepting* a write is not the same as the desired state being *in
+effect*. After every real (non-dry-run) apply the service re-reads the device
+through the normal read path (which also refreshes the snapshot) and records a
+per-setting **outcome** next to the status:
+
+| Outcome | Meaning |
+| --- | --- |
+| `verified` | The read-back equals the desired value. |
+| `diverged` | The device accepted the write but reports a different value; `readBack` carries it. |
+| `unverifiable` | No driver reports the key (or it is a secret, whose value is never compared or stored). |
+| `written` | The device accepted the write but the re-read itself failed: accepted, not verified. |
+
+The outcome lives in the write record's result JSON (`result.results[].outcome`
+/ `readBack`), is counted in `verified` / `diverged` on the record, the
+`config.applied` event and the job's per-device result (`data.verified`,
+`data.diverged`; the message reads "2 written, … (1 verified, 1 diverged)"),
+and reaches the audit entry as `after.outcomes` with result `diverged` when any
+setting diverged. The UI shows it as a second pill per setting (verified =
+green, accepted = blue, diverged = amber with the read-back value, unverifiable
+= grey) in apply results and the device's write history. Firmware delivery
+uses the same words for its post-update poll (`verified` / `diverged` /
+`unverifiable` in the row message and `data.outcome`), and security
+remediation reports the same outcome per policy item from its re-assessment.
+Nothing should infer "in effect" from `written` alone.
 
 ## Safety rules (spec §3 principle 4, §11)
 
@@ -132,7 +196,8 @@ Results are merged per key; a key no driver serves is `skipped` with a reason.
 | POST | `/api/config/writes/{id}/revert` | operator | `{dryRun}` | 202 `{job}` |
 
 Jobs are read through the existing `GET /api/jobs/{id}`; each per-device result
-carries `data.writeId` and `data.results[]` (the per-setting outcomes).
+carries `data.writeId`, `data.results[]` (the per-setting status and, for real
+applies, `outcome` / `readBack`) and `data.verified` / `data.diverged`.
 
 Setting values are coerced to the catalogue type (`model.CoerceValue`): numbers may
 arrive as JSON floats, booleans as `"true"`, lists as arrays or comma-separated

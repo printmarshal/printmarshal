@@ -82,12 +82,25 @@ func (s *Service) acquire(ctx context.Context) (func(), error) {
 	}
 }
 
-func (s *Service) creds(ctx context.Context, dev *model.Device) model.Creds {
+// credsFor resolves a device's credentials for a purpose (audit A19): reads
+// and dry runs use read credentials, real writes use write credentials and
+// fail with store.ErrNoWriteCredential when none is bound.
+func (s *Service) credsFor(ctx context.Context, dev *model.Device, purpose model.CredentialPurpose) (model.Creds, error) {
 	if s.Fleet != nil {
-		return s.Fleet.Creds(ctx, dev)
+		return s.Fleet.CredsFor(ctx, dev, purpose)
 	}
-	c, _ := s.Store.ResolveCreds(ctx, dev.ID, nil)
-	return c
+	return store.CredsFor(ctx, s.Store, dev, purpose)
+}
+
+// writeCredsError is the reason a per-device result carries when the write
+// credentials could not be resolved (audit A19): a readable device is never
+// written to with a read credential. store.ErrNoWriteCredential already says
+// what to bind.
+func writeCredsError(err error) error {
+	if errors.Is(err, store.ErrNoWriteCredential) {
+		return err
+	}
+	return fmt.Errorf("resolve write credentials: %w", err)
 }
 
 // Catalog returns the canonical setting catalogue.
@@ -157,7 +170,7 @@ func (s *Service) readDevice(ctx context.Context, dev *model.Device, sel model.C
 		return nil, err
 	}
 	defer release()
-	creds := s.creds(ctx, dev)
+	creds, _ := s.credsFor(ctx, dev, model.PurposeRead)
 	merged := &model.ConfigDocument{DeviceID: dev.ID, Settings: []model.Setting{}, ReadAt: time.Now().UTC(), Sources: []string{}}
 	seen := map[string]int{} // key -> index in merged.Settings
 	var errs []error
@@ -532,8 +545,11 @@ func (s *Service) runApply(ctx context.Context, jc *jobs.Context) error {
 			msg := fmt.Sprintf("%d written, %d unchanged, %d skipped, %d failed", rec.Written, rec.Unchanged, rec.Skipped, rec.Failed)
 			if dryRun {
 				msg = "dry run: " + msg
+			} else if rec.Written > 0 {
+				msg += fmt.Sprintf(" (%d verified, %d diverged)", rec.Verified, rec.Diverged)
 			}
-			jc.Result(d.ID, d.Address, status, msg, map[string]any{"writeId": rec.ID, "dryRun": dryRun, "results": rec.Result.Results})
+			jc.Result(d.ID, d.Address, status, msg, map[string]any{"writeId": rec.ID, "dryRun": dryRun, "results": rec.Result.Results,
+				"verified": rec.Verified, "diverged": rec.Diverged})
 		}(d)
 	}
 	wg.Wait()
@@ -556,12 +572,24 @@ func (s *Service) applyDevice(ctx context.Context, dev *model.Device, changes []
 	if len(writers) == 0 {
 		return nil, engine.ErrUnsupported
 	}
+	// A dry run only reads, so read credentials suffice; a real apply needs a
+	// write credential bound to the device (audit A19) and is refused otherwise.
+	purpose := model.PurposeWrite
+	if opts.DryRun {
+		purpose = model.PurposeRead
+	}
+	creds, err := s.credsFor(ctx, dev, purpose)
+	if err != nil && !opts.DryRun {
+		err = writeCredsError(err)
+		_ = s.Store.AddAudit(ctx, &model.AuditEntry{Actor: actor, Action: JobType, Target: dev.ID,
+			After: map[string]any{"jobId": jobID, "reason": err.Error()}, Result: "refused"})
+		return nil, err
+	}
 	release, err := s.acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
-	creds := s.creds(ctx, dev)
 
 	final := map[string]model.SettingResult{}
 	skipReasons := map[string][]string{} // key -> "<driver>: <reason>" from every driver that skipped it
@@ -618,6 +646,16 @@ func (s *Service) applyDevice(ctx context.Context, dev *model.Device, changes []
 		}
 		results = append(results, redactResult(r))
 	}
+	if !opts.DryRun && anyWritten(results) {
+		// Re-read the device (audit A20): a write the device accepted is only
+		// "verified" once the read-back equals the desired value. This also
+		// refreshes the snapshot so the stored document reflects the device.
+		doc, err := s.ReadConfig(ctx, dev.ID, model.ConfigSelector{})
+		if err != nil {
+			s.Log.Warn("config re-read after write", "device", dev.ID, "err", err)
+		}
+		VerifyOutcomes(results, changes, doc)
+	}
 	rec := &model.WriteRecord{JobID: jobID, ProfileID: profileID, RevertOf: revertOf, Actor: actor, Changes: redactChanges(changes),
 		Result: model.WriteResult{DeviceID: dev.ID, DryRun: opts.DryRun, Results: results, At: time.Now().UTC(), Rollback: redactChanges(rollback)}}
 	rec.Count()
@@ -625,15 +663,59 @@ func (s *Service) applyDevice(ctx context.Context, dev *model.Device, changes []
 		return nil, err
 	}
 	s.audit(ctx, dev, rec)
-	if !opts.DryRun && rec.Written > 0 {
-		// Refresh the snapshot so the stored document reflects the device.
-		if _, err := s.ReadConfig(ctx, dev.ID, model.ConfigSelector{}); err != nil {
-			s.Log.Warn("config re-read after write", "device", dev.ID, "err", err)
+	s.emit("config.applied", map[string]any{"deviceId": dev.ID, "jobId": jobID, "writeId": rec.ID, "dryRun": opts.DryRun,
+		"written": rec.Written, "failed": rec.Failed, "skipped": rec.Skipped, "unchanged": rec.Unchanged,
+		"verified": rec.Verified, "diverged": rec.Diverged})
+	return rec, nil
+}
+
+func anyWritten(results []model.SettingResult) bool {
+	for _, r := range results {
+		if r.Status == model.SettingWritten {
+			return true
 		}
 	}
-	s.emit("config.applied", map[string]any{"deviceId": dev.ID, "jobId": jobID, "writeId": rec.ID, "dryRun": opts.DryRun,
-		"written": rec.Written, "failed": rec.Failed, "skipped": rec.Skipped, "unchanged": rec.Unchanged})
-	return rec, nil
+	return false
+}
+
+// VerifyOutcomes fills the Outcome of every written setting from a re-read of
+// the device (audit A20): verified when the read-back equals the desired
+// value, diverged (with ReadBack) when it differs, unverifiable when no reader
+// reports the key or the key is a secret (its value is never compared or
+// stored), and written when the re-read itself failed (doc == nil), meaning
+// accepted but not verified.
+func VerifyOutcomes(results []model.SettingResult, changes []model.SettingChange, doc *model.ConfigDocument) {
+	desired := map[string]any{}
+	for _, ch := range changes {
+		v, err := model.CoerceValue(ch.Key, ch.Value)
+		if err != nil {
+			v = ch.Value
+		}
+		desired[ch.Key] = v
+	}
+	for i := range results {
+		r := &results[i]
+		if r.Status != model.SettingWritten {
+			continue
+		}
+		switch {
+		case doc == nil:
+			r.Outcome = model.OutcomeWritten
+		case model.IsSecretKey(r.Key):
+			r.Outcome = model.OutcomeUnverifiable
+		default:
+			st, ok := doc.Get(r.Key)
+			if !ok {
+				r.Outcome = model.OutcomeUnverifiable
+				continue
+			}
+			if model.ValuesEqual(st.Value, desired[r.Key]) {
+				r.Outcome = model.OutcomeVerified
+			} else {
+				r.Outcome, r.ReadBack = model.OutcomeDiverged, st.Value
+			}
+		}
+	}
 }
 
 // audit records one entry per apply. Real writes carry before/after per key;
@@ -658,6 +740,22 @@ func (s *Service) audit(ctx context.Context, dev *model.Device, rec *model.Write
 	after["writeId"] = rec.ID
 	if rec.ProfileID != "" {
 		after["profileId"] = rec.ProfileID
+	}
+	if !rec.Result.DryRun {
+		// The read-back verdict per written key (audit A20), so the trail says
+		// what is in effect, not only what the device accepted.
+		outcomes := map[string]any{}
+		for _, r := range rec.Result.Results {
+			if r.Outcome != "" {
+				outcomes[r.Key] = string(r.Outcome)
+			}
+		}
+		if len(outcomes) > 0 {
+			after["outcomes"] = outcomes
+		}
+		if rec.Diverged > 0 && result == "ok" {
+			result = "diverged"
+		}
 	}
 	if rec.RevertOf != "" {
 		after["revertOf"] = rec.RevertOf

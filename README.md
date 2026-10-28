@@ -86,6 +86,11 @@ What works today:
   encrypted credential store whose secrets are write-only through the API, an audit log,
   resumable jobs with per-device results, a React web UI, a printer simulator for
   development/CI, Docker packaging.
+- **Purpose-bound credentials and verified writes** — every credential is `read`
+  (default), `write` or `both`; configuration, remediation, certificate and firmware
+  writes use only write credentials and are refused on a device that has none bound,
+  and every real write is read back and reported as `verified` / `diverged` /
+  `unverifiable`, not merely accepted (see `docs/configuration.md`).
 
 ## Quick start
 

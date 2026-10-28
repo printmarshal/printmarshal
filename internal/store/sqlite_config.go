@@ -192,6 +192,9 @@ func scanWrite(r rowScanner) (*model.WriteRecord, error) {
 	if w.Result.At.IsZero() {
 		w.Result.At = parseTime(at)
 	}
+	// Verified/diverged live in the result JSON only (audit A20); recount so
+	// every counter is derived from the same per-setting results.
+	w.Count()
 	return &w, nil
 }
 

@@ -210,6 +210,11 @@ type RemediationItem struct {
 	After   any               `json:"after,omitempty"`
 	Driver  string            `json:"driver,omitempty"`
 	Message string            `json:"message,omitempty"`
+	// Outcome is the read-back verdict of a written item after the
+	// re-assessment that follows a real remediation (audit A20).
+	Outcome WriteOutcome `json:"outcome,omitempty"`
+	// ReadBack is the value the device reported when Outcome is diverged.
+	ReadBack any `json:"readBack,omitempty"`
 }
 
 // RemediationResult is a device's remediation outcome.
@@ -221,7 +226,10 @@ type RemediationResult struct {
 	Written  int               `json:"written"`
 	Skipped  int               `json:"skipped"`
 	Failed   int               `json:"failed"`
-	At       time.Time         `json:"at"`
+	// Verified and Diverged split Written by read-back outcome (real runs only).
+	Verified int       `json:"verified"`
+	Diverged int       `json:"diverged"`
+	At       time.Time `json:"at"`
 }
 
 // IssuedCertificate records a certificate PrintMarshal obtained from a CA

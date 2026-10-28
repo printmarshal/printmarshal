@@ -67,6 +67,10 @@ func newConfigServer(t *testing.T) (*httptest.Server, *Server, *model.Device, *s
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Real applies need a write credential bound (audit A19).
+	if err := st.CreateCredential(context.Background(), &model.Credential{Name: "snmp write", Type: model.CredSNMPCommunity, Purpose: model.PurposeWrite}, &model.Secret{Community: "private"}); err != nil {
+		t.Fatal(err)
+	}
 	s := &Server{Store: st, Fleet: fl, ConfigMgmt: cm, Auth: a, Hub: hub, Cfg: cfg, Log: log, Version: "test"}
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)

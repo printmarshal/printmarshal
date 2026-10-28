@@ -96,8 +96,36 @@ func TestCredentialsNeverLeakAndRolesEnforced(t *testing.T) {
 		t.Fatalf("create credential: %d %s", code, body)
 	}
 	code, body = do(t, ts, admin, "GET", "/api/credentials", "")
-	if code != 200 || strings.Contains(body, "topSecretComm") || !strings.Contains(body, `"name":"site"`) {
+	if code != 200 || strings.Contains(body, "topSecretComm") || !strings.Contains(body, `"name":"site"`) || !strings.Contains(body, `"purpose":"read"`) {
 		t.Fatalf("list credentials: %d %s", code, body)
+	}
+	// Purpose (audit A19): defaults to read, accepted on create, changed by PATCH (admin), audited.
+	if code, body := do(t, ts, admin, "POST", "/api/credentials", `{"name":"bad","type":"snmp_community","purpose":"root","secret":{"community":"c"}}`); code != 400 {
+		t.Errorf("bad purpose = %d %s", code, body)
+	}
+	code, body = do(t, ts, admin, "POST", "/api/credentials", `{"name":"rw","type":"snmp_community","purpose":"write","secret":{"community":"writeComm"}}`)
+	if code != 201 || !strings.Contains(body, `"purpose":"write"`) || strings.Contains(body, "writeComm") {
+		t.Fatalf("create write credential: %d %s", code, body)
+	}
+	var created struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal([]byte(body), &created)
+	if code, _ := do(t, ts, viewer, "PATCH", "/api/credentials/"+created.ID, `{"purpose":"both"}`); code != 403 {
+		t.Errorf("viewer patch credential = %d", code)
+	}
+	if code, body := do(t, ts, admin, "PATCH", "/api/credentials/"+created.ID, `{"purpose":"admin"}`); code != 400 {
+		t.Errorf("patch bad purpose = %d %s", code, body)
+	}
+	if code, body := do(t, ts, admin, "PATCH", "/api/credentials/nope", `{"purpose":"both"}`); code != 404 {
+		t.Errorf("patch unknown = %d %s", code, body)
+	}
+	code, body = do(t, ts, admin, "PATCH", "/api/credentials/"+created.ID, `{"purpose":"both"}`)
+	if code != 200 || !strings.Contains(body, `"purpose":"both"`) || strings.Contains(body, "writeComm") {
+		t.Fatalf("patch credential: %d %s", code, body)
+	}
+	if code, body := do(t, ts, admin, "GET", "/api/audit", ""); code != 200 || !strings.Contains(body, "credential.update") || strings.Contains(body, "writeComm") {
+		t.Fatalf("audit after patch: %d %s", code, body)
 	}
 	code, body = do(t, ts, admin, "GET", "/api/audit", "")
 	if code != 200 || strings.Contains(body, "topSecretComm") || !strings.Contains(body, "credential.create") {

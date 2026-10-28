@@ -104,7 +104,14 @@ func (s *Service) rotateDevice(ctx context.Context, dev *model.Device, kind stri
 			return "skipped", res.Message, asMap(res)
 		}
 	}
-	results, err := s.applyChanges(ctx, dev, creds, []model.SettingChange{{Key: key, Value: secret}}, model.WriteOptions{})
+	// The real write needs a write credential bound to the device (audit A19).
+	wc, err := s.writeCreds(ctx, dev)
+	if err != nil {
+		res.Status, res.Message = "failed", err.Error()
+		s.auditRotation(ctx, actor, dev, res, jobID)
+		return "error", res.Message, asMap(res)
+	}
+	results, err := s.applyChanges(ctx, dev, wc, []model.SettingChange{{Key: key, Value: secret}}, model.WriteOptions{})
 	if err != nil && len(results) == 0 {
 		res.Status, res.Message = "failed", err.Error()
 		s.auditRotation(ctx, actor, dev, res, jobID)
@@ -123,15 +130,20 @@ func (s *Service) rotateDevice(ctx context.Context, dev *model.Device, kind stri
 		}
 		return "error", res.Message, asMap(res)
 	}
-	// The device accepted the secret: store it so PrintMarshal keeps access.
+	// The device accepted the secret: store it so PrintMarshal keeps access. A
+	// rotated read community is a read credential; a rotated admin password
+	// authenticates reads and writes on the device's web service, so it is
+	// stored as both (audit A19).
 	cred := &model.Credential{Name: fmt.Sprintf("rotated %s %s", kind, s.Now().Format("2006-01-02 15:04")), Type: credType,
 		Scope: "device:" + dev.ID, Priority: s.nextCredentialPriority(ctx, dev.ID, credType)}
 	sec := &model.Secret{}
 	switch credType {
 	case model.CredSNMPCommunity:
+		cred.Purpose = model.PurposeRead
 		sec.Community = secret
 	case model.CredAdminPassword:
-		cred.Username = nonEmpty(creds.AdminUser, "admin")
+		cred.Purpose = model.PurposeBoth
+		cred.Username = nonEmpty(wc.AdminUser, nonEmpty(creds.AdminUser, "admin"))
 		sec.Password = secret
 	}
 	if err := s.Store.CreateCredential(ctx, cred, sec); err != nil {
