@@ -86,7 +86,8 @@ function Users({ me }: { me: User }) {
   )
 }
 
-interface RuntimeSettings { version: string; poll: { interval: string; concurrency: number }; discovery: { enabled: boolean; interval: string; targets: string[] | null; maxAddresses: number }; trap: { enabled: boolean; listen: string }; alerts: { supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number }; notifiers: { name: string; type: string; events: string[] | null }[] }
+interface Runtime { pollInterval: string; pollConcurrency: number; discoveryEnabled: boolean; discoveryInterval: string; discoveryTargets: string[] | null; supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number; telemetryRetention: string }
+interface RuntimeSettings { version: string; poll: { interval: string; concurrency: number }; discovery: { enabled: boolean; interval: string; targets: string[] | null; maxAddresses: number }; trap: { enabled: boolean; listen: string }; alerts: { supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number }; telemetry?: { retention: string }; runtime?: Runtime; defaults?: Runtime; notifiers: { name: string; type: string; events: string[] | null }[] }
 
 function Notifications() {
   const [s, setS] = useState<RuntimeSettings | null>(null)
@@ -131,16 +132,7 @@ function System({ isAdmin }: { isAdmin: boolean }) {
   const num = (k: keyof ConsumableSettings) => (e: React.ChangeEvent<HTMLInputElement>) => cs && setCs({ ...cs, [k]: Math.max(0, Number(e.target.value) || 0) })
   return (
     <>
-      <Card title="Polling & discovery" id="pol" sub="from the config file or PM_* environment variables · restart to apply">
-        {!s ? <div className="cb cap">Loading…</div> : (<>
-          <SRow label="Scheduled poll" hint="status, supplies, trays, counters, firmware"><span className="mono">every {s.poll.interval}</span> · concurrency <span className="num">{s.poll.concurrency}</span></SRow>
-          <SRow label="Scheduled discovery">{s.discovery.enabled ? <span className="mono">every {s.discovery.interval} · {(s.discovery.targets || []).join(', ') || 'zero-config only'}</span> : <span className="cap">off · run discovery manually</span>}</SRow>
-          <SRow label="Active-scan cap"><span className="num">{s.discovery.maxAddresses}</span> addresses unless “allow large” is set</SRow>
-          <SRow label="SNMP trap listener">{s.trap.enabled ? <Pill tone="ok">listening on {s.trap.listen}</Pill> : <Pill tone="off">disabled</Pill>}</SRow>
-          <SRow label="Supply alert thresholds">warning ≤ <span className="num">{s.alerts.supplyWarningPercent}%</span> · critical ≤ <span className="num">{s.alerts.supplyCriticalPercent}%</span> · offline after <span className="num">{s.alerts.offlineAfterFailures}</span> failed polls</SRow>
-          <SRow label="Version"><span className="mono">{s.version}</span></SRow>
-        </>)}
-      </Card>
+      <ScheduleCard s={s} isAdmin={isAdmin} onSaved={setS} />
       <Card title="Drivers & plugins" id="drv" sub="vendor plugins register against the same driver interface; the core has no vendor-specific code">
         <div className="tw"><table className="tbl"><thead><tr><th>Driver</th><th>Capabilities</th></tr></thead><tbody>{drivers.map((d) => <tr key={d.name}><td style={{ fontWeight: 500 }}>{d.name}</td><td style={{ whiteSpace: 'normal' }}>{d.capabilities.map((c) => <Tag key={c}>{c.replace('_', ' ')}</Tag>)}</td></tr>)}</tbody></table></div>
       </Card>
@@ -162,6 +154,40 @@ function System({ isAdmin }: { isAdmin: boolean }) {
         </form>
       )}
     </>
+  )
+}
+
+function ScheduleCard({ s, isAdmin, onSaved }: { s: RuntimeSettings | null; isAdmin: boolean; onSaved: (s: RuntimeSettings) => void }) {
+  const [r, setR] = useState<Runtime | null>(null)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  useEffect(() => { if (s?.runtime) setR({ ...s.runtime, discoveryTargets: s.runtime.discoveryTargets || [] }) }, [s])
+  if (!s || !r) return <Card title="Polling & discovery" id="pol"><div className="cb cap">Loading…</div></Card>
+  const d = s.defaults
+  const overridden = (k: keyof Runtime) => d && JSON.stringify(d[k]) !== JSON.stringify(r[k])
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault(); setMsg(null)
+    try { const saved = await api.patch<Runtime>('/api/settings', r); onSaved({ ...s, runtime: saved }); setMsg({ ok: true, text: 'Saved. The scheduler picks this up on its next tick.' }) } catch (err) { setMsg({ ok: false, text: (err as Error).message }) }
+  }
+  const reset = async () => { try { await api.del('/api/settings'); const fresh = await api.get<RuntimeSettings>('/api/settings'); onSaved(fresh); setMsg({ ok: true, text: 'Reset to the config file defaults.' }) } catch (err) { setMsg({ ok: false, text: (err as Error).message }) } }
+  const dur = (label: string, k: 'pollInterval' | 'discoveryInterval' | 'telemetryRetention', hint?: string) => (
+    <SRow label={<>{label}{overridden(k) && <Tag>overrides file</Tag>}</>} hint={hint}><div className="row"><input className="fin mono" style={{ width: 120 }} value={r[k]} disabled={!isAdmin} onChange={(e) => setR({ ...r, [k]: e.target.value })} /><span className="cap">Go duration, e.g. 5m, 1h, 720h</span></div></SRow>
+  )
+  return (
+    <form className="card" onSubmit={save} aria-labelledby="pol">
+      <div className="ch"><div><h2 className="h2" id="pol">Polling & discovery</h2><div className="cap">effective values · overrides are saved here and applied without a restart; the config file / PM_* variables remain the defaults</div></div></div>
+      {dur('Scheduled poll', 'pollInterval', 'status, supplies, trays, counters, firmware')}
+      <SRow label={<>Poll concurrency{overridden('pollConcurrency') && <Tag>overrides file</Tag>}</>} hint="simultaneous device reads"><input className="fin num" type="number" min={1} max={512} style={{ width: 100 }} value={r.pollConcurrency} disabled={!isAdmin} onChange={(e) => setR({ ...r, pollConcurrency: Number(e.target.value) })} /></SRow>
+      <SRow label={<>Scheduled discovery{overridden('discoveryEnabled') && <Tag>overrides file</Tag>}</>} hint="zero-config plus the targets below"><label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><input className="cbx" type="checkbox" checked={r.discoveryEnabled} disabled={!isAdmin} onChange={(e) => setR({ ...r, discoveryEnabled: e.target.checked })} />Run discovery on a schedule</label></SRow>
+      {dur('Discovery interval', 'discoveryInterval')}
+      <SRow label="Discovery targets" hint="IPs, ranges or CIDRs, one per line; empty = zero-config only"><textarea className="fin mono" rows={2} value={(r.discoveryTargets || []).join('\n')} disabled={!isAdmin} onChange={(e) => setR({ ...r, discoveryTargets: e.target.value.split(/\n/).map((x) => x.trim()).filter(Boolean) })} /></SRow>
+      <SRow label="Active-scan cap"><span className="num">{s.discovery.maxAddresses}</span> addresses unless “allow large” is set <span className="cap">(config file)</span></SRow>
+      <SRow label="SNMP trap listener">{s.trap.enabled ? <Pill tone="ok">listening on {s.trap.listen}</Pill> : <Pill tone="off">disabled</Pill>} <span className="cap">(config file)</span></SRow>
+      <SRow label={<>Supply alert thresholds{(overridden('supplyWarningPercent') || overridden('supplyCriticalPercent')) && <Tag>overrides file</Tag>}</>}><div className="row" style={{ gap: 16 }}><label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--warn)', fontWeight: 500 }}>Warning ≤ <input className="fin num" type="number" min={1} max={100} style={{ width: 64, textAlign: 'center' }} value={r.supplyWarningPercent} disabled={!isAdmin} onChange={(e) => setR({ ...r, supplyWarningPercent: Number(e.target.value) })} />%</label><label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--crit)', fontWeight: 500 }}>Critical ≤ <input className="fin num" type="number" min={0} max={99} style={{ width: 64, textAlign: 'center' }} value={r.supplyCriticalPercent} disabled={!isAdmin} onChange={(e) => setR({ ...r, supplyCriticalPercent: Number(e.target.value) })} />%</label></div></SRow>
+      <SRow label={<>Offline after{overridden('offlineAfterFailures') && <Tag>overrides file</Tag>}</>} hint="consecutive failed polls before an offline alert"><div className="row"><input className="fin num" type="number" min={1} style={{ width: 80 }} value={r.offlineAfterFailures} disabled={!isAdmin} onChange={(e) => setR({ ...r, offlineAfterFailures: Number(e.target.value) })} /><span className="cap">polls</span></div></SRow>
+      {dur('Telemetry retention', 'telemetryRetention', 'older samples are pruned')}
+      <SRow label="Version"><span className="mono">{s.version}</span></SRow>
+      {isAdmin && <div className="cf" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>{msg && <span className={msg.ok ? 'cap' : 'error small'} style={{ marginRight: 'auto' }}>{msg.text}</span>}<Btn variant="ghost" onClick={reset}>Reset to defaults</Btn><Btn type="submit" variant="pri">Save</Btn></div>}
+    </form>
   )
 }
 

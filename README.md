@@ -16,6 +16,12 @@ a printer is read-only, except firmware delivery (phase 6, below), which is gate
 dry-runnable and audited and reaches only the simulator or allow-listed devices.
 Phases 3–5 and 7 (configuration read/write, security, vendor plugins, print-provider
 add-on) are not started; the capability/driver model they plug into is in place.
+a printer is read-only, except the explicit, dry-run-by-default security writes of
+phase 5 (remediation, credential rotation, certificate installation), which are gated,
+audited and only possible through drivers that implement the write-side capabilities.
+Phases 3, 4, 6 and 7 (configuration read/write, firmware, vendor plugins,
+print-provider add-on) are not started; the capability/driver model they plug into is
+in place.
 
 What works today:
 
@@ -58,6 +64,12 @@ What works today:
 - **Inventory** — operator fields (display name, location, asset tag, notes) that scans
   never overwrite, lifecycle states with validated transitions, static and rule-based
   groups, search/sort/filter, CSV export of devices and supplies.
+- **Security** ([docs](docs/security.md)) — policies of desired security settings with
+  eight operators and severity-weighted compliance scores, assessed from drivers plus
+  vendor-neutral TLS and port probes; dry-run-by-default remediation that never removes
+  the last management path and audits every write; SCEP / EST / ACME (dns-01)
+  certificate enrollment with expiry alerts; SNMP community and admin password
+  rotation that never exposes the secret.
 - **Platform** — REST + WebSocket API, role-based users (viewer / operator / admin),
   encrypted credential store whose secrets are write-only through the API, an audit log,
   resumable jobs with per-device results, a React web UI, a printer simulator for

@@ -170,6 +170,18 @@ func run(cfgPath string) error {
 		}()
 	}
 	go fl.RunScheduler(ctx)
+	go func() { // certificate expiry check: at start and then daily (docs/security.md)
+		t := time.NewTicker(24 * time.Hour)
+		defer t.Stop()
+		for {
+			secSvc.CheckExpiry(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+		}
+	}()
 
 	srv := &api.Server{Store: st, Fleet: fl, ConfigMgmt: cfgSvc, Security: secSvc, Firmware: fwSvc, Auth: authSvc, Hub: hub, Cfg: cfg, Log: log, UI: web.Handler(), Version: version}
 	httpSrv := &http.Server{Addr: cfg.Listen, Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
