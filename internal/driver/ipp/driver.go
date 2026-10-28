@@ -123,7 +123,8 @@ func (d *Driver) Priority(cap model.Capability) int {
 	return 30
 }
 
-var requestedAttrs = []string{
+// RequestedAttrs is the attribute set the driver asks printers for.
+var RequestedAttrs = []string{
 	"printer-make-and-model", "printer-name", "printer-info", "printer-location", "printer-uuid",
 	"printer-device-id", "printer-serial-number", "printer-firmware-name", "printer-firmware-string-version",
 	"printer-more-info", "printer-dns-sd-name", "printer-state", "printer-state-reasons",
@@ -139,7 +140,7 @@ func (d *Driver) fetch(ctx context.Context, address string) (*Message, string, e
 	for _, ep := range d.endpoints {
 		url := fmt.Sprintf(ep, address)
 		uri := "ipp://" + strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://")
-		req := NewGetPrinterAttributes(uri, d.reqID.Add(1), requestedAttrs)
+		req := NewGetPrinterAttributes(uri, d.reqID.Add(1), RequestedAttrs)
 		body, err := Encode(req)
 		if err != nil {
 			return nil, "", err
