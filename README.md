@@ -61,6 +61,13 @@ What works today:
   recovery and honest rollback/recovery notes. Delivery is a driver capability
   (`firmware_update`): the standard driver targets the simulator or an explicit
   allow-list only; real devices need a vendor plugin.
+- **Device model catalogue** ([docs](docs/catalogue.md)) — a shipped research catalogue
+  of 126 enterprise printer families (495 base model identifiers, 15 brands) with each
+  vendor's documented management routes, per-model operation evidence and its source
+  registry; every discovered device is matched to a family (exact / family / brand-only /
+  none) and shown with what is *documented*, what PrintMarshal's drivers have *observed*,
+  and what is *unknown* — kept separate, never collapsed into "supported". Operators can
+  record lab/production validation per family (audited).
 - **Inventory** — operator fields (display name, location, asset tag, notes) that scans
   never overwrite, lifecycle states with validated transitions, static and rule-based
   groups, search/sort/filter, CSV export of devices and supplies.

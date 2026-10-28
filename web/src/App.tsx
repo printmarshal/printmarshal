@@ -16,6 +16,7 @@ import Jobs from './pages/Jobs'
 import JobDetail from './pages/JobDetail'
 import Alerts from './pages/Alerts'
 import Groups from './pages/Groups'
+import Catalog from './pages/Catalog'
 import Credentials from './pages/Credentials'
 import Settings from './pages/Settings'
 import Profiles from './pages/Profiles'
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/jobs/:id" element={<JobDetail />} />
         <Route path="/alerts" element={<Alerts user={user} />} />
         <Route path="/groups" element={<Groups user={user} />} />
+        <Route path="/catalog" element={<Catalog user={user} />} />
         <Route path="/credentials" element={<Credentials user={user} />} />
         <Route path="/profiles" element={<Profiles user={user} />} />
         <Route path="/profiles/:id/apply" element={<ConfigApply user={user} />} />
@@ -112,6 +114,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
         <NavLink className="nav" to="/consumables" title="Consumables"><Ic.consumables /><span>Consumables</span>{counts.lowStock > 0 && <span className="ct w">{counts.lowStock} low</span>}</NavLink>
         <NavLink className="nav" to="/alerts" title="Alerts"><Ic.bell /><span>Alerts</span>{counts.critical > 0 ? <span className="ct c">{counts.critical}</span> : counts.warning > 0 ? <span className="ct w">{counts.warning}</span> : null}</NavLink>
         <NavLink className="nav" to="/groups" title="Groups"><Ic.layers /><span>Groups</span></NavLink>
+        <NavLink className="nav" to="/catalog" title="Catalogue"><Ic.chart /><span>Catalogue</span></NavLink>
         <div className="navsep">Manage</div>
         <NavLink className="nav" to="/profiles" title="Configuration"><Ic.sliders /><span>Configuration</span></NavLink>
         <a className="nav soon" aria-disabled="true" title="Security — phase 5, in progress"><Ic.shield /><span>Security</span><span className="ct">soon</span></a>
