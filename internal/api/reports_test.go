@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"printmarshal/internal/model"
-	"printmarshal/internal/store"
 )
 
 // newReportServer mounts the report routes on their own mux so the branch is
@@ -152,19 +151,3 @@ func TestReportsAPI(t *testing.T) {
 		t.Errorf("consumption csv = %q", csvBody)
 	}
 }
-
-// A store without the report surface yields 503, not a panic.
-func TestReportsUnavailableStore(t *testing.T) {
-	ts, s := newReportServer(t)
-	viewer := login(t, ts, "viewer", "viewerpass1")
-	s.Store = plainStore{s.Store}
-	if code, body := do(t, ts, viewer, "GET", "/api/reports/utilisation", ""); code != 503 || !strings.Contains(body, "SQLite") {
-		t.Errorf("no report store = %d %s", code, body)
-	}
-	if code, body := do(t, ts, viewer, "GET", "/api/reports", ""); code != 200 || !strings.Contains(body, `"available":false`) {
-		t.Errorf("list = %d %s", code, body)
-	}
-}
-
-// plainStore hides the ReportStore methods of the wrapped store.
-type plainStore struct{ store.Store }

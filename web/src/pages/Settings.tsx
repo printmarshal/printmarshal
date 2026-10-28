@@ -36,7 +36,7 @@ export default function Settings({ user }: { user: User }) {
         </nav>
         <div className="stack" style={{ flex: '4 1 600px' }}>
           {current === 'users' && <Users me={user} />}
-          {current === 'notifications' && <Notifications />}
+          {current === 'notifications' && <Notifications isAdmin={isAdmin} />}
           {current === 'system' && <System isAdmin={isAdmin} />}
           {current === 'printprovider' && <PrintProviderSection user={user} />}
           {current === 'appearance' && <Appearance />}
@@ -90,30 +90,50 @@ function Users({ me }: { me: User }) {
 }
 
 interface Runtime { pollInterval: string; pollConcurrency: number; discoveryEnabled: boolean; discoveryInterval: string; discoveryTargets: string[] | null; supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number; telemetryRetention: string }
+interface OutboxRow { id: number; eventId: string; event: string; notifier: string; subject: string; state: string; attempts: number; lastError?: string; nextAt: string; createdAt: string; doneAt?: string }
 interface RuntimeSettings { version: string; poll: { interval: string; concurrency: number }; discovery: { enabled: boolean; interval: string; targets: string[] | null; maxAddresses: number }; trap: { enabled: boolean; listen: string }; alerts: { supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number }; telemetry?: { retention: string }; runtime?: Runtime; defaults?: Runtime; notifiers: { name: string; type: string; events: string[] | null }[] }
 
-function Notifications() {
+function Notifications({ isAdmin }: { isAdmin: boolean }) {
   const [s, setS] = useState<RuntimeSettings | null>(null)
   const [log, setLog] = useState<{ id: number; notifier: string; event: string; target: string; ok: boolean; error?: string; at: string }[]>([])
-  useEffect(() => { api.get<RuntimeSettings>('/api/settings').then(setS).catch(() => {}); api.get<typeof log>('/api/notifications?limit=50').then(setLog).catch(() => {}) }, [])
-  const events = ['alert.raised', 'alert.cleared', 'job.finished', 'device.discovered']
+  const [catalog, setCatalog] = useState<{ type: string; description: string; notifiable: boolean; security: boolean }[]>([])
+  const [outbox, setOutbox] = useState<OutboxRow[]>([])
+  const [obState, setObState] = useState<'pending' | 'dead' | 'delivered'>('pending')
+  const [msg, setMsg] = useState('')
+  const load = useCallback(() => {
+    api.get<RuntimeSettings>('/api/settings').then(setS).catch(() => {})
+    api.get<typeof log>('/api/notifications?limit=50').then(setLog).catch(() => {})
+    api.get<typeof catalog>('/api/events/catalog').then(setCatalog).catch(() => {})
+  }, [])
+  useEffect(load, [load])
+  useEffect(() => { api.get<OutboxRow[]>(`/api/notifications/outbox?state=${obState}&limit=100`).then(setOutbox).catch(() => setOutbox([])) }, [obState, msg])
+  const events = catalog.filter((c) => c.notifiable)
   const sends = (n: RuntimeSettings['notifiers'][number], ev: string) => !n.events || n.events.length === 0 ? ev.startsWith('alert.') : n.events.includes(ev) || n.events.includes('*')
+  const test = async (name: string) => { setMsg(''); try { await api.post(`/api/notifiers/${encodeURIComponent(name)}/test`, {}); setMsg(`Test queued for ${name}; it shows in the outbox and the delivery log once sent.`) } catch (e) { setMsg((e as Error).message) } }
+  const requeue = async (id: number) => { setMsg(''); try { await api.post(`/api/notifications/outbox/${id}/requeue`, {}); setMsg(`Row ${id} requeued.`) } catch (e) { setMsg((e as Error).message) } }
+  const drain = async () => { setMsg(''); try { await api.post('/api/notifications/drain', {}); setMsg('Outbox drained.'); load() } catch (e) { setMsg((e as Error).message) } }
   return (
     <>
       <Card title="Channels" id="chn" sub="configured in the server's JSON config (notifiers); secrets stay in environment variables">
         {!s ? <div className="cb cap">Loading…</div> : s.notifiers.length === 0 ? <div className="cb"><EmptyState icon={<Ic.bell size={20} />} title="No channels configured" text="Add webhook (Slack, Teams, Discord, generic) or SMTP notifiers to the config file. See deploy/printmarshal.example.json." /></div> : (
-          <div className="tw"><table className="tbl" style={{ minWidth: 600 }}><thead><tr><th>Channel</th><th>Type</th><th>Last delivery</th></tr></thead><tbody>
-            {s.notifiers.map((n) => { const last = log.find((l) => l.notifier === n.name); return <tr key={n.name}><td style={{ fontWeight: 500 }}>{n.name}</td><td><Tag>{n.type}</Tag></td><td>{last ? last.ok ? <Pill tone="ok">{fmtTime(last.at)} · delivered</Pill> : <Pill tone="crit" title={last.error}>{fmtTime(last.at)} · failed</Pill> : <span className="cap">never</span>}</td></tr> })}
+          <div className="tw"><table className="tbl" style={{ minWidth: 600 }}><thead><tr><th>Channel</th><th>Type</th><th>Last delivery</th>{isAdmin && <th />}</tr></thead><tbody>
+            {s.notifiers.map((n) => { const last = log.find((l) => l.notifier === n.name); return <tr key={n.name}><td style={{ fontWeight: 500 }}>{n.name}</td><td><Tag>{n.type}</Tag></td><td>{last ? last.ok ? <Pill tone="ok">{fmtTime(last.at)} · delivered</Pill> : <Pill tone="crit" title={last.error}>{fmtTime(last.at)} · failed</Pill> : <span className="cap">never</span>}</td>{isAdmin && <td style={{ textAlign: 'right' }}><Btn sm onClick={() => test(n.name)}>Send test</Btn></td>}</tr> })}
           </tbody></table></div>
         )}
+        {msg && <div className="cf cap">{msg}</div>}
       </Card>
-      {s && s.notifiers.length > 0 && (
-        <Card title="Events → channels" id="ev" sub="from config; routing is not editable here yet">
+      {s && s.notifiers.length > 0 && events.length > 0 && (
+        <Card title="Events → channels" id="ev" sub="every notifiable event in the catalogue; routing comes from the config file (events list, or * for all)">
           <div className="tw"><table className="tbl mx" style={{ minWidth: 560 }}><thead><tr><th>Event</th>{s.notifiers.map((n) => <th key={n.name} style={{ textAlign: 'center' }}>{n.name}</th>)}</tr></thead><tbody>
-            {events.map((ev) => <tr key={ev}><td>{ev === 'alert.raised' ? <><Pill tone="crit" xs noIcon>Critical / warning</Pill> alert raised</> : ev}</td>{s.notifiers.map((n) => <td key={n.name}>{sends(n, ev) ? <Ic.check size={14} style={{ color: 'var(--ok)' }} /> : <span className="cap">—</span>}</td>)}</tr>)}
+            {events.map((ev) => <tr key={ev.type}><td><Tag mono>{ev.type}</Tag> <span className="cap">{ev.description}</span></td>{s.notifiers.map((n) => <td key={n.name} style={{ textAlign: 'center' }}>{sends(n, ev.type) ? <Ic.check size={14} style={{ color: 'var(--ok)' }} /> : <span className="cap">—</span>}</td>)}</tr>)}
           </tbody></table></div>
         </Card>
       )}
+      <Card title="Outbox" id="ob" sub="deliveries are durable: retried with backoff, then marked dead" right={<div className="row" style={{ gap: 8 }}><Seg sm label="Outbox state" value={obState} onChange={setObState} options={[{ v: 'pending', label: 'Pending' }, { v: 'dead', label: 'Dead' }, { v: 'delivered', label: 'Delivered' }]} />{isAdmin && <Btn sm onClick={drain}>Deliver now</Btn>}</div>}>
+        {outbox.length === 0 ? <div className="cb cap">Nothing {obState}.</div> : <div className="tw"><table className="tbl"><thead><tr><th>#</th><th>Channel</th><th>Event</th><th>Subject</th><th>Attempts</th><th>{obState === 'pending' ? 'Next try' : 'Done'}</th><th>Last error</th>{isAdmin && obState === 'dead' && <th />}</tr></thead><tbody>
+          {outbox.map((o) => <tr key={o.id}><td className="num cap">{o.id}</td><td>{o.notifier}</td><td><Tag mono>{o.event}</Tag></td><td className="wrap cap">{o.subject}</td><td className="num">{o.attempts}</td><td className="cap num">{fmtTime(o.doneAt || o.nextAt)}</td><td className="wrap cap" style={{ color: o.lastError ? 'var(--crit)' : undefined }}>{o.lastError || '—'}</td>{isAdmin && obState === 'dead' && <td style={{ textAlign: 'right' }}><Btn sm onClick={() => requeue(o.id)}>Requeue</Btn></td>}</tr>)}
+        </tbody></table></div>}
+      </Card>
       <Card title="Delivery log" id="dl">
         {log.length === 0 ? <div className="cb cap">No deliveries yet.</div> : <div className="tw"><table className="tbl"><thead><tr><th>When</th><th>Channel</th><th>Event</th><th>Subject</th><th>Result</th></tr></thead><tbody>{log.map((l) => <tr key={l.id}><td className="cap num">{fmtTime(l.at)}</td><td>{l.notifier}</td><td><Tag>{l.event}</Tag></td><td className="wrap cap">{l.target}</td><td>{l.ok ? <Pill tone="ok" xs>ok</Pill> : <Pill tone="crit" xs title={l.error}>failed</Pill>}</td></tr>)}</tbody></table></div>}
       </Card>
