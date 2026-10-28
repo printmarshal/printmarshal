@@ -7,3 +7,4 @@
 *.db-shm
 secret.key
 .DS_Store
+/.claude/
