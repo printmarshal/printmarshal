@@ -82,6 +82,14 @@ What works today:
   for discovered printers: plan, dry run, sync as an audited job, per-device removal.
   It only configures CUPS on the PrintMarshal host and never changes a printer; it is
   a convenience, not print management.
+- **Identity and access** ([docs](docs/auth.md)) — local accounts, optional OpenID
+  Connect single sign-on (authorization code + PKCE, discovery, RS256/ES256 ID-token
+  verification with the standard library, role mapping from IdP claims, domain
+  allow-list) for Entra ID / Okta / Keycloak and the like, API tokens as first-class
+  service accounts (admin-issued, secret shown once, expiring, revocable, unable to
+  touch authentication), and group scopes that confine a token to the devices in named
+  groups across every device route. Every sign-in, denial and token change is a
+  security event in the audit log.
 - **Platform** — REST + WebSocket API, role-based users (viewer / operator / admin),
   encrypted credential store whose secrets are write-only through the API, an audit log,
   resumable jobs with per-device results, a React web UI, a printer simulator for

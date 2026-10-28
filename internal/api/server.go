@@ -45,6 +45,7 @@ type Server struct {
 
 	logins *loginLimiter
 	http   *httpStats
+	oidc   *oidcState // lazily discovered OIDC provider (oidc.go)
 }
 
 // Handler builds the router.
@@ -118,6 +119,7 @@ func (s *Server) Handler() http.Handler {
 	s.catalogRoutes(mux)
 	s.printProviderRoutes(mux)
 	s.eventRoutes(mux)
+	s.tokenRoutes(mux) // API tokens and OIDC sign-in (tokens.go, oidc.go)
 
 	// Users, audit, notifications, settings
 	mux.Handle("GET /api/users", s.require(model.RoleAdmin, s.listUsers))
@@ -153,7 +155,11 @@ func (s *Server) require(min model.Role, next http.HandlerFunc) http.Handler {
 			writeErr(w, http.StatusForbidden, fmt.Sprintf("requires %s role", min))
 			return
 		}
-		next(w, r.WithContext(auth.WithUser(r.Context(), u)))
+		r = r.WithContext(auth.WithUser(r.Context(), u))
+		if !s.authorize(w, r) { // token restrictions and group scope (scope.go)
+			return
+		}
+		next(w, r)
 	})
 }
 
@@ -359,8 +365,9 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	alerts, _ := s.Store.ListAlerts(r.Context(), store.AlertFilter{ActiveOnly: true, Limit: 20})
+	alerts = s.filterAlerts(r.Context(), alerts)
 	jobs, _ := s.Store.ListJobs(r.Context(), store.JobFilter{Limit: 10})
-	attention, _ := s.Store.ListDevices(r.Context(), store.DeviceFilter{Sort: "severity", Limit: 10})
+	attention, _ := s.resolveDevices(r.Context(), store.DeviceFilter{Sort: "severity", Limit: 10})
 	var needs []*model.Device
 	for _, d := range attention {
 		if d.Status != nil && (d.Status.Severity != model.SeverityOK || !d.Status.Online) {
@@ -396,8 +403,14 @@ func (s *Server) listDevices(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"devices": devs, "total": len(devs)})
 }
 
-// resolveDevices lists devices, expanding rule-based groups in Go.
+// resolveDevices lists devices, expanding rule-based groups in Go and
+// dropping devices outside the principal's group scope (scope.go).
 func (s *Server) resolveDevices(ctx context.Context, f store.DeviceFilter) ([]*model.Device, error) {
+	devs, err := s.resolveAllDevices(ctx, f)
+	return s.filterDevices(ctx, devs), err
+}
+
+func (s *Server) resolveAllDevices(ctx context.Context, f store.DeviceFilter) ([]*model.Device, error) {
 	if len(f.GroupIDs) == 1 {
 		g, err := s.Store.GetGroup(ctx, f.GroupIDs[0])
 		if err != nil {
@@ -546,6 +559,9 @@ func (s *Server) pollAll(w http.ResponseWriter, r *http.Request) {
 		}
 		body.DeviceIDs = ids
 	}
+	if !s.allowedAll(w, r, body.DeviceIDs) { // a scoped principal cannot poll the whole fleet or another group
+		return
+	}
 	j, err := s.Fleet.SubmitPoll(r.Context(), body.DeviceIDs, actor(r))
 	if err != nil {
 		s.fail(w, err)
@@ -594,6 +610,9 @@ func (s *Server) telemetry(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("device")
 	if id == "" {
 		writeErr(w, http.StatusBadRequest, "device is required")
+		return
+	}
+	if !s.allowedAll(w, r, []string{id}) {
 		return
 	}
 	samples, err := s.Store.QueryTelemetry(r.Context(), telemetryQuery(r, id))
@@ -836,7 +855,7 @@ func (s *Server) listAlerts(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, as)
+	writeJSON(w, http.StatusOK, s.filterAlerts(r.Context(), as))
 }
 
 func (s *Server) ackAlert(w http.ResponseWriter, r *http.Request) {
