@@ -118,6 +118,7 @@ func (s *Server) Handler() http.Handler {
 	s.catalogRoutes(mux)
 	s.printProviderRoutes(mux)
 	s.eventRoutes(mux)
+	s.exportRoutes(mux) // SIEM export status, device logs, incremental sync (docs/export.md)
 
 	// Users, audit, notifications, settings
 	mux.Handle("GET /api/users", s.require(model.RoleAdmin, s.listUsers))
@@ -474,6 +475,7 @@ func (s *Server) deleteDevice(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	s.tombstone(r.Context(), "devices", id) // sync clients learn about the deletion (docs/export.md)
 	s.audit(r.Context(), r, "device.delete", id, map[string]any{"address": before.Address, "model": before.Model, "serial": before.Serial}, nil, "ok")
 	s.Hub.Publish(model.Event{Type: "device.deleted", Data: map[string]any{"id": id}})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

@@ -82,6 +82,15 @@ What works today:
   for discovered printers: plan, dry run, sync as an audited job, per-device removal.
   It only configures CUPS on the PrintMarshal host and never changes a printer; it is
   a convenience, not print management.
+- **Exports and SIEM** ([docs](docs/export.md)) — every security event, alert
+  and dead notification forwarded from the event bus to RFC 5424 syslog (UDP /
+  TCP / TLS, with structured data, CEF or JSON payloads), a rotating JSON-lines
+  file and/or an HTTP collector (batched, bearer token from the environment,
+  retries), through a bounded queue that never blocks the bus; a UDP syslog
+  receiver that keeps what printers send per device; and an incremental sync API
+  (`GET /api/sync/{collection}?since=`) with an opaque `(updatedAt, id)` cursor
+  and tombstones so CMDB / ITSM tools mirror devices, alerts, audit, jobs and
+  configuration writes without missing or repeating a row.
 - **Platform** — REST + WebSocket API, role-based users (viewer / operator / admin),
   encrypted credential store whose secrets are write-only through the API, an audit log,
   resumable jobs with per-device results, a React web UI, a printer simulator for
