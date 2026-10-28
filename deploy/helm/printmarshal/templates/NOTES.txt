@@ -1,0 +1,46 @@
+PrintMarshal {{ .Chart.AppVersion }} is being deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+1. Watch it come up:
+
+     kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "printmarshal.fullname" . }}
+
+2. First-run admin password
+{{- if or .Values.secrets.adminPassword .Values.secrets.existingSecret }}
+   Sign in as "admin" with the password from Secret "{{ include "printmarshal.secretName" . }}" (key PM_ADMIN_PASSWORD).
+{{- else }}
+   No password was supplied, so one was generated and printed ONCE in the log:
+
+     kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "printmarshal.fullname" . }} | grep "initial admin"
+
+   Sign in as "admin" and change it under your profile.
+{{- end }}
+
+3. Reach the UI
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else if .Values.hostNetwork }}
+   The pod uses host networking, so the UI is on the node it runs on:
+
+     kubectl -n {{ .Release.Namespace }} get pod -l app.kubernetes.io/instance={{ .Release.Name }} -o wide
+     open http://<node IP>:{{ .Values.ports.http }}
+{{- else }}
+     kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "printmarshal.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+     open http://localhost:{{ .Values.service.port }}
+{{- end }}
+
+4. Networking
+{{- if .Values.hostNetwork }}
+   hostNetwork is ON: multicast discovery and SNMP traps work on the node's VLANs.
+   Point printers' trap destinations at <node IP>:{{ .Values.ports.trap }} (or redirect 162 on the node).
+   Pin the pod with nodeSelector/affinity to a node that is on the printer network.
+{{- else }}
+   hostNetwork is OFF: zero-config discovery (mDNS / WS-Discovery) will find nothing
+   and traps cannot reach the pod directly.  Use active scans (config.discovery.targets)
+   {{- if .Values.service.trap.enabled }} and send traps to the "{{ include "printmarshal.fullname" . }}-trap" Service{{ else }} and set service.trap.enabled=true for traps{{ end }}.
+{{- end }}
+
+5. Back up BOTH the /data volume and Secret "{{ include "printmarshal.secretName" . }}":
+   PM_SECRET_KEY encrypts every stored device credential; without it they are unrecoverable.
+   See docs/operations.md ("Backups") and deploy/scripts/backup.sh.

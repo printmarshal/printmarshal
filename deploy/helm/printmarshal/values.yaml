@@ -1,0 +1,183 @@
+# Default values for the PrintMarshal chart.  Operations guide: docs/operations.md.
+
+image:
+  repository: printmarshal        # e.g. registry.example.com/printmarshal
+  tag: ""                         # defaults to .Chart.appVersion
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+# --- Networking ---------------------------------------------------------------
+# Zero-config discovery (mDNS / WS-Discovery multicast) and SNMP traps only
+# work when the pod shares the node's network.  Set to false to stay on the CNI:
+# then set config.discovery.enabled=false, use active scans (config.discovery.targets)
+# and, for traps, service.trap.enabled=true.  See 40-deployment.yaml in
+# deploy/kubernetes for the full trade-off and the Multus/macvlan alternative.
+hostNetwork: true
+dnsPolicy: ""                     # defaults to ClusterFirstWithHostNet when hostNetwork is on
+# Pin to the node(s) attached to the printer VLAN.
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Container ports: must agree with config.listen and config.trap.listen.
+ports:
+  http: 8080
+  trap: 1162                      # 162 needs a node sysctl (net.ipv4.ip_unprivileged_port_start) -- operations.md
+
+# --- Application configuration (rendered to /config/printmarshal.json) --------
+# Every key documented in docs/operations.md "Configuration reference".
+config:
+  listen: ":8080"
+  dataDir: /data
+  database: sqlite
+  poll:
+    interval: 5m
+    concurrency: 32
+    snmpTimeout: 2s
+    snmpRetries: 1
+    ippTimeout: 4s
+    ippInsecureTls: true
+  discovery:
+    enabled: false
+    interval: 1h
+    mdnsWait: 5s
+    wsdWait: 3s
+    scanWorkers: 64
+    maxAddresses: 4096
+    targets: []                   # e.g. ["10.20.0.0/22"]
+  trap:
+    enabled: true
+    listen: "0.0.0.0:1162"
+  alerts:
+    supplyWarningPercent: 15
+    supplyCriticalPercent: 5
+    offlineAfterFailures: 2
+  notifiers: []                   # see deploy/printmarshal.example.json; SMTP passwords via passwordEnv + extraEnv
+  jobs:
+    workers: 4
+  auth:
+    sessionTtl: 720h
+    secureCookies: false          # true when TLS is terminated at the Ingress
+  telemetry:
+    retention: 2160h
+
+logging:
+  format: json                    # text | json
+  level: info                     # debug | info | warn | error
+
+# Extra environment (PM_* overrides, SMTP passwords referenced by passwordEnv, ...).
+extraEnv: []
+#  - name: PM_SMTP_PASSWORD
+#    valueFrom:
+#      secretKeyRef: { name: printmarshal-smtp, key: password }
+extraArgs: []
+
+# --- Secrets ------------------------------------------------------------------
+secrets:
+  # Use an existing Secret with keys PM_ADMIN_PASSWORD and/or PM_SECRET_KEY and
+  # the chart creates none.
+  existingSecret: ""
+  # Initial admin password; only read on the first start with an empty database.
+  # Empty: a random password is generated and printed in the log.
+  adminPassword: ""
+  # Base64 of 32 random bytes; encrypts stored device credentials.  Empty with
+  # generateSecretKey=true: generated once at install and preserved across
+  # upgrades (lookup), and the Secret is kept on uninstall.  Empty with
+  # generateSecretKey=false: the server writes /data/secret.key instead.
+  secretKey: ""
+  generateSecretKey: true
+
+# --- Persistence ----------------------------------------------------------------
+persistence:
+  enabled: true
+  existingClaim: ""
+  storageClass: ""                # "" = cluster default; "-" = no class
+  accessModes: ["ReadWriteOnce"]
+  size: 5Gi
+  annotations:
+    helm.sh/resource-policy: keep
+
+# --- Exposure -------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
+  # Second Service that delivers SNMP traps on port 162 to the pod.  Only
+  # useful without hostNetwork; externalTrafficPolicy Local keeps the printer's
+  # source IP, which is how a trap is matched to its device.
+  trap:
+    enabled: false
+    type: LoadBalancer
+    port: 162
+    annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+  hosts:
+    - host: printmarshal.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: printmarshal-tls
+  #    hosts: [printmarshal.example.com]
+
+# --- Runtime ----------------------------------------------------------------------
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+replicaCount: 1                   # SQLite + RWO volume: keep at 1
+strategy:
+  type: Recreate
+terminationGracePeriodSeconds: 20
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+startupProbe:
+  httpGet: { path: /healthz, port: http }
+  periodSeconds: 2
+  failureThreshold: 30
+readinessProbe:
+  httpGet: { path: /healthz, port: http }
+  periodSeconds: 10
+  timeoutSeconds: 3
+livenessProbe:
+  httpGet: { path: /healthz, port: http }
+  periodSeconds: 30
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+extraVolumes: []
+extraVolumeMounts: []

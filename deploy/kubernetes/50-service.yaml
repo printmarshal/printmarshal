@@ -1,0 +1,42 @@
+# In-cluster access to the UI/API (and the Ingress backend).  With hostNetwork
+# the endpoint is simply <node IP>:8080, which is also reachable directly.
+apiVersion: v1
+kind: Service
+metadata:
+  name: printmarshal
+  namespace: printmarshal
+  labels:
+    app.kubernetes.io/name: printmarshal
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: printmarshal
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+---
+# Optional: receive SNMP traps on the standard port 162 through a LoadBalancer
+# (or NodePort) instead of pointing printers at <node IP>:1162.
+# externalTrafficPolicy: Local is essential -- it preserves the printer's source
+# address, which the trap listener uses to find the device.  Without it every
+# trap looks like it came from a node and is dropped as "unknown device".
+# Delete this block (and the kustomization entry) if traps go straight to the node.
+apiVersion: v1
+kind: Service
+metadata:
+  name: printmarshal-trap
+  namespace: printmarshal
+  labels:
+    app.kubernetes.io/name: printmarshal
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: printmarshal
+  ports:
+    - name: snmp-trap
+      port: 162
+      targetPort: snmp-trap
+      protocol: UDP

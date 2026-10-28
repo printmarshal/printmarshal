@@ -1,0 +1,19 @@
+# kubectl apply -k deploy/kubernetes          (after editing 20-secret.yaml or
+# creating the Secret by hand -- see that file and docs/operations.md)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: printmarshal
+resources:
+  - 00-namespace.yaml
+  - 10-configmap.yaml
+  - 20-secret.yaml
+  - 30-pvc.yaml
+  - 35-serviceaccount.yaml
+  - 40-deployment.yaml
+  - 50-service.yaml
+  - 60-ingress.yaml          # remove if you expose <node IP>:8080 directly
+# Point at your registry / tag without editing the Deployment:
+# images:
+#   - name: printmarshal
+#     newName: registry.example.com/printmarshal
+#     newTag: v0.1.0

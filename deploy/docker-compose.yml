@@ -1,29 +1,64 @@
-# Small-site deployment (spec §12). The engine needs host networking so that
-# mDNS / WS-Discovery multicast and SNMP traps reach it; ordinary bridge
-# networking makes discovery look broken when it is not.
+# Small-site deployment (spec §12): one container, host networking, a named
+# volume for /data.  Full guide: docs/operations.md.
+#
+#   docker compose -f deploy/docker-compose.yml up -d --build
+#   docker compose -f deploy/docker-compose.yml logs -f      # first start prints the admin password
+#
+# Why `network_mode: host`?  Discovery relies on multicast (mDNS 224.0.0.251:5353,
+# WS-Discovery 239.255.255.250:3702) and printers push SNMP traps to UDP 162 /
+# 1162.  Neither crosses Docker's bridge network: multicast is not forwarded,
+# and a published UDP port rewrites the trap's source address so the event can
+# no longer be matched to a device.  With host networking the container shares
+# the host's interfaces, so it sees the printer VLAN exactly as the host does.
+# The cost is that the ports below (8080/tcp, 1162/udp) are bound directly on
+# the host and that Docker's port mapping / network isolation does not apply.
+#
+# Without host networking only *active* scans (explicit IPs / CIDR targets) and
+# polling work; zero-config discovery finds nothing and traps are lost.
+
 services:
   printmarshal:
-    build: ..
-    image: printmarshal:latest
+    build:
+      context: ..
+      args:
+        VERSION: ${PM_VERSION:-dev}
+    image: printmarshal:${PM_VERSION:-latest}
+    container_name: printmarshal
     network_mode: host          # required for zero-config discovery and traps
     environment:
       PM_LISTEN: ":8080"
       PM_DATA_DIR: /data
-      PM_TRAP_LISTEN: "0.0.0.0:1162"
+      PM_TRAP_LISTEN: "0.0.0.0:1162"   # 162 needs root or a host-level port redirect (operations.md)
       PM_POLL_INTERVAL: 5m
+      PM_LOG_FORMAT: json
       # PM_ADMIN_PASSWORD: set-me-on-first-run     # else see the container log
-      # PM_SECRET_KEY: base64-32-bytes              # else generated into /data/secret.key
+      # PM_SECRET_KEY: base64-32-bytes              # else generated into /data/secret.key (back it up!)
+      # PM_SECURE_COOKIES: "true"                   # when a TLS reverse proxy sits in front
       # PM_CONFIG: /config/printmarshal.json
+    # Secrets are better kept out of this file: put PM_ADMIN_PASSWORD / PM_SECRET_KEY
+    # in deploy/printmarshal.env (mode 0600, git-ignored) and they are picked up here.
+    env_file:
+      - path: ./printmarshal.env
+        required: false
     volumes:
       - pm-data:/data
       # - ./printmarshal.json:/config/printmarshal.json:ro
     restart: unless-stopped
+    stop_grace_period: 20s
+    # The image carries its own HEALTHCHECK on /healthz; override here if needed.
 
-  # Optional simulated printer for trying things out without hardware.
+  # Optional simulated printer for trying things out without hardware.  It is
+  # published on the host so the host-networked server can reach it:
+  #   PM_SNMP_PORT=1161 PM_IPP_ENDPOINTS='http://%s:6631/ipp/print' and discover
+  #   target 127.0.0.1 with zero-config off.
   # printer-sim:
-  #   image: printmarshal:latest
-  #   entrypoint: ["/usr/local/bin/pm-sim", "-fixture", "/opt/printmarshal/fixtures/generic-laser.snmp", "-snmp", "0.0.0.0:161", "-ipp", "0.0.0.0:631"]
-  #   networks: [printers]
+  #   image: printmarshal:${PM_VERSION:-latest}
+  #   entrypoint: ["/usr/local/bin/pm-sim", "-fixture", "/opt/printmarshal/fixtures/generic-laser.snmp",
+  #                "-snmp", "0.0.0.0:1161", "-ipp", "0.0.0.0:6631"]
+  #   ports:
+  #     - "1161:1161/udp"
+  #     - "6631:6631/tcp"
+  #   restart: unless-stopped
 
 volumes:
   pm-data: {}

@@ -103,9 +103,29 @@ PM_SNMP_PORT=1161 PM_IPP_ENDPOINTS='http://%s:6631/ipp/print' PM_ADMIN_PASSWORD=
 # then discover target 127.0.0.1 with zero-config off
 ```
 
-Docker: `docker compose -f deploy/docker-compose.yml up --build`. The container uses
-**host networking** because multicast discovery and SNMP traps do not cross a bridge
-network (spec §12).
+## Deploying
+
+Everything below is covered in depth in the **[operations guide](docs/operations.md)**
+(install options, full configuration reference, networking, backups, upgrades,
+troubleshooting, hardening and sizing).
+
+```bash
+make docker                                   # builds printmarshal:<version> (multi-stage, non-root, /healthz check)
+docker run -d --name printmarshal --network host \
+  -e PM_ADMIN_PASSWORD=change-me -v pm-data:/data printmarshal:latest
+```
+
+- **Docker Compose** (small sites): `docker compose -f deploy/docker-compose.yml up -d --build`.
+- **Kubernetes**: plain manifests in [`deploy/kubernetes/`](deploy/kubernetes/)
+  (`kubectl apply -k deploy/kubernetes`) or the Helm chart in
+  [`deploy/helm/printmarshal/`](deploy/helm/printmarshal/).
+- **Bare Linux host**: [`deploy/systemd/`](deploy/systemd/) unit and environment file.
+- **Backups**: [`deploy/scripts/backup.sh`](deploy/scripts/backup.sh) / `restore.sh`
+  (the database *and* `secret.key` together, or stored credentials are lost).
+
+The container and the Kubernetes pod use **host networking** because multicast
+discovery (mDNS, WS-Discovery) and SNMP traps do not cross a bridge or overlay
+network (spec §12); the manifests explain the trade-off and the alternatives.
 
 ## Configuration
 
@@ -127,7 +147,9 @@ and/or environment variables:
 | `PM_LOG_LEVEL`, `PM_LOG_FORMAT` | `debug|info|warn|error`, `text|json` | `info`, `text` |
 
 Notifiers (webhooks, SMTP) are configured in the JSON file; SMTP passwords are read
-from the environment variable named in `passwordEnv`, never from the file.
+from the environment variable named in `passwordEnv`, never from the file. The
+complete list of settings (every JSON field, its `PM_*` override and default) is in
+the [operations guide](docs/operations.md#configuration-reference).
 
 ## Development
 

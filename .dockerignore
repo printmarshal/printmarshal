@@ -1,4 +1,18 @@
+# Keep the build context small and never ship local state or secrets.
+.git
+.claude
+.github
 bin
 data
+*.db
+*.db-wal
+*.db-shm
+secret.key
 web/node_modules
-.git
+web/dist
+# The SPA is rebuilt in the image; stale local assets would only bust the cache.
+internal/web/dist/assets
+research
+docs
+*.md
+.DS_Store
