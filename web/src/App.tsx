@@ -63,6 +63,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
   const [counts, setCounts] = useState<Counts>({ devices: 0, critical: 0, warning: 0, lowStock: 0, jobs: 0 })
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('pm.sidebar') === 'collapsed' } catch { return false } })
   const [jump, setJump] = useState('')
+  const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -72,7 +73,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
       lowStock: d.summary.lowStock || 0, jobs: d.summary.runningJobs,
     })).catch(() => {})
   }, [])
-  useEffect(() => { loadCounts() }, [loadCounts, location.pathname])
+  useEffect(() => { loadCounts(); setOpen(false) }, [loadCounts, location.pathname])
   useEvents((e) => {
     if (e.type === 'stream.connected') setLive(true)
     else if (e.type === 'stream.disconnected') setLive(false)
@@ -97,7 +98,8 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
 
   return (
     <div className="shell">
-      <nav className={`side${collapsed ? ' collapsed' : ''}`} aria-label="Primary">
+      {open && <div className="side-scrim" onClick={() => setOpen(false)} />}
+      <nav className={`side${collapsed ? ' collapsed' : ''}${open ? ' open' : ''}`} aria-label="Primary">
         <div className="brand"><Mark size={26} /><Wordmark size={17} /></div>
         <NavLink className="nav" to="/" end title="Dashboard"><Ic.dashboard /><span>Dashboard</span></NavLink>
         <NavLink className="nav" to="/devices" title="Devices"><Ic.printer /><span>Devices</span><span className="ct num">{counts.devices.toLocaleString()}</span></NavLink>
@@ -119,6 +121,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
       </nav>
       <div className="main">
         <header className="top">
+          <Btn className="menu-btn" ic variant="ghost" aria-label="Open navigation" onClick={() => setOpen(true)}><Ic.list /></Btn>
           <form className="search" onSubmit={(e) => { e.preventDefault(); navigate(`/devices?q=${encodeURIComponent(jump)}`); setJump('') }}>
             <Ic.search />
             <input id="jump" type="search" aria-label="Jump to device" placeholder="Jump to device — name, IP, serial, model" value={jump} onChange={(e) => setJump(e.target.value)} />
@@ -131,7 +134,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
             </NavLink>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Av name={user.username} />
-              <div style={{ lineHeight: 1.2 }}><div style={{ fontWeight: 500 }}>{user.username}</div><div className="cap">{roleLabel}</div></div>
+              <div className="user-name" style={{ lineHeight: 1.2 }}><div style={{ fontWeight: 500 }}>{user.username}</div><div className="cap">{roleLabel}</div></div>
               <Btn sm variant="ghost" onClick={onLogout} title="Sign out">Sign out</Btn>
             </div>
           </div>

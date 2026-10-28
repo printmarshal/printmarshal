@@ -21,6 +21,7 @@ import (
 	"printmarshal/internal/auth"
 	"printmarshal/internal/config"
 	"printmarshal/internal/configmgmt"
+	"printmarshal/internal/driver/escl"
 	"printmarshal/internal/driver/ipp"
 	"printmarshal/internal/driver/snmp"
 	"printmarshal/internal/engine"
@@ -120,6 +121,10 @@ func run(cfgPath string) error {
 	ippOpts.InsecureTLS = cfg.Poll.IPPInsecureTLS
 	ippOpts.Endpoints = cfg.Poll.IPPEndpoints
 	reg.Register(ipp.New(ipp.NewTransport(ippOpts), ippOpts))
+	esclOpts := escl.DefaultOptions()
+	esclOpts.Timeout = cfg.Poll.IPPTimeout.D()
+	esclOpts.InsecureTLS = cfg.Poll.IPPInsecureTLS
+	reg.Register(escl.New(escl.NewTransport(esclOpts), esclOpts))
 	plugins.RegisterAll(reg, log) // vendor plugins: enrichment at the edge (spec §6)
 	eng := engine.New(reg, log, cfg.Poll.Concurrency)
 

@@ -4,7 +4,7 @@ Researched **28 October 2026**. Application: `/srv/printmarshal`. Status: **rese
 
 PrintMarshal has a useful monitoring foundation: discovery, standards-based printer reads, local identities, jobs, stock tracking, local audit rows and several notification formats. The main enterprise gap is the infrastructure connecting these features to organizational identity, security operations and reliable automation. Adding more destination URLs will not solve missing resource permissions, dropped events or incomplete audit evidence.
 
-This review identifies **18 code findings** and **40 integration work items**. Fourteen findings and 18 work items are P1: address them before enterprise exposure or depending on the affected integration. These priorities indicate delivery order and operational consequences; they are not CVSS ratings and do not imply every missing enterprise feature is a vulnerability.
+This review identifies **20 code findings** and **41 integration work items**. Fifteen findings and 19 work items are P1: address them before enterprise exposure or depending on the affected integration. These priorities indicate delivery order and operational consequences; they are not CVSS ratings and do not imply every missing enterprise feature is a vulnerability.
 
 The strongest implementation sequence is:
 
@@ -21,7 +21,9 @@ This is a **static application and integration audit**: source, configuration, s
 
 “Implemented” below means a visible code path, not a live compatibility certification. “Missing” means no implementation was found in the inspected application. A catalogue key, interface, enum or placeholder route is not evidence that the capability works. Negative findings are bounded by this source inspection; an external deployment may supply additional reverse proxies or collectors.
 
-The baseline is a self-hosted, single-organization platform. Multiple sites are relevant; full MSP tenant isolation is a separate architecture decision, not something that can be obtained by adding a tenant label. Cloud services and brokers should remain optional. Source hashes and 47 literal code anchors are in the JSON register. The report describes this snapshot and must be revisited as implementation changes.
+A configuration-management merge landed during this review. The final audit includes its actual profile/snapshot/diff/drift/dry-run/apply/revert implementation. README's early status paragraph still says all printer operations are read-only while its configuration section describes writes; the code, not that stale status statement, defines the finding. The source snapshot includes the newly reviewed configuration service and drivers.
+
+The baseline is a self-hosted, single-organization platform. Multiple sites are relevant; full MSP tenant isolation is a separate architecture decision, not something that can be obtained by adding a tenant label. Cloud services and brokers should remain optional. Source hashes and 54 literal code anchors are in the JSON register. The report describes this snapshot and must be revisited as implementation changes.
 
 Prior [printer integration evidence](/srv/printmarshal/research/enterprise-printer-expansion-and-integration-evidence-2026-10-28.md) and the [printer catalogue](/srv/printmarshal/research/enterprise-printer-catalogue-2026-10-28.json) remain relevant for exact model/firmware capabilities. This audit does not promote a researched printer family into a working vendor driver.
 
@@ -29,7 +31,8 @@ Prior [printer integration evidence](/srv/printmarshal/research/enterprise-print
 
 | Area | Source-backed state | Enterprise implication |
 |---|---|---|
-| Fleet discovery and reads | SNMP/IPP reads, discovery, polling, alerts, persisted jobs and stock workflows exist. README describes the early monitoring phases. | A reasonable base for evidence collection; future configuration/security/firmware writes require separate qualification. |
+| Fleet discovery and reads | SNMP/IPP reads, discovery, polling, alerts, persisted jobs and stock workflows exist. README describes the early monitoring phases. | A reasonable evidence-collection base; security/firmware writes still require separate implementation and qualification. |
+| Configuration | Standards-based config reads/writes, profiles, snapshots, diff/drift, optional dry run, per-setting results and revert jobs now exist. | Global operator access, shared read/write trust/credentials and best-effort post-write audit need hardening; a rehearsal/approval is not enforced by the API. |
 | Human login | Local bcrypt credentials; opaque random sessions stored as hashes; HttpOnly/SameSiteStrict cookies. | Good primitives, with session lifecycle defects below. No enterprise IdP connection. |
 | Authorization | Viewer/operator/admin global role hierarchy. | No per-site, per-group, action or integration principal boundaries. |
 | REST and browser events | Unversioned REST, manual CSV exports and an authenticated in-memory WebSocket hub. | Useful for the UI; not a durable event subscription or dependable incremental sync contract. |
@@ -40,11 +43,11 @@ Prior [printer integration evidence](/srv/printmarshal/research/enterprise-print
 | Certificates/security/firmware | Data models and declarations; empty route/service/plugin scaffolding. | No working CA enrollment, certificate rollout or firmware management integration should be advertised. |
 | Operations | Single-process SQLite/host-network deployment; static health response. | Fits a small-site starting point; external monitoring, safe TLS deployment and failure diagnostics need work. |
 
-Evidence: [C01: Declared current scope](/srv/printmarshal/README.md:11); [C02: Local authentication and session issuance](/srv/printmarshal/internal/auth/auth.go:78); [C03: Global hierarchical roles](/srv/printmarshal/internal/model/model.go:383); [C11: WebSocket origins and connection lifetime](/srv/printmarshal/internal/api/ws.go:58); [C13: Unbounded asynchronous single-attempt notifications](/srv/printmarshal/internal/alerts/notify.go:51); [C16: Static notifier configuration and declared event choices](/srv/printmarshal/internal/config/config.go:71); [C21: Audit persistence fields](/srv/printmarshal/internal/store/schema.sql:136); [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printmarshal/main.go:55); [C27: Source-address trap trust; no configured SNMPv3 user policy](/srv/printmarshal/internal/trap/listener.go:48); [C31: Security route placeholder](/srv/printmarshal/internal/api/security.go:7); [C32: Firmware route placeholder](/srv/printmarshal/internal/api/firmware.go:7); [C33: Configuration route placeholder](/srv/printmarshal/internal/api/config.go:7); [C34: Empty vendor plugin registration](/srv/printmarshal/internal/plugins/all.go:14); [C35: Single local encryption-key provisioning](/srv/printmarshal/internal/secrets/secrets.go:39); [C44: Small-site host-network deployment](/srv/printmarshal/deploy/docker-compose.yml:8); [C45: SQLite single-connection persistence](/srv/printmarshal/internal/store/sqlite.go:31).
+Evidence: [C01: Declared current scope](/srv/printmarshal/README.md:11); [C02: Local authentication and session issuance](/srv/printmarshal/internal/auth/auth.go:78); [C03: Global hierarchical roles](/srv/printmarshal/internal/model/model.go:383); [C11: WebSocket origins and connection lifetime](/srv/printmarshal/internal/api/ws.go:58); [C13: Unbounded asynchronous single-attempt notifications](/srv/printmarshal/internal/alerts/notify.go:51); [C16: Static notifier configuration and declared event choices](/srv/printmarshal/internal/config/config.go:71); [C21: Audit persistence fields](/srv/printmarshal/internal/store/schema.sql:136); [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printmarshal/main.go:55); [C27: Source-address trap trust; no configured SNMPv3 user policy](/srv/printmarshal/internal/trap/listener.go:48); [C31: Security route placeholder](/srv/printmarshal/internal/api/security.go:7); [C32: Firmware route placeholder](/srv/printmarshal/internal/api/firmware.go:7); [C33: Configuration routes now implemented](/srv/printmarshal/internal/api/config.go:19); [C34: Empty vendor plugin registration](/srv/printmarshal/internal/plugins/all.go:14); [C35: Single local encryption-key provisioning](/srv/printmarshal/internal/secrets/secrets.go:39); [C44: Small-site host-network deployment](/srv/printmarshal/deploy/docker-compose.yml:8); [C45: SQLite single-connection persistence](/srv/printmarshal/internal/store/sqlite.go:31).
 
 ## Code findings
 
-These findings distinguish implementation defects, compatibility risks and missing enterprise features. Existing role/secret tests are useful evidence of intended protections, but do not prove connector resilience or provider compatibility. See [C40: Existing role/secrets coverage](/srv/printmarshal/internal/api/server_test.go:87).
+These findings distinguish implementation defects, compatibility risks and missing enterprise features. Existing role/secret tests are useful evidence of intended protections, but do not prove connector resilience or provider compatibility. See [C40: Existing role/secrets coverage](/srv/printmarshal/internal/api/server_test.go:87); [C54: Existing dry-run, apply and revert tests](/srv/printmarshal/internal/configmgmt/service_test.go:157).
 
 ### A01 · P1 · Notification delivery is not durable
 
@@ -60,23 +63,23 @@ External basis: [W10: Slack rate limits including webhooks and Retry-After](http
 
 ### A02 · P1 · Declared and delivered event sets differ
 
-**Observed:** Notifier configuration names job.finished, but the job runner emits job.updated only to the Hub. Manual alert clear/ack and consumable replacement events also publish to the Hub without the notifier.
+**Observed:** Notifier configuration names job.finished, but the job runner emits job.updated only to the Hub. Manual alert clear/ack and consumable replacement events also publish to the Hub without the notifier. The new configuration service emits config.applied only through its event publisher/Hub.
 
 **Consequence:** An incident can remain open externally after an operator clears it, and subscribers can configure an event that is never delivered.
 
 **Recommended change:** Define a single event catalogue and route all eligible transitions through the durable publisher; record automatic versus manual resolution and preserve event origin.
 
-Code: [C16: Static notifier configuration and declared event choices](/srv/printmarshal/internal/config/config.go:71); [C18: Automatic alert notifications](/srv/printmarshal/internal/fleet/service.go:225); [C19: Manual clear broadcasts but does not notify](/srv/printmarshal/internal/api/server.go:765); [C20: Jobs only publish job.updated](/srv/printmarshal/internal/jobs/runner.go:202); [C47: Consumable replacement events only go to event hub](/srv/printmarshal/internal/fleet/service.go:260).
+Code: [C16: Static notifier configuration and declared event choices](/srv/printmarshal/internal/config/config.go:71); [C18: Automatic alert notifications](/srv/printmarshal/internal/fleet/service.go:225); [C19: Manual clear broadcasts but does not notify](/srv/printmarshal/internal/api/server.go:766); [C20: Jobs only publish job.updated](/srv/printmarshal/internal/jobs/runner.go:202); [C47: Consumable replacement events only go to event hub](/srv/printmarshal/internal/fleet/service.go:260); [C48: Configuration device I/O, result persistence and Hub-only event](/srv/printmarshal/internal/configmgmt/service.go:546).
 
 ### A03 · P1 · Audit records can be silently lost and omit security context
 
-**Observed:** The API audit helper discards AddAudit errors. Login/logout and middleware denials do not create audit events. Audit rows lack request ID, immutable principal ID, origin IP, principal type and external export state.
+**Observed:** The API audit helper discards AddAudit errors. Login/logout and middleware denials do not create audit events. Audit rows lack request ID, immutable principal ID, origin IP, principal type and external export state. Configuration applies perform device I/O, then persist a write record and call another audit helper that also ignores AddAudit errors.
 
 **Consequence:** A security team cannot reliably reconstruct access and actions or assume that every recorded change has an audit trail.
 
-**Recommended change:** Make local mutations and audit/outbox atomic; persist intent and outcome separately for future printer I/O; record authentication/denial events with bounded redacted context.
+**Recommended change:** Make local mutations and audit/outbox atomic. For existing configuration writes and future device operations, persist authorized intent before I/O and separate verified/unknown outcomes; record authentication/denial events with bounded redacted context.
 
-Code: [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:127); [C05: Best-effort audit write](/srv/printmarshal/internal/api/server.go:210); [C06: Login response and failure path](/srv/printmarshal/internal/api/server.go:225); [C21: Audit persistence fields](/srv/printmarshal/internal/store/schema.sql:136); [C23: Audit store insertion](/srv/printmarshal/internal/store/sqlite_misc.go:530); [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printmarshal/main.go:55).
+Code: [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:128); [C05: Best-effort audit write](/srv/printmarshal/internal/api/server.go:211); [C06: Login response and failure path](/srv/printmarshal/internal/api/server.go:226); [C21: Audit persistence fields](/srv/printmarshal/internal/store/schema.sql:136); [C23: Audit store insertion](/srv/printmarshal/internal/store/sqlite_misc.go:530); [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printmarshal/main.go:55); [C48: Configuration device I/O, result persistence and Hub-only event](/srv/printmarshal/internal/configmgmt/service.go:546); [C49: Post-write audit error discarded](/srv/printmarshal/internal/configmgmt/service.go:641); [C53: Configuration submission; dry run optional and no approval binding](/srv/printmarshal/internal/configmgmt/service.go:423).
 
 External basis: [W07: OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html).
 
@@ -88,7 +91,7 @@ External basis: [W07: OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.
 
 **Recommended change:** Separate password verification from session issuance; invalidate or rotate sessions according to explicit policy after password/identity changes and expose administrator revocation.
 
-Code: [C02: Local authentication and session issuance](/srv/printmarshal/internal/auth/auth.go:78); [C07: Password change reuses session-issuing Login](/srv/printmarshal/internal/api/server.go:256); [C08: Password update without session revocation](/srv/printmarshal/internal/store/sqlite_misc.go:657).
+Code: [C02: Local authentication and session issuance](/srv/printmarshal/internal/auth/auth.go:78); [C07: Password change reuses session-issuing Login](/srv/printmarshal/internal/api/server.go:257); [C08: Password update without session revocation](/srv/printmarshal/internal/store/sqlite_misc.go:657).
 
 External basis: [W05: OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html).
 
@@ -100,19 +103,19 @@ External basis: [W05: OWASP Authentication Cheat Sheet](https://cheatsheetseries
 
 **Recommended change:** Restrict origins, remove long-lived query tokens, enforce stream revocation/expiry, and later filter events by resource scope.
 
-Code: [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:127); [C09: Bearer/cookie/query token extraction](/srv/printmarshal/internal/auth/auth.go:142); [C10: Session cookie attributes](/srv/printmarshal/internal/auth/auth.go:162); [C11: WebSocket origins and connection lifetime](/srv/printmarshal/internal/api/ws.go:58).
+Code: [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:128); [C09: Bearer/cookie/query token extraction](/srv/printmarshal/internal/auth/auth.go:142); [C10: Session cookie attributes](/srv/printmarshal/internal/auth/auth.go:162); [C11: WebSocket origins and connection lifetime](/srv/printmarshal/internal/api/ws.go:58).
 
 External basis: [W02: RFC 9700 OAuth 2.0 Security Best Current Practice](https://www.rfc-editor.org/rfc/rfc9700.html); [W05: OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html).
 
 ### A06 · P1 · Enterprise transport and device trust are not configured by default
 
-**Observed:** The server calls ListenAndServe with HTTP; secure cookies default false, and deployment exposes the host-network listener. IPP defaults prefer clear HTTP and enable InsecureSkipVerify for HTTPS reads.
+**Observed:** The server calls ListenAndServe with HTTP; secure cookies default false, and deployment exposes the host-network listener. IPP prefers clear HTTP and defaults InsecureSkipVerify to true. Newly merged IPP configuration writes reuse this transport; the transport's reads-only comments are now stale.
 
-**Consequence:** Credentials require a separately secured ingress; printer identity is not cryptographically verified by default. Read-only polling limits device mutation but does not establish trustworthy telemetry.
+**Consequence:** Credentials require a separately secured ingress. Printer identity is not verified by default, and the same weak trust profile now applies to configuration writes where the device permits them.
 
-**Recommended change:** Document a tested TLS ingress profile and trusted proxy rules; enable secure cookies; add per-connector/device CA bundles or pins and explicit discovery-only trust exceptions.
+**Recommended change:** Document a tested TLS ingress profile/trusted proxy rules and enable secure cookies. Require a verified endpoint and explicit write trust/authentication policy; isolate any self-signed discovery exception from privileged device operations.
 
-Code: [C10: Session cookie attributes](/srv/printmarshal/internal/auth/auth.go:162); [C25: HTTP/session/IPP defaults](/srv/printmarshal/internal/config/config.go:112); [C26: Configurable insecure TLS for printer reads](/srv/printmarshal/internal/driver/ipp/driver.go:76); [C41: HTTP server transport and health deployment scope](/srv/printmarshal/cmd/printmarshal/main.go:166); [C44: Small-site host-network deployment](/srv/printmarshal/deploy/docker-compose.yml:8).
+Code: [C10: Session cookie attributes](/srv/printmarshal/internal/auth/auth.go:162); [C25: HTTP/session/IPP defaults](/srv/printmarshal/internal/config/config.go:112); [C26: Configurable insecure TLS for printer reads](/srv/printmarshal/internal/driver/ipp/driver.go:76); [C41: HTTP server transport and health deployment scope](/srv/printmarshal/cmd/printmarshal/main.go:166); [C44: Small-site host-network deployment](/srv/printmarshal/deploy/docker-compose.yml:8); [C50: IPP writes ignore supplied credentials and share the discovery transport](/srv/printmarshal/internal/driver/ipp/config.go:394).
 
 External basis: [W05: OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html).
 
@@ -158,31 +161,31 @@ External basis: [W11: Teams connector retirement, April 14 2026 update](https://
 
 **Recommended change:** Implement generic OIDC and separate service principals first; use a broker for SAML/LDAP where suitable; retain controlled local recovery access; add SCIM for lifecycle.
 
-Code: [C02: Local authentication and session issuance](/srv/printmarshal/internal/auth/auth.go:78); [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:127); [C06: Login response and failure path](/srv/printmarshal/internal/api/server.go:225); [C09: Bearer/cookie/query token extraction](/srv/printmarshal/internal/auth/auth.go:142).
+Code: [C02: Local authentication and session issuance](/srv/printmarshal/internal/auth/auth.go:78); [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:128); [C06: Login response and failure path](/srv/printmarshal/internal/api/server.go:226); [C09: Bearer/cookie/query token extraction](/srv/printmarshal/internal/auth/auth.go:142).
 
 External basis: [W01: OpenID Connect Core 1.0, errata set 2](https://openid.net/specs/openid-connect-core-1_0.html); [W02: RFC 9700 OAuth 2.0 Security Best Current Practice](https://www.rfc-editor.org/rfc/rfc9700.html); [W03: RFC 7644 SCIM protocol](https://www.rfc-editor.org/rfc/rfc7644.html); [W04: Keycloak identity brokering and user federation](https://www.keycloak.org/docs/latest/server_admin/).
 
 ### A11 · P1 · Authorization is global and coarse
 
-**Observed:** Role.Allows is a three-level rank. require only checks that rank. Existing groups and credential scopes route fleet work but do not constrain which resources a user can read or change.
+**Observed:** Role.Allows is a three-level rank. require only checks that rank. Existing groups and credential scopes route fleet work but do not constrain which resources a user can read or change. Newly implemented configuration apply/revert routes are available to every global operator; dryRun is optional and the service does not bind execution to a prior approval/rehearsal.
 
 **Consequence:** A site operator or integration cannot be limited to a site/group/action; global streams and exports share that boundary.
 
-**Recommended change:** Add action/resource policy checks across list, single-object, export, bulk jobs, streams and credentials. Separate security/firmware permissions and approval roles before writes ship.
+**Recommended change:** Add action/resource policy checks across list, export, bulk jobs, streams and credentials. Apply them to existing configuration writes, distinguish dry-run/approval/execution, and split future security/firmware permissions.
 
-Code: [C03: Global hierarchical roles](/srv/printmarshal/internal/model/model.go:383); [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:127); [C37: API query/filter surface](/srv/printmarshal/internal/api/server.go:301); [C38: Device/group credential routing, not human authorization](/srv/printmarshal/internal/store/sqlite_misc.go:69).
+Code: [C03: Global hierarchical roles](/srv/printmarshal/internal/model/model.go:383); [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:128); [C37: API query/filter surface](/srv/printmarshal/internal/api/server.go:302); [C38: Device/group credential routing, not human authorization](/srv/printmarshal/internal/store/sqlite_misc.go:69); [C33: Configuration routes now implemented](/srv/printmarshal/internal/api/config.go:19); [C53: Configuration submission; dry run optional and no approval binding](/srv/printmarshal/internal/configmgmt/service.go:423).
 
 External basis: [W06: OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html).
 
 ### A12 · P1 · SIEM export and printer-log ingestion are absent
 
-**Observed:** There is no SIEM exporter, syslog receiver, OTLP receiver/exporter or normalized device-security log store. The security.syslog.server catalogue entry describes a future printer setting, not a running receiver.
+**Observed:** There is no SIEM exporter, syslog receiver, OTLP receiver/exporter or normalized device-security log store. The security.syslog.server catalogue entry is only a printer-setting declaration, not a running receiver.
 
 **Consequence:** Application audit export, printer security collection and operational telemetry cannot be treated as existing end-to-end integrations.
 
 **Recommended change:** Implement separate pipelines with common identity/correlation; support a qualified external collector before building a general log-storage product.
 
-Code: [C21: Audit persistence fields](/srv/printmarshal/internal/store/schema.sql:136); [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printmarshal/main.go:55); [C27: Source-address trap trust; no configured SNMPv3 user policy](/srv/printmarshal/internal/trap/listener.go:48); [C29: Certificate protocol declarations](/srv/printmarshal/internal/model/security.go:91); [C30: Syslog setting declaration](/srv/printmarshal/internal/model/settings_catalog.go:84); [C31: Security route placeholder](/srv/printmarshal/internal/api/security.go:7).
+Code: [C21: Audit persistence fields](/srv/printmarshal/internal/store/schema.sql:136); [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printmarshal/main.go:55); [C27: Source-address trap trust; no configured SNMPv3 user policy](/srv/printmarshal/internal/trap/listener.go:48); [C29: Certificate protocol declarations](/srv/printmarshal/internal/model/security.go:91); [C30: Syslog setting declaration](/srv/printmarshal/internal/model/settings_catalog.go:88); [C31: Security route placeholder](/srv/printmarshal/internal/api/security.go:7).
 
 External basis: [W17: RFC 5424 Syslog](https://www.rfc-editor.org/info/rfc5424/); [W18: RFC 5425 Syslog over TLS](https://www.rfc-editor.org/info/rfc5425/); [W20: OpenTelemetry OTLP specification](https://opentelemetry.io/docs/specs/otlp/); [W24: Azure Monitor Logs Ingestion API / DCR configuration](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview); [W25: Microsoft Sentinel syslog/CEF via AMA](https://learn.microsoft.com/en-us/azure/sentinel/cef-syslog-ama-overview).
 
@@ -216,7 +219,7 @@ External basis: [W34: Vault KV v2 API](https://developer.hashicorp.com/vault/api
 
 **Recommended change:** Publish a versioned OpenAPI contract with accurate pagination, cursors/tombstones, external IDs, conflict rules, request IDs and idempotent command submission.
 
-Code: [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:127); [C36: API result total equals returned page length](/srv/printmarshal/internal/api/server.go:314); [C37: API query/filter surface](/srv/printmarshal/internal/api/server.go:301); [C43: Audit and notification API access](/srv/printmarshal/internal/api/server.go:111).
+Code: [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:128); [C36: API result total equals returned page length](/srv/printmarshal/internal/api/server.go:315); [C37: API query/filter surface](/srv/printmarshal/internal/api/server.go:302); [C43: Audit and notification API access](/srv/printmarshal/internal/api/server.go:112).
 
 External basis: [W41: OpenAPI Specification 3.2.1](https://spec.openapis.org/oas/v3.2.1.html).
 
@@ -232,15 +235,15 @@ Code: [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printma
 
 External basis: [W20: OpenTelemetry OTLP specification](https://opentelemetry.io/docs/specs/otlp/); [W21: OpenTelemetry Collector resiliency and persistent queues](https://opentelemetry.io/docs/collector/resiliency/); [W28: Prometheus instrumentation/cardinality practices](https://prometheus.io/docs/practices/instrumentation/).
 
-### A17 · P2 · PKI/configuration/firmware interfaces are scaffolding
+### A17 · P2 · PKI/security/firmware workflows remain scaffolding
 
-**Observed:** SCEP/EST/ACME enums and CAProfile exist, but the three feature route files are empty, service facades do not implement the workflows, and vendor plugin registration is empty.
+**Observed:** SCEP/EST/ACME enums and CAProfile exist, but security and firmware route files remain empty and vendor plugin registration is empty. Configuration routes and standards-based read/write jobs were merged during this review and are now implemented.
 
-**Consequence:** Certificate enrollment, policy-remediation or signed firmware integrations cannot be advertised based on type names or schemas.
+**Consequence:** Certificate enrollment, security-policy remediation and signed firmware integrations cannot be advertised from type names or schemas. Existing configuration jobs are a useful implementation base, with the trust/audit limitations recorded separately.
 
-**Recommended change:** Build CA-provider and printer-install adapters with separate compatibility records, and place all device writes behind capability, approval and audit controls.
+**Recommended change:** Build CA-provider and printer-install adapters with separate compatibility evidence; apply resource, approval and audit controls to current configuration jobs and future security/firmware writes.
 
-Code: [C29: Certificate protocol declarations](/srv/printmarshal/internal/model/security.go:91); [C31: Security route placeholder](/srv/printmarshal/internal/api/security.go:7); [C32: Firmware route placeholder](/srv/printmarshal/internal/api/firmware.go:7); [C33: Configuration route placeholder](/srv/printmarshal/internal/api/config.go:7); [C34: Empty vendor plugin registration](/srv/printmarshal/internal/plugins/all.go:14).
+Code: [C29: Certificate protocol declarations](/srv/printmarshal/internal/model/security.go:91); [C31: Security route placeholder](/srv/printmarshal/internal/api/security.go:7); [C32: Firmware route placeholder](/srv/printmarshal/internal/api/firmware.go:7); [C33: Configuration routes now implemented](/srv/printmarshal/internal/api/config.go:19); [C34: Empty vendor plugin registration](/srv/printmarshal/internal/plugins/all.go:14).
 
 External basis: [W35: Vault PKI API / issuance and CSR signing](https://developer.hashicorp.com/vault/api-docs/secret/pki).
 
@@ -255,6 +258,26 @@ External basis: [W35: Vault PKI API / issuance and CSR signing](https://develope
 Code: [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printmarshal/main.go:55); [C42: Generated bootstrap password deliberately logged](/srv/printmarshal/internal/auth/auth.go:41).
 
 External basis: [W07: OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html).
+
+### A19 · P1 · Device write credentials are not separated from read discovery
+
+**Observed:** IPP WriteConfig receives model.Creds but does not use them; HTTP requests configure no device authorization header or client certificate. SNMP writes reuse the dialer that returns the first credential answering a read, so a read-only community can win even when another credential can write.
+
+**Consequence:** A printer advertising a write operation may still reject it for authentication/authorization. Operators may be pushed to make privileged credentials the polling default, rather than using explicit purpose-bound read/write identities.
+
+**Recommended change:** Add operation-specific credential selection and supported authenticated printer transports. Do not retry every privileged secret blindly or downgrade from an authenticated write to anonymous/clear transport. Qualify exact device policy as well as advertised capability.
+
+Code: [C26: Configurable insecure TLS for printer reads](/srv/printmarshal/internal/driver/ipp/driver.go:76); [C38: Device/group credential routing, not human authorization](/srv/printmarshal/internal/store/sqlite_misc.go:69); [C50: IPP writes ignore supplied credentials and share the discovery transport](/srv/printmarshal/internal/driver/ipp/config.go:394); [C51: SNMP writer reuses the read-first dialer](/srv/printmarshal/internal/driver/snmp/config.go:194); [C52: First responding read credential wins](/srv/printmarshal/internal/driver/snmp/session.go:54).
+
+### A20 · P2 · Write acceptance is not the same as verified desired state
+
+**Observed:** IPP/SNMP writers mark a successful protocol set as written. Read-back is attempted, but a read failure does not change that status; a returned different value can appear in after while the setting remains written.
+
+**Consequence:** External ticketing, audit reports and future compliance checks cannot infer verified desired state solely from written/job success. A timeout or failed read-back leaves a distinct evidence state.
+
+**Recommended change:** Publish separate accepted, verified, mismatched and unknown outcomes, reconcile uncertain results and require verification before asserting compliance or closing a remediation ticket.
+
+Code: [C48: Configuration device I/O, result persistence and Hub-only event](/srv/printmarshal/internal/configmgmt/service.go:546); [C50: IPP writes ignore supplied credentials and share the discovery transport](/srv/printmarshal/internal/driver/ipp/config.go:394); [C51: SNMP writer reuses the read-first dialer](/srv/printmarshal/internal/driver/snmp/config.go:194); [C54: Existing dry-run, apply and revert tests](/srv/printmarshal/internal/configmgmt/service_test.go:157).
 
 ## Integration design
 
@@ -277,7 +300,7 @@ Target generic OIDC interoperability with customer-selected providers such as En
 
 **Provisioning is separate from login.** SCIM Users/Groups and deactivation can manage lifecycle; account disable/group removal must revoke local sessions and streams within a published bound. JIT OIDC creation alone is not offboarding. Keep stable external IDs, explicit field ownership and idempotent retries. A SCIM bearer credential needs its own restricted principal and audit trail. [W03: RFC 7644 SCIM protocol](https://www.rfc-editor.org/rfc/rfc7644.html).
 
-**Authorization must cover every access path.** Introduce action/resource checks for list results, direct IDs, exports, telemetry, credentials, bulk jobs and WebSockets. Evaluate bulk targets at submission and execution. A dynamic group or externally imported location must not silently expand a principal's rights. Future security/firmware actions need separate permissions and approval/execution roles; successful login is insufficient. Credential routing already present in the store must remain separate from these decisions. [C03: Global hierarchical roles](/srv/printmarshal/internal/model/model.go:383); [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:127); [C38: Device/group credential routing, not human authorization](/srv/printmarshal/internal/store/sqlite_misc.go:69); [W06: OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html).
+**Authorization must cover every access path.** Introduce action/resource checks for list results, direct IDs, exports, telemetry, credentials, bulk jobs and WebSockets. Evaluate bulk targets at submission and execution. A dynamic group or externally imported location must not silently expand a principal's rights. Future security/firmware actions need separate permissions and approval/execution roles; successful login is insufficient. Credential routing already present in the store must remain separate from these decisions. [C03: Global hierarchical roles](/srv/printmarshal/internal/model/model.go:383); [C04: Authentication and authorization middleware](/srv/printmarshal/internal/api/server.go:128); [C38: Device/group credential routing, not human authorization](/srv/printmarshal/internal/store/sqlite_misc.go:69); [W06: OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html).
 
 ### Establish one event contract and durable delivery
 
@@ -285,7 +308,7 @@ The current browser hub and notifier are different paths. The hub drops on full 
 
 A suitable first design is a **SQLite event/outbox transaction and a bounded worker pool**. A local state transition, its audit record and eligible outbox entries should commit together. Keep separate immutable source events, destination delivery state and delivery attempts. Preserve original event ID/time through retries, schema transformations and replay. Record provider acceptance separately from later indexing or inbox delivery. The reliability target is **at-least-once delivery with receiver deduplication**, within explicit retention/capacity limits.
 
-This does not make a physical printer operation transactional with SQLite. For future writes: persist authorized intent, perform device I/O, then persist a verified outcome. A network timeout may mean **unknown**, requiring reconciliation. Never infer rollback or success merely from an HTTP timeout.
+This does not make a physical printer operation transactional with SQLite. For existing configuration writes and future security/firmware operations: persist authorized intent, perform device I/O, then persist a verified outcome. A network timeout may mean **unknown**, requiring reconciliation. Never infer rollback or success merely from an HTTP timeout.
 
 A CloudEvents-compatible envelope is a sensible external contract, alongside a versioned PrintMarshal payload schema. CloudEvents specifies required context fields; its `specversion` is `"1.0"` even when using the published 1.0.2 specification. The example below is a **proposal**, not an existing API. [W08: CloudEvents 1.0.2 event specification](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md).
 
@@ -319,7 +342,7 @@ A CloudEvents-compatible envelope is a sensible external contract, alongside a v
 
 Define whether `time` is a trustworthy occurrence time or observation time, and retain both device-reported and receipt times where available. A collector identity proves the observer's identity, not automatically the printer's or the human actor's.
 
-Minimum event coverage should include authentication success/failure, denied access, identity/permission/secret changes, device discovery/freshness changes, alert raise/ack/clear/reopen, job terminal outcomes, stock thresholds and future certificate/configuration/firmware intent/results. Give each advertised event an actual producer. A firmware version observed by polling is not the same event as a verified firmware update performed by PrintMarshal.
+Minimum event coverage should include authentication success/failure, denied access, identity/permission/secret changes, device discovery/freshness changes, alert raise/ack/clear/reopen, job terminal outcomes, stock thresholds configuration intent/results and future certificate/firmware intent/results. Give each advertised event an actual producer. A firmware version observed by polling is not the same event as a verified firmware update performed by PrintMarshal.
 
 Workers need destination isolation, bounded concurrency, jittered backoff, `Retry-After`, retry budgets, dead letters, authorized replay and visible oldest-queue age. Avoid retrying permanent schema/authentication errors forever. An ambiguous response may require deduplication even when the sender did not see success. Persistent collector queues help after handoff; they cannot recover an application event that was never emitted. [W10: Slack rate limits including webhooks and Retry-After](https://docs.slack.dev/apis/web-api/rate-limits/); [W20: OpenTelemetry OTLP specification](https://opentelemetry.io/docs/specs/otlp/); [W21: OpenTelemetry Collector resiliency and persistent queues](https://opentelemetry.io/docs/collector/resiliency/).
 
@@ -361,7 +384,7 @@ A stdout log forwarder does not repair missing audit events. A syslog receiver d
 
 ### Application security export and SIEM options
 
-Record security events independently of debug/access logs. Include immutable actor/principal type, local/external identity reference, action, target, site, result, request/correlation/job IDs, timestamp and trusted source attribution. Record denials and failures, not just successful changes. Sanitize attacker-controlled text and omit passwords, session tokens, device communities, SMTP credentials and full webhook URLs. The current bootstrap warning is a concrete reason to review log fields **before** forwarding stdout centrally. [C05: Best-effort audit write](/srv/printmarshal/internal/api/server.go:210); [C06: Login response and failure path](/srv/printmarshal/internal/api/server.go:225); [C21: Audit persistence fields](/srv/printmarshal/internal/store/schema.sql:136); [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printmarshal/main.go:55); [C42: Generated bootstrap password deliberately logged](/srv/printmarshal/internal/auth/auth.go:41); [W07: OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html).
+Record security events independently of debug/access logs. Include immutable actor/principal type, local/external identity reference, action, target, site, result, request/correlation/job IDs, timestamp and trusted source attribution. Record denials and failures, not just successful changes. Sanitize attacker-controlled text and omit passwords, session tokens, device communities, SMTP credentials and full webhook URLs. The current bootstrap warning is a concrete reason to review log fields **before** forwarding stdout centrally. [C05: Best-effort audit write](/srv/printmarshal/internal/api/server.go:211); [C06: Login response and failure path](/srv/printmarshal/internal/api/server.go:226); [C21: Audit persistence fields](/srv/printmarshal/internal/store/schema.sql:136); [C24: Optional stdout JSON operational logs](/srv/printmarshal/cmd/printmarshal/main.go:55); [C42: Generated bootstrap password deliberately logged](/srv/printmarshal/internal/auth/auth.go:41); [W07: OWASP Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html).
 
 | Destination | Working integration contract to implement or qualify | Important qualification |
 |---|---|---|
@@ -375,11 +398,11 @@ Record security events independently of debug/access logs. Include immutable act
 
 Sources: [W17: RFC 5424 Syslog](https://www.rfc-editor.org/info/rfc5424/); [W18: RFC 5425 Syslog over TLS](https://www.rfc-editor.org/info/rfc5425/); [W19: RFC 9662 updated secure-syslog cipher requirements](https://www.rfc-editor.org/rfc/rfc9662.html); [W22: Splunk HEC request examples](https://help.splunk.com/en/splunk-enterprise/get-data-in/collect-http-event-data/http-event-collector-examples); [W23: Splunk HEC indexer acknowledgment and platform caveats](https://help.splunk.com/en/splunk-enterprise/get-started/get-data-in/9.0/get-data-with-http-event-collector/about-http-event-collector-indexer-acknowledgment); [W24: Azure Monitor Logs Ingestion API / DCR configuration](https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview); [W25: Microsoft Sentinel syslog/CEF via AMA](https://learn.microsoft.com/en-us/azure/sentinel/cef-syslog-ama-overview); [W26: Elastic ECS event fields](https://www.elastic.co/docs/reference/ecs/ecs-event); [W27: Elastic Security required ECS fields](https://www.elastic.co/docs/reference/security/fields-and-object-schemas/siem-field-reference).
 
-Start with one canonical audit schema and one qualified handoff, then prioritize direct adapters from customer demand. For every backend, retain the PrintMarshal event ID and separate original, created/observed and ingestion timestamps. Include a sample search proving a failed login, denied operation and future device-write result are searchable with their correlation chain. A successful HTTP exchange alone is insufficient evidence.
+Start with one canonical audit schema and one qualified handoff, then prioritize direct adapters from customer demand. For every backend, retain the PrintMarshal event ID and separate original, created/observed and ingestion timestamps. Include a sample search proving a failed login, denied operation and configuration-write result are searchable with their correlation chain. A successful HTTP exchange alone is insufficient evidence.
 
 ### Printer syslog and trap ingestion
 
-There is currently a trap listener but no working syslog collection pipeline. The `security.syslog.server` setting is a declaration about printer configuration, not a running log server or proof that PrintMarshal can change a printer's syslog destination. [C27: Source-address trap trust; no configured SNMPv3 user policy](/srv/printmarshal/internal/trap/listener.go:48); [C28: Trap alert creation and reconciliation poll submission](/srv/printmarshal/internal/fleet/service.go:529); [C30: Syslog setting declaration](/srv/printmarshal/internal/model/settings_catalog.go:84); [C31: Security route placeholder](/srv/printmarshal/internal/api/security.go:7).
+There is currently a trap listener but no working syslog collection pipeline. The `security.syslog.server` setting is a declaration about printer configuration, not a running log server or proof that PrintMarshal can change a printer's syslog destination. [C27: Source-address trap trust; no configured SNMPv3 user policy](/srv/printmarshal/internal/trap/listener.go:48); [C28: Trap alert creation and reconciliation poll submission](/srv/printmarshal/internal/fleet/service.go:529); [C30: Syslog setting declaration](/srv/printmarshal/internal/model/settings_catalog.go:88); [C31: Security route placeholder](/srv/printmarshal/internal/api/security.go:7).
 
 Prefer an **optional customer-operated syslog collector** initially, such as a qualified rsyslog deployment with TCP/TLS intake, explicit spool/queue settings and authenticated forwarding into PrintMarshal. This isolates high-volume parsing and network privilege requirements from the API process. An adapter should accept normalized records with stable source identity, site, transport, raw evidence reference and parser version. Keep raw retention bounded and configurable; PrintMarshal should link useful evidence rather than attempt to replace the organization's SIEM. [W43: rsyslog TCP/TLS intake](https://docs.rsyslog.com/doc/configuration/modules/imtcp.html); [W44: rsyslog queue durability distinctions](https://docs.rsyslog.com/doc/concepts/queues.html).
 
@@ -449,9 +472,11 @@ NetBox/Snipe-IT and other customer inventories are good enrichment/sync targets.
 | Permission scope | PrintMarshal policy with approved identity mappings | Imported tags, owners and CMDB groups cannot grant authority independently. |
 | Desired security/configuration state | Future approved policy/change workflow | Separate desired, observed and applied states; preserve the external change ID. |
 
-The API needs accurate totals or cursor semantics, incremental updates/tombstones, idempotency and documented asynchronous results before large sync deployments. The existing response's page-length `total` must not be used as the fleet total. Publish OpenAPI in a tooling-supported version and generate examples before maintaining many SDKs. Ansible can call HTTP APIs through `uri`; that module does not supply native check/diff mode, so future preview behavior must be an explicit PrintMarshal contract. [C36: API result total equals returned page length](/srv/printmarshal/internal/api/server.go:314); [C37: API query/filter surface](/srv/printmarshal/internal/api/server.go:301); [W41: OpenAPI Specification 3.2.1](https://spec.openapis.org/oas/v3.2.1.html); [W36: Ansible uri HTTP API module](https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/uri_module.html).
+The API needs accurate totals or cursor semantics, incremental updates/tombstones, idempotency and documented asynchronous results before large sync deployments. The existing response's page-length `total` must not be used as the fleet total. Publish OpenAPI in a tooling-supported version and generate examples before maintaining many SDKs. Ansible can call HTTP APIs through `uri`; that module does not supply native check/diff mode, so automation must call PrintMarshal's existing configuration dryRun explicitly and inspect the final job results. [C36: API result total equals returned page length](/srv/printmarshal/internal/api/server.go:315); [C37: API query/filter surface](/srv/printmarshal/internal/api/server.go:302); [W41: OpenAPI Specification 3.2.1](https://spec.openapis.org/oas/v3.2.1.html); [W36: Ansible uri HTTP API module](https://docs.ansible.com/projects/ansible/latest/collections/ansible/builtin/uri_module.html).
 
-### Secrets, PKI and future device changes
+### Device credentials, secrets, PKI and change workflows
+
+Current device write authentication needs its own work item (G41). IPP writes do not consume the supplied credentials, and SNMP selects the first credential that can answer a read rather than an operation-specific write identity. Advertising Set-Printer-Attributes or SNMP SET capability does not prove that the configured identity has permission. Separate read/write selection, prevent credential spraying and transport downgrade, and qualify the exact printer's authentication policy. [C50: IPP writes ignore supplied credentials and share the discovery transport](/srv/printmarshal/internal/driver/ipp/config.go:394); [C51: SNMP writer reuses the read-first dialer](/srv/printmarshal/internal/driver/snmp/config.go:194); [C52: First responding read credential wins](/srv/printmarshal/internal/driver/snmp/session.go:54).
 
 Create a shared `secretRef` interface for encrypted local records, mounted files and optional external stores. Separate secrets by purpose; redact URL tokens as carefully as passwords. Specify reload behavior, cache/expiry boundaries, rotation, failure modes and key recovery. Vault KV v2 is a suitable optional static-secret backend; retrieving a new version does not automatically rotate the corresponding password on a printer. [W34: Vault KV v2 API](https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2).
 
@@ -459,7 +484,7 @@ For PKI, separate **CA issuance/signing** from **device CSR/install/renewal**. V
 
 Firmware repository and offline package integration should preserve provenance, release metadata, product/branch compatibility, checksums and vendor signatures where supported. A downloadable package is not evidence of a supported remote upload API. Use the existing printer research to narrow driver qualification; avoid a generic “all enterprise printers” write claim.
 
-Future GitOps/change-system linkage can bring approved desired state, change IDs, preview/diff and campaign approvals. Design all future writes around exact capability checks, scoped authority, separation of approval/execution and intent/outcome evidence. Do not attach executable commands directly to webhooks, printer logs or repository text.
+GitOps/change-system linkage should reuse the existing profile/diff/dry-run/apply workflows and add validated imports, change IDs, bound approvals and campaign controls. Harden existing writes and design future operations around exact capability checks, scoped authority, separation of approval/execution and intent/outcome evidence. Do not attach executable commands directly to webhooks, printer logs or repository text.
 
 ### Security enrichment, collectors and optional extensions
 
@@ -479,7 +504,7 @@ Broker/automation-platform bridges are conditional extensions. Versioned signed 
 
 P1 = needed before enterprise exposure or reliance on the affected integration. P2 = core enterprise expansion. P3 = conditional extension. Effort M/L/XL is relative scope, **not a duration estimate**. Dependencies below describe a production-ready solution; an urgent small fix, such as SMTP deadlines or password verification, can land before the surrounding feature is complete.
 
-The JSON register contains full proposals and measurable acceptance criteria for each row, along with code and research evidence. Counts: **18 P1, 18 P2, 4 P3**.
+The JSON register contains full proposals and measurable acceptance criteria for each row, along with code and research evidence. Counts: **19 P1, 18 P2, 4 P3**.
 
 | ID | Priority | Integration / work item | Current implementation | Effort | Production dependencies |
 |---|---|---|---|---|---|
@@ -517,19 +542,20 @@ The JSON register contains full proposals and measurable acceptance criteria for
 | G32 | P2 | Site collectors and customer network boundaries | single process host network | XL | G04, G05, G07, G08, G09 |
 | G33 | P2 | Vendor advisories, NVD and KEV correlation | missing | L | G08, G24, G27 |
 | G34 | P3 | NAC / Cisco ISE context enrichment | missing | L | G04, G05, G07, G24 |
-| G35 | P3 | GitOps/configuration import and change-system linkage | configuration workflow scaffold | L | G04, G27, G28, G29 |
+| G35 | P3 | GitOps/configuration import and change-system linkage | configuration jobs present gitops missing | L | G04, G27, G28, G29 |
 | G36 | P2 | Ownership/IPAM/site metadata enrichment | operator fields and groups only | M | G04, G24 |
 | G37 | P2 | Scheduled external reports and evidence exports | manual csv only | M | G05, G09, G27, G30 |
 | G38 | P3 | Read-only MCP/assistant integration | missing | M | G04, G05, G27, G29 |
 | G39 | P2 | Approved firmware repositories and offline evidence packages | firmware routes scaffold | L | G04, G25, G27, G29 |
 | G40 | P3 | Optional broker/automation-platform bridges | missing | M | G08, G09, G10, G28 |
+| G41 | P1 | Purpose-bound printer read/write authentication | shared snmp credentials ipp write auth missing | L | G04, G07, G25, G29 |
 
 ## Recommended delivery waves and exit evidence
 
 | Wave | Work | Concrete exit evidence |
 |---|---|---|
-| 0 · Correct current behavior | A02–A07/A18 defects as applicable; protect TLS deployment; remove secret leakage; establish minimum security events | Password change does not issue an unused session; revocation affects streams; SMTP stalls terminate; declared terminal job/manual alert events have producers; audit failure is visible and handled. |
-| 1 · Enterprise foundations | G04/G06/G07/G08/G25/G29, then G01/G05/G09/G27 according to dependencies | A site-scoped human and machine principal cannot access another site through any path. A committed audit/event survives restart and is replayable with the same event ID. IdP and local recovery behavior are tested. |
+| 0 · Correct current behavior | A02–A07/A18–A20 defects and boundaries as applicable; protect TLS deployment; remove secret leakage; establish minimum security events | Password change does not issue an unused session; revocation affects streams; SMTP stalls terminate; declared terminal job/manual alert events have producers; audit failure is visible and handled. |
+| 1 · Enterprise foundations | G04/G06/G07/G08/G25/G29, then G01/G05/G09/G27/G41 according to dependencies | A site-scoped human and machine principal cannot access another site through any path. A committed audit/event survives restart and is replayable with the same event ID. IdP and local recovery behavior are tested. |
 | 2 · Delivery and security operations | G10–G15/G19/G20; selected G16–G18 and G21/G23 | A selected SIEM can search source-correlated security events; one current Teams Workflows deployment and one modern email path work; malformed/burst printer evidence remains bounded and trust-labelled. |
 | 3 · Organization workflows | G02/G03/G22/G24/G26/G28/G30/G31/G36/G37/G39 as demanded | Offboarding revokes access; ticket/asset sync does not duplicate or overwrite authoritative fields; restore preserves evidence and dedup state; PKI/firmware claims are limited to qualified workflows. |
 | 4 · Distributed/conditional extensions | G32/G33 where required; G34/G35/G38/G40 only with demonstrated use cases | Site compromise/offline replay is bounded; enrichment preserves uncertainty; optional automation cannot bypass the same action/resource policy. |
@@ -543,7 +569,7 @@ These are recommended tests and qualification checks, **not tests executed in th
 1. **Identity and revocation:** two identities sharing a recycled email; wrong issuer/audience; rotated signing key; removed group; disabled user; password change; stolen old session; active WebSocket during logout/expiry; IdP outage and controlled recovery.
 2. **Authorization consistency:** cross-site list/direct ID/export/WebSocket/telemetry/bulk requests; a group changes after a job is queued; a read-only connector attempts a privileged action; a CMDB tag import tries to expand scope.
 3. **Durability and delivery:** crash after transaction commit/before send; crash after provider accepts/before acknowledgment is recorded; timeout, 429, 5xx and permanent schema/auth errors; slow destination isolation; queue cap/disk pressure; replay of a resolved alert.
-4. **Security audit:** failed login, denial, secret change and future write intent/outcome; local audit insertion failure; bootstrap redaction; untrusted text containing control characters; timestamp and correlation preservation across export.
+4. **Security audit:** failed login, denial, secret change and configuration/future write intent/outcome; local audit insertion failure; bootstrap redaction; untrusted text containing control characters; timestamp and correlation preservation across export.
 5. **Provider contracts:** actual SIEM table/index search and mapping, exact acknowledgment level, token expiry/rotation, CA rollover and provider partial acceptance; Teams ownership/auth changes; SMTP stalled TLS/DATA; header injection; Graph authorization limited to the intended mailbox.
 6. **Printer evidence:** model/firmware fixtures; spoofed/unknown source; SNMPv3 engine/time failures where supported; UDP loss; duplicated/burst events; malformed syslog; IP reuse and overlapping site addresses; correct unknown/trust states.
 7. **Incident/asset lifecycle:** raise/ack/manual clear/automatic clear/reopen; repeated callback; loop prevention; no duplicate ticket on retry; address change without duplicate asset; ownership conflict and tombstone reconciliation.
@@ -560,7 +586,7 @@ A connector can be called supported only after its documented authentication, sc
 | Identity | Generic OIDC plus explicit local recovery | Native SAML/LDAP is additional implementation, not a toggle on current local login. |
 | Delivery guarantees | At-least-once within declared local persistence/capacity limits | Stronger legal/compliance retention or availability requirements change storage/deployment design. |
 | Printer logs | Optional external collector; model/firmware parser evidence | Native high-volume ingestion requires a capacity, retention and isolation design. |
-| Device writes | Future capability-qualified workflows with approval and verified results | Integrations cannot make current empty security/configuration/firmware routes functional. |
+| Device writes | Configuration jobs exist; add resource policy, purpose-bound credentials, approval binding and verified outcomes | Security/firmware routes remain placeholders; external integrations cannot supply their missing implementation. |
 | Offline requirements | Core monitoring remains usable without SaaS | Feed/package/identity/secret dependencies need deliberate cache, recovery and operator controls. |
 
 ## Evidence and source index

@@ -18,7 +18,7 @@
     "assumptions": [
       "Single-organization self-hosted installation is the baseline; multi-site is optional.",
       "SaaS services, identity brokers, collectors, message buses and external secret stores must remain optional.",
-      "Future device writes require exact driver capability, resource authorization, approvals and recorded results."
+      "Current configuration and future security/firmware writes require exact driver capability, resource authorization, approvals and recorded results."
     ]
   },
   "priority_definitions": {
@@ -33,19 +33,19 @@
     "note": "Relative sizing only; not person-days, a schedule or implementation commitment. Dependencies describe the production-ready design, not prerequisites to fixing a small existing defect."
   },
   "summary": {
-    "code_findings": 18,
+    "code_findings": 20,
     "code_findings_by_priority": {
-      "P1": 14,
-      "P2": 4,
+      "P1": 15,
+      "P2": 5,
       "P3": 0
     },
-    "integration_gaps": 40,
+    "integration_gaps": 41,
     "gaps_by_priority": {
-      "P1": 18,
+      "P1": 19,
       "P2": 18,
       "P3": 4
     },
-    "code_evidence_anchors": 47,
+    "code_evidence_anchors": 54,
     "primary_sources": 47
   },
   "audit_findings": [
@@ -72,7 +72,7 @@
       "priority": "P1",
       "kind": "implementation_defect",
       "title": "Declared and delivered event sets differ",
-      "observation": "Notifier configuration names job.finished, but the job runner emits job.updated only to the Hub. Manual alert clear/ack and consumable replacement events also publish to the Hub without the notifier.",
+      "observation": "Notifier configuration names job.finished, but the job runner emits job.updated only to the Hub. Manual alert clear/ack and consumable replacement events also publish to the Hub without the notifier. The new configuration service emits config.applied only through its event publisher/Hub.",
       "impact": "An incident can remain open externally after an operator clears it, and subscribers can configure an event that is never delivered.",
       "recommendation": "Define a single event catalogue and route all eligible transitions through the durable publisher; record automatic versus manual resolution and preserve event origin.",
       "code_evidence_ids": [
@@ -80,7 +80,8 @@
         "C18",
         "C19",
         "C20",
-        "C47"
+        "C47",
+        "C48"
       ],
       "source_ids": []
     },
@@ -89,16 +90,19 @@
       "priority": "P1",
       "kind": "implementation_defect",
       "title": "Audit records can be silently lost and omit security context",
-      "observation": "The API audit helper discards AddAudit errors. Login/logout and middleware denials do not create audit events. Audit rows lack request ID, immutable principal ID, origin IP, principal type and external export state.",
+      "observation": "The API audit helper discards AddAudit errors. Login/logout and middleware denials do not create audit events. Audit rows lack request ID, immutable principal ID, origin IP, principal type and external export state. Configuration applies perform device I/O, then persist a write record and call another audit helper that also ignores AddAudit errors.",
       "impact": "A security team cannot reliably reconstruct access and actions or assume that every recorded change has an audit trail.",
-      "recommendation": "Make local mutations and audit/outbox atomic; persist intent and outcome separately for future printer I/O; record authentication/denial events with bounded redacted context.",
+      "recommendation": "Make local mutations and audit/outbox atomic. For existing configuration writes and future device operations, persist authorized intent before I/O and separate verified/unknown outcomes; record authentication/denial events with bounded redacted context.",
       "code_evidence_ids": [
         "C04",
         "C05",
         "C06",
         "C21",
         "C23",
-        "C24"
+        "C24",
+        "C48",
+        "C49",
+        "C53"
       ],
       "source_ids": [
         "W07"
@@ -145,15 +149,16 @@
       "priority": "P1",
       "kind": "deployment_gap",
       "title": "Enterprise transport and device trust are not configured by default",
-      "observation": "The server calls ListenAndServe with HTTP; secure cookies default false, and deployment exposes the host-network listener. IPP defaults prefer clear HTTP and enable InsecureSkipVerify for HTTPS reads.",
-      "impact": "Credentials require a separately secured ingress; printer identity is not cryptographically verified by default. Read-only polling limits device mutation but does not establish trustworthy telemetry.",
-      "recommendation": "Document a tested TLS ingress profile and trusted proxy rules; enable secure cookies; add per-connector/device CA bundles or pins and explicit discovery-only trust exceptions.",
+      "observation": "The server calls ListenAndServe with HTTP; secure cookies default false, and deployment exposes the host-network listener. IPP prefers clear HTTP and defaults InsecureSkipVerify to true. Newly merged IPP configuration writes reuse this transport; the transport's reads-only comments are now stale.",
+      "impact": "Credentials require a separately secured ingress. Printer identity is not verified by default, and the same weak trust profile now applies to configuration writes where the device permits them.",
+      "recommendation": "Document a tested TLS ingress profile/trusted proxy rules and enable secure cookies. Require a verified endpoint and explicit write trust/authentication policy; isolate any self-signed discovery exception from privileged device operations.",
       "code_evidence_ids": [
         "C10",
         "C25",
         "C26",
         "C41",
-        "C44"
+        "C44",
+        "C50"
       ],
       "source_ids": [
         "W05"
@@ -235,14 +240,16 @@
       "priority": "P1",
       "kind": "enterprise_feature_gap",
       "title": "Authorization is global and coarse",
-      "observation": "Role.Allows is a three-level rank. require only checks that rank. Existing groups and credential scopes route fleet work but do not constrain which resources a user can read or change.",
+      "observation": "Role.Allows is a three-level rank. require only checks that rank. Existing groups and credential scopes route fleet work but do not constrain which resources a user can read or change. Newly implemented configuration apply/revert routes are available to every global operator; dryRun is optional and the service does not bind execution to a prior approval/rehearsal.",
       "impact": "A site operator or integration cannot be limited to a site/group/action; global streams and exports share that boundary.",
-      "recommendation": "Add action/resource policy checks across list, single-object, export, bulk jobs, streams and credentials. Separate security/firmware permissions and approval roles before writes ship.",
+      "recommendation": "Add action/resource policy checks across list, export, bulk jobs, streams and credentials. Apply them to existing configuration writes, distinguish dry-run/approval/execution, and split future security/firmware permissions.",
       "code_evidence_ids": [
         "C03",
         "C04",
         "C37",
-        "C38"
+        "C38",
+        "C33",
+        "C53"
       ],
       "source_ids": [
         "W06"
@@ -253,7 +260,7 @@
       "priority": "P1",
       "kind": "enterprise_feature_gap",
       "title": "SIEM export and printer-log ingestion are absent",
-      "observation": "There is no SIEM exporter, syslog receiver, OTLP receiver/exporter or normalized device-security log store. The security.syslog.server catalogue entry describes a future printer setting, not a running receiver.",
+      "observation": "There is no SIEM exporter, syslog receiver, OTLP receiver/exporter or normalized device-security log store. The security.syslog.server catalogue entry is only a printer-setting declaration, not a running receiver.",
       "impact": "Application audit export, printer security collection and operational telemetry cannot be treated as existing end-to-end integrations.",
       "recommendation": "Implement separate pipelines with common identity/correlation; support a qualified external collector before building a general log-storage product.",
       "code_evidence_ids": [
@@ -344,10 +351,10 @@
       "id": "A17",
       "priority": "P2",
       "kind": "declared_only",
-      "title": "PKI/configuration/firmware interfaces are scaffolding",
-      "observation": "SCEP/EST/ACME enums and CAProfile exist, but the three feature route files are empty, service facades do not implement the workflows, and vendor plugin registration is empty.",
-      "impact": "Certificate enrollment, policy-remediation or signed firmware integrations cannot be advertised based on type names or schemas.",
-      "recommendation": "Build CA-provider and printer-install adapters with separate compatibility records, and place all device writes behind capability, approval and audit controls.",
+      "title": "PKI/security/firmware workflows remain scaffolding",
+      "observation": "SCEP/EST/ACME enums and CAProfile exist, but security and firmware route files remain empty and vendor plugin registration is empty. Configuration routes and standards-based read/write jobs were merged during this review and are now implemented.",
+      "impact": "Certificate enrollment, security-policy remediation and signed firmware integrations cannot be advertised from type names or schemas. Existing configuration jobs are a useful implementation base, with the trust/audit limitations recorded separately.",
+      "recommendation": "Build CA-provider and printer-install adapters with separate compatibility evidence; apply resource, approval and audit controls to current configuration jobs and future security/firmware writes.",
       "code_evidence_ids": [
         "C29",
         "C31",
@@ -374,6 +381,39 @@
       "source_ids": [
         "W07"
       ]
+    },
+    {
+      "id": "A19",
+      "priority": "P1",
+      "kind": "device_authentication_gap",
+      "title": "Device write credentials are not separated from read discovery",
+      "observation": "IPP WriteConfig receives model.Creds but does not use them; HTTP requests configure no device authorization header or client certificate. SNMP writes reuse the dialer that returns the first credential answering a read, so a read-only community can win even when another credential can write.",
+      "impact": "A printer advertising a write operation may still reject it for authentication/authorization. Operators may be pushed to make privileged credentials the polling default, rather than using explicit purpose-bound read/write identities.",
+      "recommendation": "Add operation-specific credential selection and supported authenticated printer transports. Do not retry every privileged secret blindly or downgrade from an authenticated write to anonymous/clear transport. Qualify exact device policy as well as advertised capability.",
+      "code_evidence_ids": [
+        "C26",
+        "C38",
+        "C50",
+        "C51",
+        "C52"
+      ],
+      "source_ids": []
+    },
+    {
+      "id": "A20",
+      "priority": "P2",
+      "kind": "evidence_semantics_gap",
+      "title": "Write acceptance is not the same as verified desired state",
+      "observation": "IPP/SNMP writers mark a successful protocol set as written. Read-back is attempted, but a read failure does not change that status; a returned different value can appear in after while the setting remains written.",
+      "impact": "External ticketing, audit reports and future compliance checks cannot infer verified desired state solely from written/job success. A timeout or failed read-back leaves a distinct evidence state.",
+      "recommendation": "Publish separate accepted, verified, mismatched and unknown outcomes, reconcile uncertain results and require verification before asserting compliance or closing a remediation ticket.",
+      "code_evidence_ids": [
+        "C48",
+        "C50",
+        "C51",
+        "C54"
+      ],
+      "source_ids": []
     }
   ],
   "integration_gaps": [
@@ -468,12 +508,14 @@
         "C03",
         "C04",
         "C37",
-        "C38"
+        "C38",
+        "C33",
+        "C53"
       ],
       "source_ids": [
         "W06"
       ],
-      "proposal": "Add principal/action/resource checks and explicit site/group scope; distinguish credential routing from authorization and split future firmware/security privileges.",
+      "proposal": "Add principal/action/resource checks and explicit site/group scope; distinguish credential routing from authorization and split future firmware/security privileges. Enforce these controls on the now-implemented configuration apply/revert API.",
       "acceptance_criteria": [
         "Cross-site list, direct ID, export, job, telemetry and WebSocket access are denied or filtered consistently.",
         "Bulk targets are authorized at submission and execution; dynamic group edits cannot expand access silently.",
@@ -548,14 +590,15 @@
         "C25",
         "C26",
         "C41",
-        "C44"
+        "C44",
+        "C50"
       ],
       "source_ids": [
         "W05",
         "W18",
         "W19"
       ],
-      "proposal": "Tested reverse-proxy/native TLS deployment profiles, secure cookies, public base URL, trusted forwarded headers, outbound CA/mTLS/proxy settings and explicit printer trust modes.",
+      "proposal": "Tested reverse-proxy/native TLS deployment profiles, secure cookies, public base URL, trusted forwarded headers, outbound CA/mTLS/proxy settings and explicit printer trust modes. Existing IPP writes must not inherit discovery's unverified TLS/HTTP policy.",
       "acceptance_criteria": [
         "Default enterprise profile never transmits login credentials over clear HTTP.",
         "Forged forwarded headers do not change trusted identity/source attribution.",
@@ -662,12 +705,13 @@
         "C18",
         "C19",
         "C20",
-        "C47"
+        "C47",
+        "C48"
       ],
       "source_ids": [
         "W29"
       ],
-      "proposal": "Centralize all selected transition events and add severity/site filters, deduplication, maintenance windows, escalation, digest and flapping policies.",
+      "proposal": "Centralize all selected transition events and add severity/site filters, deduplication, maintenance windows, escalation, digest and flapping policies. Include config.applied and distinguish accepted from verified configuration results.",
       "acceptance_criteria": [
         "Automatic and manual clear both update an external incident according to policy.",
         "A configured job.finished subscription receives terminal success/partial/failure consistently.",
@@ -1118,7 +1162,9 @@
       "code_evidence_ids": [
         "C36",
         "C37",
-        "C43"
+        "C43",
+        "C33",
+        "C53"
       ],
       "source_ids": [
         "W36",
@@ -1128,7 +1174,8 @@
       "acceptance_criteria": [
         "Generated clients validate contract and pagination is stable during changes.",
         "A timeout/retry does not duplicate a command.",
-        "Ansible examples verify final job results and do not claim check-mode behavior unsupported by the API/module."
+        "Ansible examples verify final job results and do not claim check-mode behavior unsupported by the API/module.",
+        "Document the existing config dryRun contract explicitly, with accepted/verified/unknown result semantics and no implied mandatory rehearsal."
       ],
       "implementation_status": "research_only_not_implemented"
     },
@@ -1175,15 +1222,18 @@
         "C05",
         "C21",
         "C23",
-        "C42"
+        "C42",
+        "C48",
+        "C49",
+        "C53"
       ],
       "source_ids": [
         "W07"
       ],
-      "proposal": "Durable principal/action/outcome events, append restrictions, local transaction coupling and explicit printer I/O intent/outcome records; exports reference immutable source IDs.",
+      "proposal": "Durable principal/action/outcome events, append restrictions and local transaction coupling. Extend existing configuration jobs with authorized pre-I/O intent, verified/unknown outcomes and transactional audit/outbox; preserve the same contract for future security/firmware operations.",
       "acceptance_criteria": [
         "Simulated local audit persistence failure cannot silently commit an unaudited privileged metadata change.",
-        "A crash/timeout during future printer I/O yields reconcilable pending/unknown outcome, not false success.",
+        "A crash/timeout during printer I/O yields reconcilable pending/unknown outcome, not false success.",
         "Login success/failure, authorization denial, break-glass use and secret rotation are recorded without secret values."
       ],
       "implementation_status": "research_only_not_implemented"
@@ -1340,7 +1390,7 @@
       "id": "G35",
       "domain": "automation",
       "title": "GitOps/configuration import and change-system linkage",
-      "current_state": "configuration_workflow_scaffold",
+      "current_state": "configuration_jobs_present_gitops_missing",
       "priority": "P3",
       "relative_effort": "L",
       "depends_on": [
@@ -1353,12 +1403,15 @@
         "C31",
         "C32",
         "C33",
-        "C34"
+        "C34",
+        "C33",
+        "C53",
+        "C54"
       ],
       "source_ids": [
         "W36"
       ],
-      "proposal": "Validated desired-state imports, external change IDs, preview/diff and approvals once device-write workflows exist; keep secrets as references.",
+      "proposal": "Build validated desired-state imports and external change linkage on the existing profiles/diff/dry-run/apply jobs. Add source validation, preview binding and approvals; keep secrets as references.",
       "acceptance_criteria": [
         "A repository change can be previewed without touching printers.",
         "Only supported settings/capabilities reach a scoped campaign.",
@@ -1508,6 +1561,35 @@
         "No mandatory message-bus dependency is introduced into the single-site installation without a justified need."
       ],
       "implementation_status": "research_only_not_implemented"
+    },
+    {
+      "id": "G41",
+      "domain": "device_identity",
+      "title": "Purpose-bound printer read/write authentication",
+      "current_state": "shared_snmp_credentials_ipp_write_auth_missing",
+      "priority": "P1",
+      "relative_effort": "L",
+      "depends_on": [
+        "G04",
+        "G07",
+        "G25",
+        "G29"
+      ],
+      "code_evidence_ids": [
+        "C26",
+        "C38",
+        "C50",
+        "C51",
+        "C52"
+      ],
+      "source_ids": [],
+      "proposal": "Separate polling and write credential selection, support explicitly qualified IPP/vendor authentication and verified write endpoints, and expose authentication/permission failure independently from unsupported capability.",
+      "acceptance_criteria": [
+        "A read-only polling identity is not replaced by a write identity just to make an apply succeed.",
+        "A printer requiring authenticated IPP management can be qualified or clearly marked unsupported; credentials are never silently ignored.",
+        "No credential spray, protocol downgrade or unverified endpoint fallback occurs on write; SNMPv3 write policy is explicit."
+      ],
+      "implementation_status": "research_only_not_implemented"
     }
   ],
   "code_evidence": {
@@ -1531,25 +1613,25 @@
     },
     "C04": {
       "path": "/srv/printmarshal/internal/api/server.go",
-      "line": 127,
+      "line": 128,
       "title": "Authentication and authorization middleware",
       "anchor": "func (s *Server) require(min model.Role, next http.HandlerFunc) http.Handler {"
     },
     "C05": {
       "path": "/srv/printmarshal/internal/api/server.go",
-      "line": 210,
+      "line": 211,
       "title": "Best-effort audit write",
       "anchor": "func (s *Server) audit(ctx context.Context, r *http.Request, action, target string, before, after map[string]any, result string) {"
     },
     "C06": {
       "path": "/srv/printmarshal/internal/api/server.go",
-      "line": 225,
+      "line": 226,
       "title": "Login response and failure path",
       "anchor": "func (s *Server) login(w http.ResponseWriter, r *http.Request) {"
     },
     "C07": {
       "path": "/srv/printmarshal/internal/api/server.go",
-      "line": 256,
+      "line": 257,
       "title": "Password change reuses session-issuing Login",
       "anchor": "func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {"
     },
@@ -1621,7 +1703,7 @@
     },
     "C19": {
       "path": "/srv/printmarshal/internal/api/server.go",
-      "line": 765,
+      "line": 766,
       "title": "Manual clear broadcasts but does not notify",
       "anchor": "func (s *Server) clearAlert(w http.ResponseWriter, r *http.Request) {"
     },
@@ -1687,7 +1769,7 @@
     },
     "C30": {
       "path": "/srv/printmarshal/internal/model/settings_catalog.go",
-      "line": 84,
+      "line": 88,
       "title": "Syslog setting declaration",
       "anchor": "{Key: \"security.syslog.server\", Area: \"security\", Name: \"Syslog server\", Type: \"string\", Security: true},"
     },
@@ -1705,8 +1787,8 @@
     },
     "C33": {
       "path": "/srv/printmarshal/internal/api/config.go",
-      "line": 7,
-      "title": "Configuration route placeholder",
+      "line": 19,
+      "title": "Configuration routes now implemented",
       "anchor": "func (s *Server) configRoutes(mux *http.ServeMux) {"
     },
     "C34": {
@@ -1723,13 +1805,13 @@
     },
     "C36": {
       "path": "/srv/printmarshal/internal/api/server.go",
-      "line": 314,
+      "line": 315,
       "title": "API result total equals returned page length",
       "anchor": "func (s *Server) listDevices(w http.ResponseWriter, r *http.Request) {"
     },
     "C37": {
       "path": "/srv/printmarshal/internal/api/server.go",
-      "line": 301,
+      "line": 302,
       "title": "API query/filter surface",
       "anchor": "func deviceFilter(r *http.Request) store.DeviceFilter {"
     },
@@ -1765,7 +1847,7 @@
     },
     "C43": {
       "path": "/srv/printmarshal/internal/api/server.go",
-      "line": 111,
+      "line": 112,
       "title": "Audit and notification API access",
       "anchor": "mux.Handle(\"GET /api/audit\", s.require(model.RoleOperator, s.listAudit))"
     },
@@ -1783,7 +1865,7 @@
     },
     "C46": {
       "path": "/srv/printmarshal/internal/api/server.go",
-      "line": 909,
+      "line": 910,
       "title": "Read-only integration configuration surface",
       "anchor": "func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {"
     },
@@ -1792,6 +1874,48 @@
       "line": 260,
       "title": "Consumable replacement events only go to event hub",
       "anchor": "func (s *Service) afterSupplies(ctx context.Context, before, after *model.Device) {"
+    },
+    "C48": {
+      "path": "/srv/printmarshal/internal/configmgmt/service.go",
+      "title": "Configuration device I/O, result persistence and Hub-only event",
+      "anchor": "func (s *Service) applyDevice(ctx context.Context, dev *model.Device, changes []model.SettingChange, opts model.WriteOptions, actor, jobID, profileID, revertOf string) (*model.WriteRecord, error) {",
+      "line": 546
+    },
+    "C49": {
+      "path": "/srv/printmarshal/internal/configmgmt/service.go",
+      "title": "Post-write audit error discarded",
+      "anchor": "func (s *Service) audit(ctx context.Context, dev *model.Device, rec *model.WriteRecord) {",
+      "line": 641
+    },
+    "C50": {
+      "path": "/srv/printmarshal/internal/driver/ipp/config.go",
+      "title": "IPP writes ignore supplied credentials and share the discovery transport",
+      "anchor": "func (d *Driver) WriteConfig(ctx context.Context, dev *model.Device, creds model.Creds, changes []model.SettingChange, opts model.WriteOptions) (*model.WriteResult, error) {",
+      "line": 394
+    },
+    "C51": {
+      "path": "/srv/printmarshal/internal/driver/snmp/config.go",
+      "title": "SNMP writer reuses the read-first dialer",
+      "anchor": "func (d *Driver) WriteConfig(ctx context.Context, dev *model.Device, creds model.Creds, changes []model.SettingChange, opts model.WriteOptions) (*model.WriteResult, error) {",
+      "line": 194
+    },
+    "C52": {
+      "path": "/srv/printmarshal/internal/driver/snmp/session.go",
+      "title": "First responding read credential wins",
+      "anchor": "func NewDialer(opts Options) Dialer {",
+      "line": 54
+    },
+    "C53": {
+      "path": "/srv/printmarshal/internal/configmgmt/service.go",
+      "title": "Configuration submission; dry run optional and no approval binding",
+      "anchor": "func (s *Service) Apply(ctx context.Context, req ApplyRequest, actor string) (*model.Job, error) {",
+      "line": 423
+    },
+    "C54": {
+      "path": "/srv/printmarshal/internal/configmgmt/service_test.go",
+      "title": "Existing dry-run, apply and revert tests",
+      "anchor": "func TestApplyDryRunThenRealThenRevert(t *testing.T) {",
+      "line": 157
     }
   },
   "primary_sources": {
@@ -2080,14 +2204,15 @@
   },
   "source_snapshot": {
     "captured_on": "2026-10-28",
+    "repository_head_at_capture": "1d33f5000be157df0f111edf68b7381b8e0a60a3",
     "files": {
       "internal/auth/auth.go": {
         "sha256": "5bb18264354556a52b6ff19947c5c89bbf57b1fe8294d740fe83c0c8e8cb7541",
         "lines": 183
       },
       "internal/api/server.go": {
-        "sha256": "b79a3565e74dc76156e41112332314e72fa4052227714db3e5d52129bb6172bd",
-        "lines": 935
+        "sha256": "5728a94a742deaa29ec77840148481da9a94f539fda0dc0090bc55155534416e",
+        "lines": 936
       },
       "internal/api/ws.go": {
         "sha256": "7d2d4ca8e5218374f6493d1766bacb43eee947db865990d0a90f4f577dcb2309",
@@ -2118,8 +2243,8 @@
         "lines": 131
       },
       "internal/model/settings_catalog.go": {
-        "sha256": "50b3e1d3d0c27ffcb015b4e4f9217126301ab36e3e7b725a76b45a0fa7bff90c",
-        "lines": 129
+        "sha256": "61fb3009848a01db11d73f247f6c7884ae48ac2a6cf8b93143fdbc6b532a464f",
+        "lines": 135
       },
       "internal/store/schema.sql": {
         "sha256": "139183452d42d3644daf24a1a4eb9491e3f5bd076fb71f849c9b342640b94977",
@@ -2134,16 +2259,16 @@
         "lines": 83
       },
       "internal/driver/ipp/driver.go": {
-        "sha256": "4844bac6f63e01ecaf701c8155c0b802e61ae3416cb131420b9bbb88ae192f1b",
-        "lines": 507
+        "sha256": "3a956ba344b7bf03e82e2877ef4c0619a9f0c054dc14640438d4ad879ddfcd73",
+        "lines": 524
       },
       "internal/trap/listener.go": {
         "sha256": "514a1b92498bda581afe49d5d862913a97a6f30924bcd75dcef5f8ad572ab32e",
         "lines": 121
       },
       "internal/api/config.go": {
-        "sha256": "f701e6f097f18f3da7bd534cf2686a2210b3deee6fa50e1ab1ffb46c6016b746",
-        "lines": 9
+        "sha256": "96f87fd005d3ff910a078154c71a93135d547206dc616546c88c11208696e1d3",
+        "lines": 379
       },
       "internal/api/security.go": {
         "sha256": "3bd704c30414f84263935f5d92c5ef52da7cf8eee42911183a9cd4ae078d9177",
@@ -2166,15 +2291,43 @@
         "lines": 29
       },
       "README.md": {
-        "sha256": "fd26add38db8c29a75e4f22aa492d37af1f81e4f3a2a60003260e292615bdd16",
-        "lines": 135
+        "sha256": "e62e577c658047564d7316b5bfabe06f1c962cb6ade1a87fdba52eb350b08e5e",
+        "lines": 140
       },
       "go.mod": {
         "sha256": "1b1ccfeea075210738259eb20affb6b6a5f17b3b18df291477c8eeef16bf1dc1",
         "lines": 27
+      },
+      "internal/configmgmt/service.go": {
+        "sha256": "7a1e1f476bb728eb59d0b31cb4f800af9f3221f7e3b6faa3321275977e59eedf",
+        "lines": 722
+      },
+      "internal/configmgmt/service_test.go": {
+        "sha256": "9069a9c3a741685e57546ff6d8b90bb93c327f0d1bda49d7d08c0f73f9bbfcdd",
+        "lines": 344
+      },
+      "internal/configmgmt/pending.go": {
+        "sha256": "32cde903e3fa06fa7ece1b38f2fa37e62288637a156ba08083fd1add19a8adff",
+        "lines": 41
+      },
+      "internal/driver/ipp/config.go": {
+        "sha256": "b90ffad1672f91fa7ff0cf8924d67460d3e8e5b0d60028728e5d9305ee6c321b",
+        "lines": 516
+      },
+      "internal/driver/snmp/config.go": {
+        "sha256": "11fa7ba4390cee350784d97b1a90d286a5e9f191b79695f1a49a36128e82e55c",
+        "lines": 303
+      },
+      "internal/driver/snmp/session.go": {
+        "sha256": "9388686176962c33f075794ad44a9fcd5e601eade51d32b37b937beaf33fa8cd",
+        "lines": 218
+      },
+      "docs/configuration.md": {
+        "sha256": "ef18ff15c0e519396f5131ec1444ed0bdf6453dbbba1a0fe93ece582b9a4d5e5",
+        "lines": 153
       }
     },
-    "note": "SHA-256 and logical line counts identify the reviewed core files. Evidence anchors were resolved against the current files before report generation. Line links can move during subsequent development; use the recorded anchor and hash to identify this audit snapshot."
+    "note": "The final snapshot includes the configuration-management merge that landed during this review. README's early read-only status text conflicts with its configuration section and implemented routes; findings follow the code. Later development can change line links and implementation; use these hashes and literal anchors to identify this static audit."
   },
   "recommended_validation": {
     "performed": [
