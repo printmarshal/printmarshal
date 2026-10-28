@@ -12,9 +12,10 @@ management software.
 
 **Phase 1 and 2 of the [build spec](docs/printmarshal-build-spec.md) are implemented**
 (foundations, read-only monitoring, inventory and lifecycle). Everything that touches
-a printer is read-only. Phases 3–7 (configuration read/write, security, firmware,
-vendor plugins, print-provider add-on) are not started; the capability/driver model
-they plug into is in place.
+a printer is read-only, except firmware delivery (phase 6, below), which is gated,
+dry-runnable and audited and reaches only the simulator or allow-listed devices.
+Phases 3–5 and 7 (configuration read/write, security, vendor plugins, print-provider
+add-on) are not started; the capability/driver model they plug into is in place.
 
 What works today:
 
@@ -40,6 +41,15 @@ What works today:
   automatic stock decrement, consumption forecasting ("days remaining", "reorder
   soon", or an honest "unknown" until there is enough history), and CSV import/export.
   Stock management only: cost and reorder fields are optional references.
+- **Firmware** ([docs](docs/firmware.md)) — fleet-wide version inventory with
+  "outdated" detection against registered packages, uploaded packages verified by
+  SHA-256 on every use, and staged update campaigns run as jobs: canary wave with an
+  explicit confirmation gate before the remainder, concurrency limit, failure-threshold
+  auto-pause, maintenance windows, dry runs that never deliver, post-update
+  verification by re-polling the device, an audit entry per delivery, restart
+  recovery and honest rollback/recovery notes. Delivery is a driver capability
+  (`firmware_update`): the standard driver targets the simulator or an explicit
+  allow-list only; real devices need a vendor plugin.
 - **Inventory** — operator fields (display name, location, asset tag, notes) that scans
   never overwrite, lifecycle states with validated transitions, static and rule-based
   groups, search/sort/filter, CSV export of devices and supplies.
