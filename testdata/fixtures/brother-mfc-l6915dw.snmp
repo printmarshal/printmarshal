@@ -1,0 +1,47 @@
+# Synthetic SNMP image of a Brother Brother MFC-L6915DW (MFP). Structurally faithful: system group with the Brother
+# enterprise (2435), Host Resources, Printer MIB general / input / marker / supplies / console / alert tables.
+# Values are invented; the sysObjectID sub-arc is illustrative (plugins match the enterprise number only).
+.1.3.6.1.2.1.1.1.0 STRING Brother NC-9800w, Firmware Ver.1.31  (24.01.15),MID 8CA-M2F,FID 2
+.1.3.6.1.2.1.1.2.0 OID .1.3.6.1.4.1.2435.2.3.9.1
+.1.3.6.1.2.1.1.3.0 TIMETICKS 7200100
+.1.3.6.1.2.1.1.4.0 STRING Fleet Admin
+.1.3.6.1.2.1.1.5.0 STRING BRN3C2AF4A1B2C3
+.1.3.6.1.2.1.1.6.0 STRING Shipping
+.1.3.6.1.2.1.2.2.1.6.1 HEX 3c:2a:f4:a1:b2:c3
+.1.3.6.1.2.1.25.3.2.1.2.1 OID .1.3.6.1.2.1.25.3.1.5
+.1.3.6.1.2.1.25.3.2.1.3.1 STRING Brother MFC-L6915DW
+.1.3.6.1.2.1.25.3.2.1.5.1 INTEGER 2
+.1.3.6.1.2.1.25.3.5.1.1.1 INTEGER 3
+.1.3.6.1.2.1.25.3.5.1.2.1 HEX 0000
+.1.3.6.1.2.1.43.5.1.1.16.1 STRING BRN3C2AF4A1B2C3
+.1.3.6.1.2.1.43.5.1.1.17.1 STRING U64882K3N123456
+.1.3.6.1.2.1.43.8.2.1.2.1.1 INTEGER 3
+.1.3.6.1.2.1.43.8.2.1.3.1.1 INTEGER 4
+.1.3.6.1.2.1.43.8.2.1.4.1.1 INTEGER 297000
+.1.3.6.1.2.1.43.8.2.1.5.1.1 INTEGER 210000
+.1.3.6.1.2.1.43.8.2.1.9.1.1 INTEGER 500
+.1.3.6.1.2.1.43.8.2.1.10.1.1 INTEGER -3
+.1.3.6.1.2.1.43.8.2.1.11.1.1 INTEGER 0
+.1.3.6.1.2.1.43.8.2.1.12.1.1 STRING A4
+.1.3.6.1.2.1.43.8.2.1.13.1.1 STRING Tray 1
+.1.3.6.1.2.1.43.9.2.1.2.1.1 INTEGER 4
+.1.3.6.1.2.1.43.9.2.1.4.1.1 INTEGER 250
+.1.3.6.1.2.1.43.9.2.1.5.1.1 INTEGER -3
+.1.3.6.1.2.1.43.9.2.1.6.1.1 INTEGER 0
+.1.3.6.1.2.1.43.9.2.1.7.1.1 STRING Output Tray
+.1.3.6.1.2.1.43.10.2.1.3.1.1 INTEGER 7
+.1.3.6.1.2.1.43.10.2.1.4.1.1 COUNTER32 42435
+.1.3.6.1.2.1.43.11.1.1.3.1.1 INTEGER 1
+.1.3.6.1.2.1.43.11.1.1.4.1.1 INTEGER 3
+.1.3.6.1.2.1.43.11.1.1.5.1.1 INTEGER 3
+.1.3.6.1.2.1.43.11.1.1.6.1.1 STRING Black Toner
+.1.3.6.1.2.1.43.11.1.1.7.1.1 INTEGER 19
+.1.3.6.1.2.1.43.11.1.1.8.1.1 INTEGER 100
+.1.3.6.1.2.1.43.11.1.1.9.1.1 INTEGER 65
+.1.3.6.1.2.1.43.12.1.1.4.1.1 STRING black
+.1.3.6.1.2.1.43.16.5.1.2.1.1 STRING Ready
+.1.3.6.1.2.1.43.18.1.1.2.1.1 INTEGER 1
+.1.3.6.1.2.1.43.18.1.1.4.1.1 INTEGER 5
+.1.3.6.1.2.1.43.18.1.1.5.1.1 INTEGER 1
+.1.3.6.1.2.1.43.18.1.1.7.1.1 INTEGER 507
+.1.3.6.1.2.1.43.18.1.1.8.1.1 STRING Ready to print
