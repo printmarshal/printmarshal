@@ -10,12 +10,14 @@ import { ConsumableLink, fmtDays, statusOf } from '../components/consumables'
 import DeviceConfigTab from '../components/config/DeviceConfigTab'
 import SupportCard from '../components/catalog/SupportCard'
 import DeviceFirmwareTab from '../components/firmware/DeviceFirmwareTab'
+import DeviceSecurityTab from '../components/security/DeviceSecurityTab'
+import type { DeviceSecurity } from '../types-security'
 
 const transitions: Record<string, string[]> = {
   discovered: ['onboarded', 'active', 'decommissioned'], onboarded: ['active', 'needs_attention', 'decommissioned'],
   active: ['needs_attention', 'decommissioned'], needs_attention: ['active', 'decommissioned'], decommissioned: ['onboarded'],
 }
-type Tab = 'overview' | 'config' | 'firmware' | 'activity'
+type Tab = 'overview' | 'config' | 'firmware' | 'security' | 'activity'
 
 export default function DeviceDetail({ user }: { user: User }) {
   const { id } = useParams()
@@ -29,10 +31,12 @@ export default function DeviceDetail({ user }: { user: User }) {
   const [note, setNote] = useState<{ tone: 'ok' | 'warn' | 'crit' | 'info'; text: string } | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
   const [drifted, setDrifted] = useState<number | null>(null)
+  const [secFailing, setSecFailing] = useState(0)
   const canOperate = user.role !== 'viewer'
 
   const load = useCallback(() => {
     api.get<{ device: Device; alerts: Alert[] }>(`/api/devices/${id}`).then((r) => { setDevice(r.device); setAlerts(r.alerts) }).catch((e) => setError(e.message))
+    api.get<DeviceSecurity>(`/api/devices/${id}/security`).then((r) => setSecFailing(Math.max(0, ...r.assessments.map((a) => a.failed)))).catch(() => {})
     api.get<Sample[]>(`/api/devices/${id}/telemetry?metric=counter.total&from=${new Date(Date.now() - 30 * 864e5).toISOString()}`).then(setCounters).catch(() => {})
     api.get<Sample[]>(`/api/devices/${id}/telemetry?metric=supply.percent&from=${new Date(Date.now() - 30 * 864e5).toISOString()}`).then((s) => {
       const m: Record<string, Sample[]> = {}
@@ -97,6 +101,7 @@ export default function DeviceDetail({ user }: { user: User }) {
         { v: 'overview', label: 'Overview' },
         { v: 'config', label: <>Configuration{drifted !== null && drifted > 0 && <span className="cnt warn">{drifted} drifted</span>}</> },
         { v: 'firmware', label: 'Firmware' },
+        { v: 'security', label: <>Security{secFailing > 0 && <span className="cnt crit">{secFailing} failing</span>}</> },
         { v: 'activity', label: 'Activity' },
       ]} />
       <DeviceConfigTab device={d} canOperate={canOperate} hidden={tab !== 'config'} onDrift={setDrifted} />
@@ -147,6 +152,7 @@ export default function DeviceDetail({ user }: { user: User }) {
         </div>
       )}
       {tab === 'firmware' && <DeviceFirmwareTab device={d} canOperate={canOperate} />}
+      {tab === 'security' && <DeviceSecurityTab device={d} canOperate={canOperate} />}
       {tab === 'activity' && <ActivityCard deviceId={d.id} canSee={canOperate} />}
     </>
   )

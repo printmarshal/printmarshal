@@ -25,6 +25,8 @@ import ConfigApply from './pages/ConfigApply'
 import Drift from './pages/Drift'
 import Firmware from './pages/Firmware'
 import FirmwareCampaign from './pages/FirmwareCampaign'
+import Security from './pages/Security'
+import SecurityAssessment from './pages/SecurityAssessment'
 import './theme'
 
 export default function App() {
@@ -63,6 +65,8 @@ export default function App() {
         <Route path="/firmware/campaigns/new" element={<Firmware user={user} />} />
         <Route path="/firmware/campaigns/:id" element={<FirmwareCampaign user={user} />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/security" element={<Security user={user} />} />
+        <Route path="/security/assessments/:jobId" element={<SecurityAssessment user={user} />} />
         <Route path="/settings/*" element={<Settings user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -124,7 +128,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
         <NavLink className="nav" to="/catalog" title="Catalogue"><Ic.chart /><span>Catalogue</span></NavLink>
         <div className="navsep">Manage</div>
         <NavLink className="nav" to="/profiles" title="Configuration"><Ic.sliders /><span>Configuration</span></NavLink>
-        <a className="nav soon" aria-disabled="true" title="Security — phase 5, in progress"><Ic.shield /><span>Security</span><span className="ct">soon</span></a>
+        <NavLink className="nav" to="/security" title="Security"><Ic.shield /><span>Security</span></NavLink>
         <NavLink className="nav" to="/firmware" title="Firmware"><Ic.chip /><span>Firmware</span></NavLink>
         <NavLink className="nav" to="/jobs" title="Jobs"><Ic.activity /><span>Jobs</span>{counts.jobs > 0 && <span className="ct num">{counts.jobs}</span>}</NavLink>
         <NavLink className="nav" to="/discovery" title="Discovery"><Ic.radar /><span>Discovery</span></NavLink>
