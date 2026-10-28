@@ -12,15 +12,20 @@
     "maxAddresses": 4096,
     "targets": ["10.0.0.0/24"]
   },
-  "trap": { "enabled": true, "listen": "0.0.0.0:1162" },
+  "trap": { "enabled": true, "listen": "0.0.0.0:1162", "allowedSources": ["10.0.0.0/8"], "ratePerMinute": 60 },
   "alerts": { "supplyWarningPercent": 15, "supplyCriticalPercent": 5, "offlineAfterFailures": 2 },
   "notifiers": [
     { "name": "ops-slack", "type": "slack", "url": "https://hooks.slack.com/services/XXX/YYY/ZZZ", "events": ["alert.raised", "alert.cleared"] },
     { "name": "generic", "type": "webhook", "url": "https://example.internal/hooks/printmarshal", "events": ["*"] },
     { "name": "mail", "type": "smtp", "host": "smtp.example.com", "port": 587, "startTls": true, "from": "printmarshal@example.com",
-      "to": ["print-team@example.com"], "username": "printmarshal@example.com", "passwordEnv": "PM_SMTP_PASSWORD", "events": ["alert.raised"] }
+      "to": ["print-team@example.com"], "username": "printmarshal@example.com", "passwordEnv": "PM_SMTP_PASSWORD", "events": ["alert.raised"] },
+    { "name": "teams-ops", "type": "teams", "url": "https://prod-00.westeurope.logic.azure.com:443/workflows/XXX/triggers/manual/paths/invoke?...", "events": ["alert.raised", "notification.dead"] },
+    { "name": "m365-mail", "type": "smtp", "host": "smtp.office365.com", "port": 587, "startTls": true, "from": "printmarshal@contoso.com",
+      "to": ["ops@contoso.com"], "username": "printmarshal@contoso.com", "authMethod": "xoauth2",
+      "tokenUrl": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token", "clientId": "<app-id>", "clientSecretEnv": "PM_M365_SECRET",
+      "scope": "https://outlook.office365.com/.default", "events": ["alert.raised", "job.finished"] }
   ],
   "jobs": { "workers": 4 },
-  "auth": { "sessionTtl": "720h", "secureCookies": false },
+  "auth": { "sessionTtl": "720h", "secureCookies": false, "allowedOrigins": [], "loginFailuresPerMinute": 10 },
   "telemetry": { "retention": "2160h" }
 }

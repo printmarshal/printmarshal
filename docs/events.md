@@ -80,3 +80,32 @@ Webhook posts use a 20 s per-attempt deadline. SMTP sessions set a connection
 deadline from the same budget, so a stalled mail server cannot pin the worker.
 Secrets stay in environment variables (`passwordEnv`); they are never stored in
 the outbox or the log.
+
+### SMTP authentication methods
+
+| `authMethod` | When to use | Fields |
+| --- | --- | --- |
+| `plain` (default) | relays that accept basic auth | `username`, `passwordEnv` |
+| `login` | Exchange / older relays that only advertise LOGIN | `username`, `passwordEnv` |
+| `xoauth2` | Microsoft 365, Google Workspace (basic auth disabled) | `username` (the mailbox), then either `tokenEnv` (a ready bearer token) or `tokenUrl` + `clientId` + `clientSecretEnv` (+ `scope`) for the OAuth 2.0 client-credentials grant |
+
+Microsoft 365 example (app registration with the `SMTP.SendAsApp` application
+permission, and SMTP AUTH enabled on the mailbox):
+
+```json
+{ "name": "m365", "type": "smtp", "host": "smtp.office365.com", "port": 587, "startTls": true,
+  "from": "printmarshal@contoso.com", "to": ["ops@contoso.com"],
+  "username": "printmarshal@contoso.com", "authMethod": "xoauth2",
+  "tokenUrl": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token",
+  "clientId": "<app-id>", "clientSecretEnv": "PM_M365_SECRET",
+  "scope": "https://outlook.office365.com/.default" }
+```
+
+Tokens are cached per notifier until a minute before they expire.
+
+### Microsoft Teams
+
+`type: "teams"` posts an **Adaptive Card** in the shape the Teams *Workflows*
+("Post to a channel when a webhook request is received") expects, since the
+Office 365 connector MessageCard format was retired. Set `"legacy": true` on a
+destination that still uses an old connector URL.

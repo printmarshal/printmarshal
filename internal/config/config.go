@@ -93,6 +93,19 @@ type Notifier struct {
 	Username    string   `json:"username,omitempty"`
 	PasswordEnv string   `json:"passwordEnv,omitempty"` // name of env var holding the SMTP password
 	StartTLS    bool     `json:"startTls,omitempty"`
+	// AuthMethod selects the SASL mechanism: "plain" (default), "login" (Exchange/
+	// older relays) or "xoauth2" (Microsoft 365, Google Workspace). For xoauth2
+	// the bearer token comes from TokenEnv, or is fetched with the OAuth 2.0
+	// client-credentials grant when TokenURL is set.
+	AuthMethod      string `json:"authMethod,omitempty"`
+	TokenEnv        string `json:"tokenEnv,omitempty"` // env var holding a ready bearer token
+	TokenURL        string `json:"tokenUrl,omitempty"` // e.g. https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token
+	ClientID        string `json:"clientId,omitempty"`
+	ClientSecretEnv string `json:"clientSecretEnv,omitempty"` // env var holding the OAuth client secret
+	Scope           string `json:"scope,omitempty"`           // e.g. https://outlook.office365.com/.default
+	// Legacy switches the Teams payload back to the retired Office 365 connector
+	// MessageCard format; the default is an Adaptive Card for Workflows webhooks.
+	Legacy bool `json:"legacy,omitempty"`
 }
 
 // Duration marshals as a Go duration string.
