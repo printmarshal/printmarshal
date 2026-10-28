@@ -17,6 +17,7 @@ import JobDetail from './pages/JobDetail'
 import Alerts from './pages/Alerts'
 import Groups from './pages/Groups'
 import Credentials from './pages/Credentials'
+import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import './theme'
 
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/alerts" element={<Alerts user={user} />} />
         <Route path="/groups" element={<Groups user={user} />} />
         <Route path="/credentials" element={<Credentials user={user} />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/settings/*" element={<Settings user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -112,6 +114,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
         <a className="nav soon" aria-disabled="true" title="Firmware — phase 6, in progress"><Ic.chip /><span>Firmware</span><span className="ct">soon</span></a>
         <NavLink className="nav" to="/jobs" title="Jobs"><Ic.activity /><span>Jobs</span>{counts.jobs > 0 && <span className="ct num">{counts.jobs}</span>}</NavLink>
         <NavLink className="nav" to="/discovery" title="Discovery"><Ic.radar /><span>Discovery</span></NavLink>
+        <NavLink className="nav" to="/reports" title="Reports"><Ic.chart /><span>Reports</span></NavLink>
         {canOperate && <NavLink className="nav" to="/credentials" title="Credentials"><Ic.lock /><span>Credentials</span></NavLink>}
         <div style={{ flex: '1 1 24px' }} />
         <NavLink className="nav" to="/settings" title="Settings"><Ic.settings /><span>Settings</span></NavLink>

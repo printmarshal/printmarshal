@@ -55,6 +55,13 @@ What works today:
   recovery and honest rollback/recovery notes. Delivery is a driver capability
   (`firmware_update`): the standard driver targets the simulator or an explicit
   allow-list only; real devices need a vendor plugin.
+- **Reports** ([docs](docs/reports.md)) — utilisation (pages per day per device,
+  group and fleet, reset-aware), fleet health (reachability, outages, worst
+  severity per day), supplies (consumption rate and days-to-empty projections,
+  replacements, stock movement), alerts (volume by day/source/device, mean time
+  to acknowledge and clear) and firmware version distribution, over any date
+  range, scoped to a group or device, as JSON or CSV; compliance reporting is a
+  documented hook awaiting the security feature.
 - **Inventory** — operator fields (display name, location, asset tag, notes) that scans
   never overwrite, lifecycle states with validated transitions, static and rule-based
   groups, search/sort/filter, CSV export of devices and supplies.
