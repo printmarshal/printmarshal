@@ -104,6 +104,7 @@ func (d *Driver) Capabilities() []model.Capability {
 	return []model.Capability{
 		model.CapIdentify, model.CapReadStatus, model.CapReadSupplies,
 		model.CapReadTrays, model.CapReadCounters, model.CapFirmwareRead,
+		model.CapReadConfig, model.CapWriteConfig,
 	}
 }
 
@@ -117,7 +118,7 @@ func (d *Driver) Priority(cap model.Capability) int {
 		return 50
 	case model.CapIdentify, model.CapReadStatus:
 		return 45
-	case model.CapReadSupplies:
+	case model.CapReadSupplies, model.CapReadConfig, model.CapWriteConfig:
 		return 40
 	}
 	return 30
@@ -131,16 +132,21 @@ var RequestedAttrs = []string{
 	"printer-state-message", "printer-up-time", "printer-alert", "printer-alert-description",
 	"marker-names", "marker-types", "marker-colors", "marker-levels", "marker-high-levels", "marker-low-levels",
 	"printer-supply", "printer-supply-description", "printer-input-tray", "printer-output-tray",
-	"printer-impressions-completed", "media-ready", "printer-kind",
+	"printer-impressions-completed", "media-ready", "printer-kind", "operations-supported",
 }
 
 // fetch tries each endpoint and returns the first successful response.
 func (d *Driver) fetch(ctx context.Context, address string) (*Message, string, error) {
+	return d.fetchAttrs(ctx, address, RequestedAttrs)
+}
+
+// fetchAttrs is fetch with an explicit requested-attributes list.
+func (d *Driver) fetchAttrs(ctx context.Context, address string, requested []string) (*Message, string, error) {
 	var errs []error
 	for _, ep := range d.endpoints {
 		url := fmt.Sprintf(ep, address)
-		uri := "ipp://" + strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://")
-		req := NewGetPrinterAttributes(uri, d.reqID.Add(1), RequestedAttrs)
+		uri := printerURI(url)
+		req := NewGetPrinterAttributes(uri, d.reqID.Add(1), requested)
 		body, err := Encode(req)
 		if err != nil {
 			return nil, "", err
@@ -165,6 +171,11 @@ func (d *Driver) fetch(ctx context.Context, address string) (*Message, string, e
 		return msg, url, nil
 	}
 	return nil, "", errors.Join(errs...)
+}
+
+// printerURI derives the printer-uri operation attribute from the HTTP endpoint.
+func printerURI(url string) string {
+	return "ipp://" + strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://")
 }
 
 // Identify implements engine.Identifier.
@@ -212,6 +223,12 @@ func (d *Driver) Identify(ctx context.Context, address string, creds model.Creds
 	}
 	if id.Firmware != "" {
 		id.Capabilities = append(id.Capabilities, model.CapFirmwareRead)
+	}
+	// Get-Printer-Attributes always yields a configuration document; writes need
+	// Set-Printer-Attributes (RFC 3380) in operations-supported.
+	id.Capabilities = append(id.Capabilities, model.CapReadConfig)
+	if supportsOp(m, OpSetPrinterAttributes) {
+		id.Capabilities = append(id.Capabilities, model.CapWriteConfig)
 	}
 	return id, nil
 }

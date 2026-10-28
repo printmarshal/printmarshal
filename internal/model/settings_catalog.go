@@ -24,6 +24,10 @@ var Catalog = []SettingDef{
 	{Key: "identity.location", Area: "identity", Name: "Location (device-reported)", Type: "string"},
 	{Key: "identity.contact", Area: "identity", Name: "Contact", Type: "string"},
 	{Key: "identity.assetNumber", Area: "identity", Name: "Asset number (device)", Type: "string"},
+	{Key: "identity.description", Area: "identity", Name: "Description (device-reported)", Type: "string"},
+	{Key: "identity.printerName", Area: "identity", Name: "Printer name (Printer MIB)", Type: "string"},
+	{Key: "identity.organization", Area: "identity", Name: "Organization", Type: "string"},
+	{Key: "identity.organizationalUnit", Area: "identity", Name: "Organizational unit", Type: "string"},
 	// network
 	{Key: "network.ipv4.mode", Area: "network", Name: "IPv4 address mode", Type: "enum", Options: []any{"dhcp", "static", "bootp", "auto"}},
 	{Key: "network.ipv4.address", Area: "network", Name: "IPv4 address", Type: "string"},
@@ -102,6 +106,8 @@ var Catalog = []SettingDef{
 	{Key: "print.defaultCopies", Area: "print", Name: "Default copies", Type: "int"},
 	{Key: "print.defaultResolution", Area: "print", Name: "Default resolution", Type: "string"},
 	{Key: "print.jobTimeoutSeconds", Area: "print", Name: "Job timeout (seconds)", Type: "int"},
+	{Key: "print.defaultMarkerIndex", Area: "print", Name: "Default marker (Printer MIB index)", Type: "int"},
+	{Key: "print.defaultDocumentFormat", Area: "print", Name: "Default document format", Type: "string"},
 	// scan
 	{Key: "scan.email.enabled", Area: "scan", Name: "Scan to email enabled", Type: "bool"},
 	{Key: "scan.folder.enabled", Area: "scan", Name: "Scan to folder enabled", Type: "bool"},

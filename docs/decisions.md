@@ -31,6 +31,16 @@ Recorded by the build session that implemented phases 1–2.
   or `data/secret.key`; the `model.Credential` type has no secret fields, so no API
   response or audit entry can carry one by construction.
 
+## Configuration management (docs/configuration.md)
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Config read merge | Every driver that declares `read_config` and identified the device is consulted, profile winner first; first value per key wins, a lower driver that can write the key makes it writable | IPP exposes most settings but cannot set `sysContact`/`sysName`; SNMP can. One merged document, one apply that falls through per key. |
+| IPP write path | `Set-Printer-Attributes` (RFC 3380) only, gated on `operations-supported` and `printer-settable-attributes-supported`, one request per setting | The only standard IPP write; per-request results keep per-setting outcomes honest. The recorded HP M283fdw does not support it, so it gets `read_config` only. |
+| SNMP write path | SET of the RFC 3418 system group and RFC 3805 `prtGeneralTable` read-write objects only | Everything else in the catalogue has no standard MIB object; vendor subtrees belong in plugins. |
+| Apply as a job | `config.apply` job, per-device write record with rollback, audit entry per device, `config.applied` event | Same progress/partial-result model as polls and discovery; revert is just an apply of the stored rollback. |
+| Secrets | Secret-typed catalogue keys are redacted in snapshots, write records, job params and audit; profiles refuse them | Spec §11: never persist or return a secret; the un-redacted change lives in memory only until the job runs. |
+
 ## Consumables add-on (docs/consumables-feature-spec.md)
 
 | Decision | Choice | Why |

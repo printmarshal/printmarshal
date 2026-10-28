@@ -20,8 +20,11 @@ plugin is just another driver that talks to a manufacturer's device web service.
    yet and you identified the device.
 
 2. Implement the typed interface for each capability you declare: `engine.Identifier`,
-   `StatusReader`, `SupplyReader`, `TrayReader`, `CounterReader`, `FirmwareReader`
-   (write-side interfaces arrive with phases 4–6).
+   `StatusReader`, `SupplyReader`, `TrayReader`, `CounterReader`, `FirmwareReader`,
+   and on the write side `ConfigReader` / `ConfigWriter` (see
+   [`configuration.md`](configuration.md): map your fields onto the catalogue keys,
+   honour `WriteOptions.DryRun` with zero write I/O, report every setting, fill
+   `Rollback`), `SecurityReader` / `SecurityWriter`, `CertManager`, `FirmwareUpdater`.
 
 3. In `Identify`, return only the capabilities you can actually serve for *that*
    device (probe once, cheaply). The engine merges identities by priority and records
