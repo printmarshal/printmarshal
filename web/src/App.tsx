@@ -22,6 +22,8 @@ import Settings from './pages/Settings'
 import Profiles from './pages/Profiles'
 import ConfigApply from './pages/ConfigApply'
 import Drift from './pages/Drift'
+import Firmware from './pages/Firmware'
+import FirmwareCampaign from './pages/FirmwareCampaign'
 import './theme'
 
 export default function App() {
@@ -56,6 +58,9 @@ export default function App() {
         <Route path="/profiles" element={<Profiles user={user} />} />
         <Route path="/profiles/:id/apply" element={<ConfigApply user={user} />} />
         <Route path="/profiles/:id/drift" element={<Drift user={user} />} />
+        <Route path="/firmware" element={<Firmware user={user} />} />
+        <Route path="/firmware/campaigns/new" element={<Firmware user={user} />} />
+        <Route path="/firmware/campaigns/:id" element={<FirmwareCampaign user={user} />} />
         <Route path="/settings/*" element={<Settings user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -118,7 +123,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
         <div className="navsep">Manage</div>
         <NavLink className="nav" to="/profiles" title="Configuration"><Ic.sliders /><span>Configuration</span></NavLink>
         <a className="nav soon" aria-disabled="true" title="Security — phase 5, in progress"><Ic.shield /><span>Security</span><span className="ct">soon</span></a>
-        <a className="nav soon" aria-disabled="true" title="Firmware — phase 6, in progress"><Ic.chip /><span>Firmware</span><span className="ct">soon</span></a>
+        <NavLink className="nav" to="/firmware" title="Firmware"><Ic.chip /><span>Firmware</span></NavLink>
         <NavLink className="nav" to="/jobs" title="Jobs"><Ic.activity /><span>Jobs</span>{counts.jobs > 0 && <span className="ct num">{counts.jobs}</span>}</NavLink>
         <NavLink className="nav" to="/discovery" title="Discovery"><Ic.radar /><span>Discovery</span></NavLink>
         {canOperate && <NavLink className="nav" to="/credentials" title="Credentials"><Ic.lock /><span>Credentials</span></NavLink>}
