@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, fmtTime } from '../api'
 import type { Credential, Group, User } from '../types'
+import { Ic } from '../components/icons'
+import { Banner, Btn, Card, EmptyState, Pill, Tag } from '../components/ui'
 
 export default function Credentials({ user }: { user: User }) {
   const [creds, setCreds] = useState<Credential[]>([])
@@ -9,81 +11,59 @@ export default function Credentials({ user }: { user: User }) {
   const [form, setForm] = useState({ name: '', scope: '', username: '', priority: 0, community: '', authProtocol: 'SHA', authPassword: '', privProtocol: 'AES', privPassword: '', password: '' })
   const [msg, setMsg] = useState('')
   const isAdmin = user.role === 'admin'
-  const load = useCallback(() => {
-    api.get<Credential[]>('/api/credentials').then(setCreds).catch((e) => setMsg(e.message))
-    api.get<Group[]>('/api/groups').then(setGroups).catch(() => {})
-  }, [])
+  const load = useCallback(() => { api.get<Credential[]>('/api/credentials').then(setCreds).catch((e) => setMsg(e.message)); api.get<Group[]>('/api/groups').then(setGroups).catch(() => {}) }, [])
   useEffect(() => { load() }, [load])
-
   const create = async (e: React.FormEvent) => {
     e.preventDefault(); setMsg('')
     const secret: Record<string, string> = {}
     if (type === 'snmp_community') secret.community = form.community
     if (type === 'snmpv3') Object.assign(secret, { authProtocol: form.authProtocol, authPassword: form.authPassword, privProtocol: form.privProtocol, privPassword: form.privPassword })
     if (type === 'admin_password') secret.password = form.password
-    try {
-      await api.post('/api/credentials', { name: form.name, type, scope: form.scope, username: form.username, priority: Number(form.priority), secret })
-      setForm({ ...form, name: '', community: '', authPassword: '', privPassword: '', password: '' })
-      load()
-    } catch (err) { setMsg((err as Error).message) }
+    try { await api.post('/api/credentials', { name: form.name, type, scope: form.scope, username: form.username, priority: Number(form.priority), secret }); setForm({ ...form, name: '', community: '', authPassword: '', privPassword: '', password: '' }); load() } catch (err) { setMsg((err as Error).message) }
   }
-  const remove = async (c: Credential) => {
-    if (!confirm(`Delete credential "${c.name}"?`)) return
-    await api.del(`/api/credentials/${c.id}`); load()
-  }
+  const remove = async (c: Credential) => { if (!confirm(`Delete credential “${c.name}”?`)) return; await api.del(`/api/credentials/${c.id}`); load() }
+  const scopeLabel = (s: string) => !s ? 'global' : s.startsWith('group:') ? `group: ${groups.find((g) => g.id === s.slice(6))?.name || s.slice(6, 14)}` : s
+  const F = ({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) => <div className="fr"><label>{label}</label><div>{children}{hint && <div className="hint">{hint}</div>}</div></div>
   return (
     <>
-      <h1>Credentials</h1>
-      <div className="muted" style={{ marginBottom: 12 }}>Secrets are encrypted at rest and never returned by the API. Without any credential, SNMP uses the "public" community. Device- and group-scoped credentials take precedence over global ones.</div>
-      <div className="grid cols-2">
-        <div className="panel">
-          <table>
-            <thead><tr><th>Name</th><th>Type</th><th>Scope</th><th>User</th><th>Priority</th><th>Created</th><th /></tr></thead>
-            <tbody>
-              {creds.map((c) => (
-                <tr key={c.id}><td>{c.name}</td><td><span className="badge outline">{c.type}</span></td><td className="small">{scopeLabel(c.scope, groups)}</td><td>{c.username}</td><td>{c.priority}</td><td className="small">{fmtTime(c.createdAt)}</td>
-                  <td>{isAdmin && <button className="danger" onClick={() => remove(c)}>Delete</button>}</td></tr>
-              ))}
-              {creds.length === 0 && <tr><td colSpan={7} className="muted">No credentials stored.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+      <div className="ph"><div><h1 className="h1">Credentials</h1><div className="cap">Secrets are encrypted at rest and never returned by the API · device and group scopes take precedence over global</div></div></div>
+      <Banner tone="info"><b style={{ color: 'var(--info)' }}>Write-only.</b> A stored secret is used by the engine when it talks to devices; it is never displayed again. Without any credential, SNMP uses the “public” community.</Banner>
+      {msg && <Banner tone="crit">{msg}</Banner>}
+      <div className="cols">
+        <Card title="Stored credentials" id="cl" sub={`${creds.length} · tried in priority order, highest first`} style={{ flex: '3 1 520px' }}>
+          {creds.length === 0 ? <div className="cb"><EmptyState icon={<Ic.lock size={20} />} title="No credentials stored" text="Add an SNMPv3 user or a community so discovery and polling can read your printers." /></div> : (
+            <div className="tw"><table className="tbl" style={{ minWidth: 640 }}>
+              <thead><tr><th>Name</th><th>Type</th><th>Scope</th><th>User</th><th className="r">Priority</th><th>Created</th><th /></tr></thead>
+              <tbody>{creds.map((c) => (
+                <tr key={c.id}><td style={{ fontWeight: 500 }}><Ic.lock size={14} style={{ color: 'var(--text-3)', verticalAlign: -2, marginRight: 6 }} />{c.name}</td>
+                  <td>{c.type === 'snmpv3' ? <Tag>SNMPv3</Tag> : c.type === 'snmp_community' ? <Pill tone="warn" xs noIcon>v1/v2c community</Pill> : <Tag>{c.type.replace('_', ' ')}</Tag>}</td>
+                  <td className="cap">{scopeLabel(c.scope)}</td><td className="mono">{c.username || '—'}</td><td className="num r">{c.priority}</td><td className="cap num">{fmtTime(c.createdAt)}</td>
+                  <td className="r">{isAdmin && <Btn sm variant="ghost" onClick={() => remove(c)}>Delete</Btn>}</td></tr>
+              ))}</tbody>
+            </table></div>
+          )}
+        </Card>
         {isAdmin && (
-          <form className="panel" onSubmit={create} autoComplete="off">
-            <h2>Add credential</h2>
-            <div className="grid cols-2">
-              <label className="field">Name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
-              <label className="field">Type<select value={type} onChange={(e) => setType(e.target.value)}><option value="snmp_community">SNMP v1/v2c community</option><option value="snmpv3">SNMPv3 user</option><option value="admin_password">Device admin password</option></select></label>
-              <label className="field">Scope<select value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })}><option value="">Global</option>{groups.map((g) => <option key={g.id} value={`group:${g.id}`}>Group: {g.name}</option>)}</select></label>
-              <label className="field">Priority<input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} /></label>
-            </div>
-            {type === 'snmp_community' && <label className="field" style={{ marginTop: 8 }}>Community<input type="password" value={form.community} onChange={(e) => setForm({ ...form, community: e.target.value })} required /></label>}
-            {type === 'snmpv3' && (
-              <div className="grid cols-2" style={{ marginTop: 8 }}>
-                <label className="field">Username<input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required /></label>
-                <span />
-                <label className="field">Auth protocol<select value={form.authProtocol} onChange={(e) => setForm({ ...form, authProtocol: e.target.value })}>{['MD5', 'SHA', 'SHA224', 'SHA256', 'SHA384', 'SHA512'].map((p) => <option key={p}>{p}</option>)}</select></label>
-                <label className="field">Auth password<input type="password" value={form.authPassword} onChange={(e) => setForm({ ...form, authPassword: e.target.value })} /></label>
-                <label className="field">Privacy protocol<select value={form.privProtocol} onChange={(e) => setForm({ ...form, privProtocol: e.target.value })}>{['DES', 'AES', 'AES192', 'AES256'].map((p) => <option key={p}>{p}</option>)}</select></label>
-                <label className="field">Privacy password<input type="password" value={form.privPassword} onChange={(e) => setForm({ ...form, privPassword: e.target.value })} /></label>
-              </div>
-            )}
-            {type === 'admin_password' && (
-              <div className="grid cols-2" style={{ marginTop: 8 }}>
-                <label className="field">Username<input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></label>
-                <label className="field">Password<input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required /></label>
-              </div>
-            )}
-            <div className="row" style={{ marginTop: 10 }}><button className="primary">Save</button><span className="error small">{msg}</span></div>
+          <form className="card" onSubmit={create} autoComplete="off" style={{ flex: '2 1 380px' }} aria-label="Add credential">
+            <div className="ch"><h2 className="h2">Add credential</h2></div>
+            <F label="Name"><input className="fin" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></F>
+            <F label="Type"><select className="fin" value={type} onChange={(e) => setType(e.target.value)}><option value="snmp_community">SNMP v1/v2c community</option><option value="snmpv3">SNMPv3 user (preferred)</option><option value="admin_password">Device admin password</option></select></F>
+            <F label="Scope" hint="Global applies to every device; a group scope only to its members."><select className="fin" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })}><option value="">Global</option>{groups.map((g) => <option key={g.id} value={`group:${g.id}`}>Group: {g.name}</option>)}</select></F>
+            <F label="Priority" hint="Higher is tried first."><input className="fin num" type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} style={{ maxWidth: 120 }} /></F>
+            {type === 'snmp_community' && <F label="Community"><input className="fin" type="password" value={form.community} onChange={(e) => setForm({ ...form, community: e.target.value })} required autoComplete="new-password" /></F>}
+            {type === 'snmpv3' && (<>
+              <F label="Username"><input className="fin" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required /></F>
+              <F label="Authentication"><div className="row"><select className="fin" style={{ width: 120 }} value={form.authProtocol} onChange={(e) => setForm({ ...form, authProtocol: e.target.value })}>{['MD5', 'SHA', 'SHA224', 'SHA256', 'SHA384', 'SHA512'].map((p) => <option key={p}>{p}</option>)}</select><input className="fin" style={{ flex: 1 }} type="password" placeholder="auth password" value={form.authPassword} onChange={(e) => setForm({ ...form, authPassword: e.target.value })} autoComplete="new-password" /></div></F>
+              <F label="Privacy"><div className="row"><select className="fin" style={{ width: 120 }} value={form.privProtocol} onChange={(e) => setForm({ ...form, privProtocol: e.target.value })}>{['DES', 'AES', 'AES192', 'AES256'].map((p) => <option key={p}>{p}</option>)}</select><input className="fin" style={{ flex: 1 }} type="password" placeholder="privacy password" value={form.privPassword} onChange={(e) => setForm({ ...form, privPassword: e.target.value })} autoComplete="new-password" /></div></F>
+            </>)}
+            {type === 'admin_password' && (<>
+              <F label="Username"><input className="fin" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></F>
+              <F label="Password"><input className="fin" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required autoComplete="new-password" /></F>
+            </>)}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--border)' }}><Btn type="submit" variant="pri"><Ic.lock />Store credential</Btn></div>
           </form>
         )}
       </div>
     </>
   )
-}
-
-function scopeLabel(scope: string, groups: Group[]): string {
-  if (!scope) return 'global'
-  if (scope.startsWith('group:')) return 'group: ' + (groups.find((g) => g.id === scope.slice(6))?.name || scope.slice(6, 14))
-  return scope
 }

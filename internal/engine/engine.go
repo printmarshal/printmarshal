@@ -66,6 +66,11 @@ type FirmwareReader interface {
 // ErrUnsupported is returned when no driver serves a capability for a device.
 var ErrUnsupported = errors.New("no driver supports this capability for this device")
 
+// ErrNotIdentified is returned by Identify when no driver could establish an
+// identity for an address (it answered discovery but is not a manageable
+// printer, or nothing answered). Callers treat it as "skip", not failure.
+var ErrNotIdentified = errors.New("not identified as a manageable printer")
+
 // Registry holds drivers and resolves them per capability (spec §6 "driver registry").
 type Registry struct {
 	mu      sync.RWMutex
@@ -222,9 +227,9 @@ func (e *Engine) Identify(ctx context.Context, address string, creds model.Creds
 	}
 	if !found {
 		if len(errs) == 0 {
-			return nil, nil, fmt.Errorf("%s: no driver could identify the device", address)
+			return nil, nil, fmt.Errorf("%s: %w", address, ErrNotIdentified)
 		}
-		return nil, nil, fmt.Errorf("%s: %w", address, errors.Join(errs...))
+		return nil, nil, fmt.Errorf("%s: %w: %w", address, ErrNotIdentified, errors.Join(errs...))
 	}
 	return merged, caps, nil
 }

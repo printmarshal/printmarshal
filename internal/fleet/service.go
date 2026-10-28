@@ -5,6 +5,7 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -368,7 +369,11 @@ func (s *Service) runDiscovery(ctx context.Context, jc *jobs.Context) error {
 			defer cancel()
 			dev, created, err := s.IdentifyAndUpsert(ictx, c.Address, c.Methods, c)
 			if err != nil {
-				jc.Result("", c.Address, "error", err.Error(), map[string]any{"methods": c.Methods})
+				status := "error"
+				if errors.Is(err, engine.ErrNotIdentified) {
+					status = "skipped" // responded to discovery but is not a manageable printer
+				}
+				jc.Result("", c.Address, status, err.Error(), map[string]any{"methods": c.Methods, "services": c.Services})
 				return
 			}
 			msg := "updated"

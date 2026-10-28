@@ -1,94 +1,157 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, ago } from '../api'
-import type { Device, Group } from '../types'
+import type { Device, Group, Job, User } from '../types'
 import { deviceName } from '../types'
 import { useEvents } from '../ws'
-import { SeverityBadge, StateBadge } from '../components/ui'
+import { useDensity } from '../theme'
+import { Ic } from '../components/icons'
+import { Bar, Btn, Card, ChipSelect, DevicePill, EmptyState, Msb, SearchBox, Seg, Tag, fmtInt, remaining, supplyColor } from '../components/ui'
 
-export default function Devices() {
+export default function Devices({ user }: { user: User }) {
   const [params, setParams] = useSearchParams()
   const [devices, setDevices] = useState<Device[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [view, setView] = useState<'table' | 'cards'>(() => { try { return (localStorage.getItem('pm.devices.view') as 'table' | 'cards') || 'table' } catch { return 'table' } })
+  const [density, setDensity] = useDensity()
+  const [sel, setSel] = useState<Record<string, boolean>>({})
+  const [msg, setMsg] = useState('')
   const navigate = useNavigate()
   const q = params.get('q') || ''
   const qs = params.toString()
+  const canOperate = user.role !== 'viewer'
 
   const load = useCallback(() => {
-    api.get<{ devices: Device[] }>(`/api/devices?${qs}`).then((r) => setDevices(r.devices)).catch((e) => setError(e.message))
+    api.get<{ devices: Device[] }>(`/api/devices?${qs}`).then((r) => { setDevices(r.devices); setLoading(false) }).catch((e) => { setError(e.message); setLoading(false) })
   }, [qs])
   useEffect(() => { load() }, [load])
   useEffect(() => { api.get<Group[]>('/api/groups').then(setGroups).catch(() => {}) }, [])
   useEvents((e) => { if (e.type.startsWith('device.')) load() }, [load])
 
-  const set = (k: string, v: string) => {
-    const p = new URLSearchParams(params)
-    if (v) p.set(k, v); else p.delete(k)
-    setParams(p, { replace: true })
+  const set = (k: string, v: string) => { const p = new URLSearchParams(params); if (v) p.set(k, v); else p.delete(k); setParams(p, { replace: true }) }
+  const clearAll = () => setParams(new URLSearchParams(), { replace: true })
+  const activeFilters = ['severity', 'state', 'group', 'make', 'model'].filter((k) => params.get(k))
+  const makes = useMemo(() => Array.from(new Set(devices.map((d) => d.make).filter(Boolean))).sort(), [devices])
+  const models = useMemo(() => Array.from(new Set(devices.map((d) => d.model).filter(Boolean))).sort(), [devices])
+  const selected = Object.keys(sel).filter((id) => sel[id])
+  const toggle = (id: string) => setSel((s) => ({ ...s, [id]: !s[id] }))
+  const toggleAll = () => { if (selected.length === devices.length) setSel({}); else setSel(Object.fromEntries(devices.map((d) => [d.id, true]))) }
+  const pollSelected = async () => {
+    try { const j = await api.post<Job>('/api/poll', { deviceIds: selected }); setMsg(`Poll job queued for ${selected.length} device${selected.length === 1 ? '' : 's'}.`); setSel({}); navigate(`/jobs/${j.id}`) } catch (e) { setMsg((e as Error).message) }
   }
+  const addToGroup = async (gid: string) => {
+    if (!gid) return
+    const g = groups.find((x) => x.id === gid)
+    if (!g) return
+    try { await api.put(`/api/groups/${gid}/members`, { deviceIds: Array.from(new Set([...g.memberIds, ...selected])) }); setMsg(`Added ${selected.length} to ${g.name}.`); setSel({}) } catch (e) { setMsg((e as Error).message) }
+  }
+  const counts = useMemo(() => ({ sites: new Set(devices.map((d) => d.location.split('·')[0].trim()).filter(Boolean)).size, models: models.length }), [devices, models])
+  const setView2 = (v: 'table' | 'cards') => { setView(v); try { localStorage.setItem('pm.devices.view', v) } catch { /* ignore */ } }
 
   return (
     <>
-      <div className="row between">
-        <h1>Devices <span className="muted small">({devices.length})</span></h1>
+      <div className="ph">
+        <div><h1 className="h1">Devices</h1><div className="cap num">{fmtInt(devices.length)} devices{counts.sites ? ` · ${counts.sites} location${counts.sites === 1 ? '' : 's'}` : ''} · {counts.models} model{counts.models === 1 ? '' : 's'}</div></div>
         <div className="row">
-          <a href={`/api/devices.csv?${qs}`}>Export CSV</a>
-          <a href={`/api/supplies.csv?${qs}`}>Supplies CSV</a>
+          <a className="btn sm" href={`/api/devices.csv?${qs}`}><Ic.download />Export CSV</a>
+          <a className="btn sm" href={`/api/supplies.csv?${qs}`}><Ic.download />Supplies CSV</a>
+          {canOperate && <Link className="btn sm pri" to="/discovery"><Ic.radar />Run discovery</Link>}
         </div>
       </div>
-      <div className="panel row">
-        <input placeholder="Search name, model, serial, address, location…" value={q} onChange={(e) => set('q', e.target.value)} style={{ minWidth: 280 }} />
-        <select value={params.get('severity') || ''} onChange={(e) => set('severity', e.target.value)}>
-          <option value="">Any status</option><option value="ok">OK</option><option value="warning">Warning</option><option value="critical">Critical</option><option value="offline">Offline</option>
-        </select>
-        <select value={params.get('state') || ''} onChange={(e) => set('state', e.target.value)}>
-          <option value="">Any lifecycle state</option>
-          {['discovered', 'onboarded', 'active', 'needs_attention', 'decommissioned'].map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-        </select>
-        <select value={params.get('group') || ''} onChange={(e) => set('group', e.target.value)}>
-          <option value="">Any group</option>
-          {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-        </select>
-        <select value={params.get('sort') || ''} onChange={(e) => set('sort', e.target.value)}>
-          <option value="">Sort: name</option><option value="model">Sort: model</option><option value="address">Sort: address</option><option value="severity">Sort: severity</option><option value="lastSeen">Sort: last seen</option>
-        </select>
+      <div className="row">
+        <SearchBox sm filter value={q} onChange={(v) => set('q', v)} placeholder="Filter by name, IP, serial, model…" />
+        <ChipSelect label="Status" value={params.get('severity') || ''} onChange={(v) => set('severity', v)} options={[{ v: 'ok', label: 'OK' }, { v: 'warning', label: 'Warning' }, { v: 'critical', label: 'Critical' }, { v: 'offline', label: 'Offline' }]} />
+        <ChipSelect label="Make" value={params.get('make') || ''} onChange={(v) => set('make', v)} options={makes.map((m) => ({ v: m!, label: m! }))} />
+        <ChipSelect label="Model" value={params.get('model') || ''} onChange={(v) => set('model', v)} options={models.map((m) => ({ v: m!, label: m! }))} />
+        <ChipSelect label="Group" value={params.get('group') || ''} onChange={(v) => set('group', v)} options={groups.map((g) => ({ v: g.id, label: g.name }))} />
+        <ChipSelect label="Lifecycle" value={params.get('state') || ''} onChange={(v) => set('state', v)} options={['discovered', 'onboarded', 'active', 'needs_attention', 'decommissioned'].map((s) => ({ v: s, label: s.replace('_', ' ') }))} />
+        {(activeFilters.length > 0 || q) && <Btn sm variant="ghost" onClick={clearAll}>Clear all</Btn>}
       </div>
-      {error && <div className="error">{error}</div>}
-      <div className="panel">
-        <table>
-          <thead><tr><th>Name</th><th>Model</th><th>Address</th><th>Status</th><th>Supplies</th><th>Pages</th><th>State</th><th>Last polled</th></tr></thead>
-          <tbody>
-            {devices.map((d) => (
-              <tr key={d.id} className="clickable" onClick={() => navigate(`/devices/${d.id}`)}>
-                <td><strong>{deviceName(d)}</strong><div className="muted small">{d.location || d.serial}</div></td>
-                <td>{d.model}<div className="muted small">{d.make}{d.firmware ? ` · fw ${d.firmware}` : ''}</div></td>
-                <td>{d.address}</td>
-                <td><SeverityBadge d={d} /></td>
-                <td><SupplyDots supplies={d.supplies} /></td>
-                <td>{d.counters ? d.counters.total.toLocaleString() : '—'}</td>
-                <td><StateBadge state={d.state} /></td>
-                <td className="muted small">{ago(d.lastPolled)}</td>
-              </tr>
-            ))}
-            {devices.length === 0 && <tr><td colSpan={8} className="muted">No devices match. Run a discovery to find printers.</td></tr>}
-          </tbody>
-        </table>
+      <div className="row">
+        <span className="cap">Saved filters</span>
+        <button className="chip pillish" onClick={() => setParams(new URLSearchParams({ sort: 'severity', severity: 'critical' }), { replace: true })}>Critical now</button>
+        <button className="chip pillish" onClick={() => setParams(new URLSearchParams({ severity: 'offline' }), { replace: true })}>Offline</button>
+        <button className="chip pillish" onClick={() => setParams(new URLSearchParams({ state: 'discovered' }), { replace: true })}>Discovered, not onboarded</button>
       </div>
+      {error && <div className="banner crit">{error}</div>}
+      {msg && <div className="banner info" role="status"><Ic.info style={{ color: 'var(--info)' }} /><div style={{ flex: 1 }}>{msg}</div><Btn sm variant="ghost" ic onClick={() => setMsg('')}><Ic.x /></Btn></div>}
+      <Card aria-label="Device results">
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
+          <span className="num" style={{ fontWeight: 500 }}>{devices.length} matching <span className="cap">· sorted by {params.get('sort') || 'name'}</span></span>
+          <div className="row">
+            <ChipSelect label="Sort" value={params.get('sort') || ''} onChange={(v) => set('sort', v)} any="Name" options={[{ v: 'severity', label: 'Severity' }, { v: 'model', label: 'Model' }, { v: 'address', label: 'Address' }, { v: 'lastSeen', label: 'Last seen' }]} />
+            <Seg label="View" value={view} onChange={setView2} options={[{ v: 'table', label: <><Ic.list />Table</> }, { v: 'cards', label: <><Ic.dashboard />Cards</> }]} />
+            <Seg label="Density" value={density} onChange={setDensity} options={[{ v: 'comfortable', label: 'Comfortable' }, { v: 'compact', label: 'Compact' }]} />
+          </div>
+        </div>
+        {selected.length > 0 && canOperate && (
+          <div className="bulk" role="toolbar" aria-label="Bulk actions">
+            <b className="num" style={{ color: 'var(--accent)' }}>{selected.length} selected</b>
+            <Btn sm variant="ghost" style={{ color: 'var(--accent)' }} onClick={toggleAll}>{selected.length === devices.length ? 'Clear' : `Select all ${devices.length}`}</Btn>
+            <span className="vsep" />
+            <Btn sm onClick={pollSelected}><Ic.refresh />Poll now</Btn>
+            <label className="chip"><Ic.layers />Add to group<select aria-label="Add to group" value="" onChange={(e) => addToGroup(e.target.value)}><option value="">choose…</option>{groups.filter((g) => g.kind === 'static').map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
+            <a className="btn sm" href={`/api/devices.csv?${qs}`}><Ic.download />Export</a>
+            <Btn sm variant="ghost" ic style={{ marginLeft: 'auto' }} aria-label="Clear selection" onClick={() => setSel({})}><Ic.x /></Btn>
+          </div>
+        )}
+        {loading ? <div className="cb" aria-busy="true">{[0, 1, 2].map((i) => <div key={i} className="row" style={{ padding: '8px 0' }}><span className="skel" style={{ width: 60, height: 18, borderRadius: 999 }} /><span className="skel" style={{ flex: 1, height: 10 }} /></div>)}</div>
+          : devices.length === 0 ? <div className="cb"><EmptyState icon={<Ic.radar size={20} />} title={qs ? 'No devices match' : 'No devices yet'} text={qs ? 'Try fewer filters.' : 'Find printers on your network to start managing them.'} action={qs ? <Btn sm onClick={clearAll}>Clear filters</Btn> : canOperate ? <Link className="btn sm pri" to="/discovery">Run discovery</Link> : undefined} /></div>
+          : view === 'table' ? (
+            <div className="tw" style={{ maxHeight: 760, overflow: 'auto' }}>
+              <table className={`tbl${density === 'compact' ? ' compact' : ''}`} style={{ minWidth: 1080 }}>
+                <thead><tr>
+                  {canOperate && <th style={{ width: 36 }}><input className="cbx" type="checkbox" aria-label="Select all visible" checked={selected.length === devices.length && devices.length > 0} onChange={toggleAll} /></th>}
+                  <th>Status</th><th>Display name</th><th>Model</th><th>IP / hostname</th><th>Location</th><th>Supplies</th><th className="r">Pages</th><th>Firmware</th><th>Lifecycle</th><th className="r">Last seen</th>
+                </tr></thead>
+                <tbody>
+                  {devices.map((d) => (
+                    <tr key={d.id} className={`clickable${sel[d.id] ? ' sel' : ''}`} onClick={() => navigate(`/devices/${d.id}`)}>
+                      {canOperate && <td onClick={(e) => e.stopPropagation()}><input className="cbx" type="checkbox" aria-label={`Select ${deviceName(d)}`} checked={!!sel[d.id]} onChange={() => toggle(d.id)} /></td>}
+                      <td><DevicePill d={d} /></td>
+                      <td><Link to={`/devices/${d.id}`} style={{ fontWeight: 500 }} onClick={(e) => e.stopPropagation()}>{deviceName(d)}</Link>{d.serial && <div className="cap mono" style={{ fontSize: 11 }}>{d.serial}</div>}</td>
+                      <td className="mono">{d.model}</td>
+                      <td><div className="mono">{d.address}</div>{d.hostname && <div className="cap" style={{ fontSize: 11 }}>{d.hostname}</div>}</td>
+                      <td className="cap" style={{ color: 'var(--text-2)' }}>{d.location || '—'}</td>
+                      <td><Msb supplies={d.supplies} /></td>
+                      <td className="num r">{d.counters ? fmtInt(d.counters.total) : <span className="cap">—</span>}</td>
+                      <td><span className="mono">{d.firmware || '—'}</span></td>
+                      <td><Tag>{d.state.replace('_', ' ')}</Tag></td>
+                      <td className="cap num r">{ago(d.lastPolled || d.lastSeen)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 12, padding: 12 }}>
+              {devices.map((d) => (
+                <article key={d.id} className={`dcard${sel[d.id] ? ' sel' : ''}`}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>{canOperate && <input className="cbx" type="checkbox" aria-label={`Select ${deviceName(d)}`} checked={!!sel[d.id]} onChange={() => toggle(d.id)} />}<Link to={`/devices/${d.id}`} style={{ fontWeight: 600, color: 'var(--text)' }}>{deviceName(d)}</Link></label>
+                    <DevicePill d={d} />
+                  </div>
+                  <div><div className="mono" style={{ color: 'var(--text-2)' }}>{d.model} · {d.address}</div><div className="cap">{d.location || d.serial}</div></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {d.supplies.filter((s) => s.class !== 'other' && s.percent !== null).slice(0, 5).map((s) => {
+                      const r = remaining(s) ?? 0
+                      return <div key={s.index} style={{ display: 'grid', gridTemplateColumns: '60px minmax(0,1fr) 34px', alignItems: 'center', gap: 8 }}><span className="cap">{s.colorant || s.type}</span><Bar pct={r} color={supplyColor(s)} /><span className="cap num" style={{ textAlign: 'right', color: r <= 10 ? 'var(--warn)' : undefined }}>{r}%</span></div>
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                    <span className="cap num">{d.status?.alerts?.length ? `${d.status.alerts.length} device alert${d.status.alerts.length === 1 ? '' : 's'}` : d.counters ? `${fmtInt(d.counters.total)} pages` : 'No alerts'}</span><span className="cap num">Seen {ago(d.lastSeen)}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
+          <span className="cap num">{devices.length} rows</span>
+          <span className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Ic.info size={14} style={{ color: 'var(--info)' }} />Decommissioned devices are hidden unless you filter by that lifecycle state.</span>
+        </div>
+      </Card>
     </>
-  )
-}
-
-function SupplyDots({ supplies }: { supplies: Device['supplies'] }) {
-  const consumed = supplies.filter((s) => s.class !== 'other' && s.percent !== null)
-  if (consumed.length === 0) return <span className="muted">—</span>
-  return (
-    <div className="row" style={{ gap: 6 }}>
-      {consumed.slice(0, 6).map((s) => {
-        const p = s.class === 'filled' ? 100 - (s.percent ?? 0) : (s.percent ?? 0)
-        const cls = p <= 5 ? 'critical' : p <= 15 ? 'warning' : ''
-        return <span key={s.index} className={`bar ${cls}`} style={{ width: 40, minWidth: 40 }} title={`${s.description}: ${s.percent}%`}><div style={{ width: `${p}%` }} /></span>
-      })}
-    </div>
   )
 }
