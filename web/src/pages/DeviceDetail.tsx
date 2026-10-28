@@ -7,12 +7,13 @@ import { useEvents } from '../ws'
 import { Ic } from '../components/icons'
 import { Banner, Bar, Btn, Card, DevicePill, Mk, MiniSpark, Pill, SevPill, Sw, Tabs, Tag, fmtInt, remaining, since, supplyColor, trayTone } from '../components/ui'
 import { ConsumableLink, fmtDays, statusOf } from '../components/consumables'
+import DeviceConfigTab from '../components/config/DeviceConfigTab'
 
 const transitions: Record<string, string[]> = {
   discovered: ['onboarded', 'active', 'decommissioned'], onboarded: ['active', 'needs_attention', 'decommissioned'],
   active: ['needs_attention', 'decommissioned'], needs_attention: ['active', 'decommissioned'], decommissioned: ['onboarded'],
 }
-type Tab = 'overview' | 'activity'
+type Tab = 'overview' | 'config' | 'activity'
 
 export default function DeviceDetail({ user }: { user: User }) {
   const { id } = useParams()
@@ -25,6 +26,7 @@ export default function DeviceDetail({ user }: { user: User }) {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<{ tone: 'ok' | 'warn' | 'crit' | 'info'; text: string } | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
+  const [drifted, setDrifted] = useState<number | null>(null)
   const canOperate = user.role !== 'viewer'
 
   const load = useCallback(() => {
@@ -91,8 +93,10 @@ export default function DeviceDetail({ user }: { user: User }) {
       )}
       <Tabs label="Device sections" value={tab} onChange={setTab} tabs={[
         { v: 'overview', label: 'Overview' },
+        { v: 'config', label: <>Configuration{drifted !== null && drifted > 0 && <span className="cnt warn">{drifted} drifted</span>}</> },
         { v: 'activity', label: 'Activity' },
       ]} />
+      <DeviceConfigTab device={d} canOperate={canOperate} hidden={tab !== 'config'} onDrift={setDrifted} />
 
       {tab === 'overview' && (
         <div className="cols">
