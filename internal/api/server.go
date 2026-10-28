@@ -104,6 +104,7 @@ func (s *Server) Handler() http.Handler {
 	s.securityRoutes(mux)
 	s.firmwareRoutes(mux)
 	s.catalogRoutes(mux)
+	s.printProviderRoutes(mux)
 
 	// Users, audit, notifications, settings
 	mux.Handle("GET /api/users", s.require(model.RoleAdmin, s.listUsers))
