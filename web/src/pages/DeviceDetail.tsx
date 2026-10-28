@@ -7,6 +7,7 @@ import { useEvents } from '../ws'
 import { Ic } from '../components/icons'
 import { Banner, Bar, Btn, Card, DevicePill, Mk, MiniSpark, Pill, SevPill, Sw, Tabs, Tag, fmtInt, remaining, since, supplyColor, trayTone } from '../components/ui'
 import { ConsumableLink, fmtDays, statusOf } from '../components/consumables'
+import SupportCard from '../components/catalog/SupportCard'
 
 const transitions: Record<string, string[]> = {
   discovered: ['onboarded', 'active', 'decommissioned'], onboarded: ['active', 'needs_attention', 'decommissioned'],
@@ -135,6 +136,7 @@ export default function DeviceDetail({ user }: { user: User }) {
               </div>
             </Card>
             <IdentityCard d={d} canEdit={canOperate} onSaved={setDevice} />
+            <SupportCard deviceId={d.id} lastPolled={d.lastPolled} />
           </div>
         </div>
       )}
