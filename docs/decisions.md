@@ -53,3 +53,17 @@ Recorded by the build session that implemented phases 1–2.
 | Replacement detection | A level rise ≥ `replacementJumpPct` (default 30) between consecutive polls; setting off / prompt / automatic; always logged as a stock event | Spec §3. Prompt is the default so stock never changes without an operator seeing it. |
 | Alerts | Source `consumable`, key `consumable:<id>`, no device; out = critical, ≤ critical threshold = critical, ≤ warning = warning | Reuses the existing alert model, stream and notifiers unchanged. |
 | Settings | Stored in the `settings` table under `consumables`, admin-writable through the API | Operator defaults belong with the data, not in the config file. |
+
+## Decisions taken during the phase 3–7 build (28 October 2026)
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| eSCL driver | Built (`internal/driver/escl`), identify-only | Confirms MFPs and fills serial/UUID/admin URL from `ScannerCapabilities`; scanner status is read on demand. Validated against the HP M283fdw. |
+| mDNS implementation | Own DNS-SD browser on `miekg/dns` (group listener with port reuse + QU-bit queries) | The third-party zeroconf library returned nothing on macOS; the direct implementation also records every TXT key for identity hints. |
+| Vendor plugins | 13 plugins under `internal/plugins`, shared `vendorkit`, evidence matrix in `internal/plugins/README.md` | Only documented interfaces are implemented; everything else is marked unverified/unsupported rather than guessed. HP enrichment (PML + LEDM) validated live. |
+| Model catalogue | Research JSON embedded in `internal/catalog`, per-device support status (documented / observed / unknown) | Keeps evidence separate from observation as the research insists; qualification overrides are operator-set and audited. |
+| Runtime settings | Scheduler cadence, discovery targets, alert thresholds and retention editable through `PATCH /api/settings`, stored in the settings table, file/env remain defaults | The design's Settings page shows them editable; the scheduler re-reads them every tick so no restart is needed. |
+| Reports | `internal/reports` aggregates over the telemetry/alert/audit tables; CSV export per report | Avoids a second analytics store; the data volume is bounded by telemetry retention. |
+| Print provider (§8.7) | Separate optional module, off by default, CUPS adapter behind an interface with a dry backend | Keeps the core free of print serving; only touches the local CUPS, never a printer. |
+| PostgreSQL | Implemented last, after every feature's store sub-interface has landed | A Postgres store must satisfy the whole `store.Store`; doing it earlier would have raced the feature agents. |
+| Firmware delivery | Standard delivery only to the simulator / explicit allow-list (`PM_FIRMWARE_SIM_TARGETS`); real devices need a plugin | No vendor publishes a universal firmware transport; honesty over coverage. |
