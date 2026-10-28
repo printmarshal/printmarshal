@@ -42,3 +42,11 @@ plugin is just another driver that talks to a manufacturer's device web service.
 5. Record real device responses as fixtures under `testdata/fixtures` and unit-test the
    parser against them; add the driver to the contract test so it remains
    interchangeable with the standards drivers.
+
+## Vendor plugins
+
+Built-in vendor plugins live under `internal/plugins/<vendor>/` and share
+`internal/plugins/vendorkit` (enterprise-number and badge matching, SNMP
+helpers, canonical-key mapping, evidence descriptors). Start a new vendor from
+an existing skeleton such as `internal/plugins/oki`; the capability/evidence
+matrix and research citations are in `internal/plugins/README.md`.
