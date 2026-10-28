@@ -391,6 +391,8 @@ type User struct {
 	Username  string    `json:"username"`
 	Role      Role      `json:"role"`
 	CreatedAt time.Time `json:"createdAt"`
+	Kind      string    `json:"kind,omitempty"`  // "" = session user (local or OIDC); "token" = API token principal
+	Scope     []string  `json:"scope,omitempty"` // group ids the principal is limited to; empty = every device
 }
 
 // ConsumableType classifies a stock-kept consumable (consumables spec §2).

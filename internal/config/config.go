@@ -72,11 +72,33 @@ type Config struct {
 		AllowedOrigins []string `json:"allowedOrigins,omitempty"`
 		// LoginFailuresPerMinute per source IP before sign-in is rate limited (0 = default 10).
 		LoginFailuresPerMinute int `json:"loginFailuresPerMinute,omitempty"`
+		// OIDC enables single sign-on through an OpenID Connect provider
+		// (authorization-code flow with PKCE; docs/auth.md). Off while Issuer is empty.
+		OIDC OIDC `json:"oidc"`
 	} `json:"auth"`
 
 	Telemetry struct {
 		Retention Duration `json:"retention"` // samples older than this are down-sampled/pruned
 	} `json:"telemetry"`
+}
+
+// OIDC configures the optional OpenID Connect sign-in (docs/auth.md).
+type OIDC struct {
+	Issuer          string `json:"issuer"` // e.g. https://login.microsoftonline.com/<tenant>/v2.0
+	ClientID        string `json:"clientId"`
+	ClientSecretEnv string `json:"clientSecretEnv,omitempty"` // env var holding the client secret (never the secret itself)
+	RedirectURL     string `json:"redirectUrl"`               // https://<printmarshal>/api/auth/oidc/callback
+	DisplayName     string `json:"displayName,omitempty"`     // login button label; defaults to the issuer host
+	// Scopes requested besides "openid" (default: profile, email).
+	Scopes []string `json:"scopes,omitempty"`
+	// RoleClaim names the ID-token claim (dot path allowed, e.g. "realm_access.roles")
+	// whose values are looked up in RoleMap; the highest mapped role wins.
+	RoleClaim string            `json:"roleClaim,omitempty"`
+	RoleMap   map[string]string `json:"roleMap,omitempty"` // claim value -> viewer | operator | admin
+	// DefaultRole is used when no RoleMap entry matches (default viewer).
+	DefaultRole string `json:"defaultRole,omitempty"`
+	// AllowedDomains restricts sign-in to these email domains (empty = any).
+	AllowedDomains []string `json:"allowedDomains,omitempty"`
 }
 
 // Notifier is one webhook or SMTP destination (spec §8.3).
@@ -215,6 +237,10 @@ func Load(path string) (*Config, error) {
 	envStr("PM_TRAP_LISTEN", &c.Trap.Listen)
 	envInt("PM_JOB_WORKERS", &c.Jobs.Workers)
 	envBool("PM_SECURE_COOKIES", &c.Auth.SecureCookies)
+	envStr("PM_OIDC_ISSUER", &c.Auth.OIDC.Issuer)
+	envStr("PM_OIDC_CLIENT_ID", &c.Auth.OIDC.ClientID)
+	envStr("PM_OIDC_CLIENT_SECRET_ENV", &c.Auth.OIDC.ClientSecretEnv)
+	envStr("PM_OIDC_REDIRECT_URL", &c.Auth.OIDC.RedirectURL)
 	if c.DSN == "" {
 		c.DSN = c.DataDir + "/printmarshal.db"
 	}

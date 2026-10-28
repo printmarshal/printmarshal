@@ -97,15 +97,22 @@ func (s *Service) Login(ctx context.Context, username, password string) (string,
 	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
 		return "", nil, errors.New("invalid credentials")
 	}
+	token, err := s.IssueSession(ctx, u)
+	return token, u, err
+}
+
+// IssueSession creates a session for an already-authenticated user (password
+// login or an OIDC callback) and returns the clear-text token.
+func (s *Service) IssueSession(ctx context.Context, u *model.User) (string, error) {
 	tok := make([]byte, 32)
 	if _, err := rand.Read(tok); err != nil {
-		return "", nil, err
+		return "", err
 	}
 	token := hex.EncodeToString(tok)
 	if err := s.store.CreateSession(ctx, hashToken(token), u.ID, time.Now().Add(s.ttl)); err != nil {
-		return "", nil, err
+		return "", err
 	}
-	return token, u, nil
+	return token, nil
 }
 
 // Logout deletes the session.
@@ -162,11 +169,19 @@ func TokenFromRequest(r *http.Request) string {
 	return ""
 }
 
-// Authenticate resolves the user for a request.
+// Authenticate resolves the principal for a request: a session token (cookie
+// or bearer) for a signed-in user, or a "pmt_" API token (bearer only) for a
+// service account, which comes back with Kind "token" and its group scope.
 func (s *Service) Authenticate(r *http.Request) (*model.User, error) {
 	tok := TokenFromRequest(r)
 	if tok == "" {
 		return nil, errors.New("no session")
+	}
+	if strings.HasPrefix(tok, TokenPrefix) {
+		if !strings.HasPrefix(strings.ToLower(r.Header.Get("Authorization")), "bearer ") {
+			return nil, errors.New("api tokens are accepted in the Authorization header only")
+		}
+		return s.authenticateToken(r.Context(), tok)
 	}
 	return s.store.GetSession(r.Context(), hashToken(tok))
 }
