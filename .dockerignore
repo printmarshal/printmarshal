@@ -1,0 +1,4 @@
+bin
+data
+web/node_modules
+.git

@@ -1,0 +1,9 @@
+/bin/
+/data/
+/web/node_modules/
+/internal/web/dist/assets/
+*.db
+*.db-wal
+*.db-shm
+secret.key
+.DS_Store

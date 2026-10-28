@@ -1,0 +1,45 @@
+# Build decisions (spec §16)
+
+Recorded by the build session that implemented phases 1–2.
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Backend language | **Go** (1.27) | Spec's recommendation: concurrent device I/O, single static binary, mature SNMP (`gosnmp`) and HTTP/TLS libraries. |
+| UI framework | **React + TypeScript (Vite)** | Live dashboard, tables and forms; the build output is embedded into the Go binary so there is one artefact to ship. |
+| Datastore | **SQLite** (pure-Go `modernc.org/sqlite`) behind a `store.Store` interface | Single-container default. The interface is the seam for PostgreSQL (+ TimescaleDB for telemetry); `config.database` is reserved for it. Telemetry lives in its own narrow table and is pruned on a retention schedule. |
+| Job execution | **In-process worker pool** with jobs persisted in the store | Jobs survive as records; on restart anything left running is marked failed ("interrupted by restart") so it can be re-run. Switch to a durable queue when multiple engine instances are needed. |
+| Auth model | Local users with bcrypt passwords, cookie or bearer sessions, roles viewer/operator/admin | First admin is bootstrapped from `PM_ADMIN_PASSWORD` or a generated password printed once. SSO can be layered later at the `auth.Service` boundary. |
+| First vendor plugins | **None for v1 — standards drivers only** | SNMP + IPP already deliver discovery, identity, full monitoring and firmware version on compliant devices. Plugins attach via `engine.Registry.Register` without touching the core. |
+| SLP discovery | **Deferred** | mDNS/DNS-SD and WS-Discovery cover modern printers; SLP can be added as another `discovery` source. |
+| eSCL driver | **Deferred to phase 3** | Not needed for monitoring; MFP detection currently uses DNS-SD scanner services and the IPP device-id command set. |
+
+## Other notable choices
+
+- **Capability resolution at identification.** `engine.Identify` runs every `Identifier`
+  driver concurrently, merges the identities by driver priority, and records which
+  driver serves each capability on the device (`capabilities` map). Polls dispatch per
+  capability and fall back to the next driver on error; `servedBy` is recorded per job
+  result for traceability.
+- **No vendor knowledge in the core.** The SNMP driver stores the raw IANA enterprise
+  number from `sysObjectID` and derives make/model from free text; it never maps an
+  enterprise number to a vendor.
+- **Alert noise rules.** Supply bits in `hrPrinterDetectedErrorState` defer to the real
+  percentages; "no paper" is a fleet alert only when all trays of a media size are
+  empty; the device's own `prtAlertTable` entries are mirrored with a stable key so they
+  raise once and clear when the device clears them.
+- **Secrets.** Credentials are AES-256-GCM encrypted under a key from `PM_SECRET_KEY`
+  or `data/secret.key`; the `model.Credential` type has no secret fields, so no API
+  response or audit entry can carry one by construction.
+
+## Consumables add-on (docs/consumables-feature-spec.md)
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Stock placeholder | **Absorbed**: the phase-2 `stock` table/API/UI is migrated into `consumables` on first open (migration 2) and removed | One feature, not two overlapping ones. Legacy rows become type "other" items with the old match text kept in notes; legacy `stock` alerts are cleared and re-raised by the consumable rules. |
+| Installed-supply link | A separate `supply_links` table keyed by (device, supply index), `source` auto or manual | Supplies are stored as JSON on the device and replaced on every poll; a separate table keeps the link stable, lets manual links be operator-owned (`ReplaceAutoLinks` never displaces them) and cascades on device or item deletion. |
+| Matching rule | Part number found in the supply description wins; else type + colour + compatible model; an item without compatible models matches only when it is the sole candidate | Printer MIB / IPP expose no part number field, so description matching is the only standard signal; the ambiguity rule means fleets with several model-specific items never link silently to the wrong one. |
+| Stock history | Every quantity change goes through `AdjustStock`, which writes the `consumable_stock_events` row atomically; `UpdateConsumable` cannot touch on-hand | History and audit stay complete by construction; the UI's inline edit is a batch of `set` events. |
+| Forecast | Rate = observed level drop per day over the last 30 days of `supply.percent` telemetry, excluding rises ≥ the replacement jump; stock depletion is the OnHand-th simulated replacement across linked devices | Uses telemetry polls already record; degrades to "unknown" with a reason until history spans the configured minimum, instead of guessing. |
+| Replacement detection | A level rise ≥ `replacementJumpPct` (default 30) between consecutive polls; setting off / prompt / automatic; always logged as a stock event | Spec §3. Prompt is the default so stock never changes without an operator seeing it. |
+| Alerts | Source `consumable`, key `consumable:<id>`, no device; out = critical, ≤ critical threshold = critical, ≤ warning = warning | Reuses the existing alert model, stream and notifiers unchanged. |
+| Settings | Stored in the `settings` table under `consumables`, admin-writable through the API | Operator defaults belong with the data, not in the config file. |

@@ -1,0 +1,4657 @@
+{
+  "schema_version": "1.0",
+  "title": "Enterprise printer model research catalogue",
+  "researched_on": "2026-10-28",
+  "purpose": "Research candidate inventory for a vendor-neutral device fleet platform; no application support is implemented or certified by this catalogue.",
+  "counting_rule": "Distinct brand + model prefix + base model identifier; suffix/Flow/SKU examples and generic licence identities are not counted as extra base models. Includes earlier-report candidates.",
+  "summary": {
+    "family_groups": 126,
+    "base_model_identifiers": 495,
+    "brands": 15,
+    "by_brand": {
+      "HP": 144,
+      "Ricoh": 66,
+      "Canon": 67,
+      "Xerox": 22,
+      "Konica Minolta": 36,
+      "Kyocera": 30,
+      "Lexmark": 43,
+      "Sharp": 29,
+      "Toshiba": 18,
+      "Brother": 11,
+      "Epson": 7,
+      "OKI": 8,
+      "Samsung": 3,
+      "Fujifilm": 9,
+      "RISO": 2
+    },
+    "hp_managed_base_identifiers": 83,
+    "exact_hp_variant_examples": 23,
+    "physically_validated_devices": 0
+  },
+  "interpretation": {
+    "model_source_ids": "Establish model identity and the stated model_evidence; they do not establish all management-profile operations for every sibling.",
+    "management_profile": "Vendor/platform context; only operation_evidence establishes the narrower documented scope.",
+    "release_year": "Null means unverified. A support-table date, page creation date or firmware date is not a launch year.",
+    "lifecycle": "Regional availability and firmware/service support are independent. Vendor management listings may include older devices.",
+    "qualification_status": "Every entry remains research_candidate_unvalidated. No support manifest or production capability flags have been changed.",
+    "variant_matching": "Retain raw model, badge, product number, serial, controller and component firmware; do not cross-flash based on shared family.",
+    "source_access": "official_search_index means primary-source indexed extracts, not a full document read. Inherited source access notes are retained."
+  },
+  "families": [
+    {
+      "id": "HP01",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E87740",
+        "E87750",
+        "E87760",
+        "E87770"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP02",
+        "NHP04",
+        "NHP14"
+      ],
+      "model_evidence": "model_manual_and_vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Priority: include dn/z and generic E877 licence-based identities. See HP_E877 direct evidence and SKU registry.",
+      "release_year_scope": "unverified",
+      "management_support_evidence_date": "WJA 10.5 SR2, August 2022"
+    },
+    {
+      "id": "HP02",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E87640",
+        "E87650",
+        "E87660"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP05"
+      ],
+      "model_evidence": "model_manual_and_vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Priority: dn/z/du evidence differs. Do not omit E87650 because a firmware-table row abbreviates the family.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP03",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E78625",
+        "E78630",
+        "E78635"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP09"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Keep Flow/non-Flow, product number and licence separately.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP04",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP",
+      "model_ids": [
+        "E78523",
+        "E78528"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP09"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP05",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP",
+      "model_ids": [
+        "E78223",
+        "E78228"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP03",
+        "NHP09"
+      ],
+      "model_evidence": "official_compatibility_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP06",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E78323",
+        "E78325",
+        "E78330"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP10"
+      ],
+      "model_evidence": "model_specifications",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Retain regional model and actual product number; older generation.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP07",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E77822",
+        "E77825",
+        "E77830"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP10"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "WJA support documented April 2017; not a release-date claim.",
+      "release_year_scope": "unverified",
+      "management_support_evidence_date": "WJA 10.4 SR2, April 2017"
+    },
+    {
+      "id": "HP08",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP",
+      "model_ids": [
+        "E77422",
+        "E77428"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP09"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "WJA support documented June 2019.",
+      "release_year_scope": "unverified",
+      "management_support_evidence_date": "WJA 10.4 SR6, June 2019"
+    },
+    {
+      "id": "HP09",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP",
+      "model_ids": [
+        "E78122"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP09"
+      ],
+      "model_evidence": "official_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Model identity/firmware feature evidence; exact administrative capabilities still require its manual.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP10",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E82650",
+        "E82660",
+        "E82670"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP02",
+        "NHP13"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Newer departmental mono target; generic E826 licence identities also exist.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP11",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E82540",
+        "E82550",
+        "E82560"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP05"
+      ],
+      "model_evidence": "model_manual_and_vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Same exact-model management guide as E876 family.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP12",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E73130",
+        "E73135",
+        "E73140"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP09"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP13",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP",
+      "model_ids": [
+        "E73025",
+        "E73030"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP02",
+        "NHP09"
+      ],
+      "model_evidence": "official_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP14",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP",
+      "model_ids": [
+        "E72725",
+        "E72830"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP09"
+      ],
+      "model_evidence": "official_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP15",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E72525",
+        "E72530",
+        "E72535"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP10"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "WJA support documented April 2017; do not copy a malformed E725435 string from the firmware table.",
+      "release_year_scope": "unverified",
+      "management_support_evidence_date": "WJA 10.4 SR2, April 2017"
+    },
+    {
+      "id": "HP16",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP",
+      "model_ids": [
+        "E72425",
+        "E72430"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP02"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "WJA support documented June 2019.",
+      "release_year_scope": "unverified",
+      "management_support_evidence_date": "WJA 10.4 SR6, June 2019"
+    },
+    {
+      "id": "HP17",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed",
+      "model_ids": [
+        "E40040"
+      ],
+      "segment": "A4 mono laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP11",
+        "NHP06"
+      ],
+      "model_evidence": "named_model_support_and_portfolio",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP18",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP",
+      "model_ids": [
+        "E42540"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP11",
+        "NHP06"
+      ],
+      "model_evidence": "named_model_support_and_portfolio",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP19",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed",
+      "model_ids": [
+        "E45028"
+      ],
+      "segment": "A4 colour laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP11"
+      ],
+      "model_evidence": "named_model_support",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP20",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP",
+      "model_ids": [
+        "E47528"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP11",
+        "NHP02"
+      ],
+      "model_evidence": "named_model_support",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP21",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed",
+      "model_ids": [
+        "E50045",
+        "E50145"
+      ],
+      "segment": "A4 mono laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP02",
+        "NHP06"
+      ],
+      "model_evidence": "official_firmware_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Earlier and refreshed identities retained separately.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP22",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E52545",
+        "E52645"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP02",
+        "NHP03"
+      ],
+      "model_evidence": "official_firmware_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP23",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed",
+      "model_ids": [
+        "E60055",
+        "E60065",
+        "E60075",
+        "E60155",
+        "E60165",
+        "E60175"
+      ],
+      "segment": "A4 mono laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP02",
+        "NHP06"
+      ],
+      "model_evidence": "official_firmware_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP24",
+      "brand": "HP",
+      "model_prefix": "LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E62555",
+        "E62565",
+        "E62575",
+        "E62655",
+        "E62665",
+        "E62675"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP02",
+        "NHP06"
+      ],
+      "model_evidence": "official_firmware_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP25",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed",
+      "model_ids": [
+        "E55040"
+      ],
+      "segment": "A4 colour laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP02"
+      ],
+      "model_evidence": "official_firmware_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP26",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E57540"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP02",
+        "NHP03"
+      ],
+      "model_evidence": "official_firmware_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP27",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed",
+      "model_ids": [
+        "E65050",
+        "E65060",
+        "E65150",
+        "E65160"
+      ],
+      "segment": "A4 colour laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP02"
+      ],
+      "model_evidence": "official_firmware_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Source table sometimes prepends MFP to E650; verify actual label rather than ingesting that formatting.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP28",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed MFP / Flow MFP",
+      "model_ids": [
+        "E67550",
+        "E67560",
+        "E67650",
+        "E67660"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP02",
+        "NHP03"
+      ],
+      "model_evidence": "official_firmware_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP29",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Managed",
+      "model_ids": [
+        "E75245",
+        "E85055"
+      ],
+      "segment": "A3 colour laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP09",
+        "NHP02"
+      ],
+      "model_evidence": "official_firmware_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "E85055 is a colour LaserJet printer despite inconsistent labels in some support lists.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP30",
+      "brand": "HP",
+      "model_prefix": "PageWide Managed Color",
+      "model_ids": [
+        "E55650"
+      ],
+      "segment": "A4 colour page-array inkjet printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP12"
+      ],
+      "model_evidence": "official_model_support_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Legacy/deployed-fleet candidate; verify current firmware entitlement.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP31",
+      "brand": "HP",
+      "model_prefix": "PageWide Managed Color MFP / Flow MFP",
+      "model_ids": [
+        "E58650"
+      ],
+      "segment": "A4 colour page-array inkjet MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP12",
+        "NHP03"
+      ],
+      "model_evidence": "official_model_support_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP32",
+      "brand": "HP",
+      "model_prefix": "PageWide Managed Color",
+      "model_ids": [
+        "E75160",
+        "P75250"
+      ],
+      "segment": "A3 colour page-array inkjet printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP12"
+      ],
+      "model_evidence": "official_model_support_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP33",
+      "brand": "HP",
+      "model_prefix": "PageWide Managed Color MFP / Flow MFP",
+      "model_ids": [
+        "E77650",
+        "E77660"
+      ],
+      "segment": "A3 colour page-array inkjet MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP12"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP34",
+      "brand": "HP",
+      "model_prefix": "PageWide Managed Color MFP",
+      "model_ids": [
+        "P77440",
+        "P77940",
+        "P77950",
+        "P77960"
+      ],
+      "segment": "A3 colour page-array inkjet MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP12"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP35",
+      "brand": "HP",
+      "model_prefix": "LaserJet Enterprise",
+      "model_ids": [
+        "M406",
+        "M407",
+        "M507",
+        "M607",
+        "M608",
+        "M609",
+        "M610",
+        "M611",
+        "M612"
+      ],
+      "segment": "A4 mono laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP09",
+        "H06",
+        "H07"
+      ],
+      "model_evidence": "official_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP36",
+      "brand": "HP",
+      "model_prefix": "LaserJet Enterprise MFP / Flow MFP",
+      "model_ids": [
+        "M430",
+        "M431",
+        "M528",
+        "M631",
+        "M632",
+        "M633",
+        "M634",
+        "M635",
+        "M636"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "H03",
+        "H07",
+        "NHP03"
+      ],
+      "model_evidence": "official_firmware_and_compatibility_matrices",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP37",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Enterprise",
+      "model_ids": [
+        "M455",
+        "M554",
+        "M555",
+        "M652",
+        "M653"
+      ],
+      "segment": "A4 colour laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP09",
+        "H04",
+        "H07"
+      ],
+      "model_evidence": "official_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP38",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Enterprise MFP / Flow MFP",
+      "model_ids": [
+        "M480",
+        "M577",
+        "M578",
+        "M681",
+        "M682"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP09",
+        "NHP03"
+      ],
+      "model_evidence": "official_firmware_and_compatibility_matrices",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP39",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Enterprise",
+      "model_ids": [
+        "M751",
+        "M856"
+      ],
+      "segment": "A3 colour laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP09",
+        "H07"
+      ],
+      "model_evidence": "official_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP40",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Enterprise MFP / Flow MFP",
+      "model_ids": [
+        "M776"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP09",
+        "NHP03"
+      ],
+      "model_evidence": "official_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP41",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Enterprise",
+      "model_ids": [
+        "5700",
+        "6700",
+        "6701",
+        "X55745",
+        "X65455",
+        "X65465"
+      ],
+      "segment": "A4 colour laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP09"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP42",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Enterprise MFP / Flow MFP",
+      "model_ids": [
+        "5800",
+        "6800",
+        "6801",
+        "X57945",
+        "X58045",
+        "X67755",
+        "X67765"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP09"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP43",
+      "brand": "HP",
+      "model_prefix": "LaserJet Enterprise",
+      "model_ids": [
+        "8501"
+      ],
+      "segment": "A3 mono laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP17"
+      ],
+      "model_evidence": "model_specifications_and_vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP44",
+      "brand": "HP",
+      "model_prefix": "LaserJet Enterprise MFP / Flow MFP",
+      "model_ids": [
+        "8601"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP15"
+      ],
+      "model_evidence": "model_specifications_and_vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP45",
+      "brand": "HP",
+      "model_prefix": "Color LaserJet Enterprise MFP / Flow MFP",
+      "model_ids": [
+        "8801"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP01",
+        "NHP16"
+      ],
+      "model_evidence": "model_manual_and_vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP46",
+      "brand": "HP",
+      "model_prefix": "LaserJet Enterprise",
+      "model_ids": [
+        "5501",
+        "5502",
+        "6500",
+        "6501",
+        "X50352",
+        "X50452",
+        "X60257",
+        "X60357"
+      ],
+      "segment": "A4 mono laser printer",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP18"
+      ],
+      "model_evidence": "named_model_guide_hub",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Newer exact-SKU qualification track; Workpath alternative-deployment firmware exceptions apply to some models.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "HP47",
+      "brand": "HP",
+      "model_prefix": "LaserJet Enterprise MFP",
+      "model_ids": [
+        "5601",
+        "5602",
+        "6600",
+        "X52952",
+        "X53052",
+        "X62757"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "HP_FS",
+      "model_source_ids": [
+        "NHP18"
+      ],
+      "model_evidence": "named_model_guide_hub",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Do not infer all 5.9.2.3 alternative-app-deployment support from older FutureSmart devices.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI01",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM C2000",
+        "IM C2500",
+        "IM C3000",
+        "IM C3500",
+        "IM C4500",
+        "IM C5500",
+        "IM C6000"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "R03",
+        "NRI01"
+      ],
+      "model_evidence": "model_launch_and_feature_matrix",
+      "release_year": 2019,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "2019 generation retained as an older enterprise-fleet candidate.",
+      "release_year_scope": "regional_launch_or_availability_year"
+    },
+    {
+      "id": "RI02",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM C2010",
+        "IM C2510",
+        "IM C3010",
+        "IM C3510",
+        "IM C4510",
+        "IM C5510",
+        "IM C6010"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "R04",
+        "R05"
+      ],
+      "model_evidence": "model_launch_and_specifications",
+      "release_year": 2023,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "US ACT list does not enumerate every regional sibling.",
+      "release_year_scope": "regional_launch_or_availability_year"
+    },
+    {
+      "id": "RI03",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM C7010",
+        "IM C6510",
+        "IM C8010"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI01",
+        "NRI09"
+      ],
+      "model_evidence": "official_feature_and_product_lists",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "High-volume additions; exact release years unverified.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI04",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM C3010SD",
+        "IM C4510SD",
+        "IM C6010SD"
+      ],
+      "segment": "A3 colour electrophotographic MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "R22"
+      ],
+      "model_evidence": "official_regional_launch",
+      "release_year": 2025,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Japan; separate firmware records from non-SD.",
+      "release_year_scope": "regional_launch_or_availability_year"
+    },
+    {
+      "id": "RI05",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM C2011",
+        "IM C2511",
+        "IM C3011",
+        "IM C3511",
+        "IM C4511",
+        "IM C5511",
+        "IM C6011"
+      ],
+      "segment": "A3 colour electrophotographic MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "R06"
+      ],
+      "model_evidence": "official_regional_launch",
+      "release_year": 2026,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Japan; no inherited Cxx10 administrative API assertion.",
+      "release_year_scope": "regional_launch_or_availability_year"
+    },
+    {
+      "id": "RI06",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM C6500",
+        "IM C8000"
+      ],
+      "segment": "A3 high-volume colour laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI02",
+        "NRI01"
+      ],
+      "model_evidence": "model_specifications_and_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "65/80 ppm; obtain their precise private-MIB and management-interface coverage.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI07",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM 2500",
+        "IM 3000",
+        "IM 3500",
+        "IM 4000",
+        "IM 5000",
+        "IM 6000"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "R07",
+        "R11"
+      ],
+      "model_evidence": "model_family_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI08",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM 2510",
+        "IM 3010",
+        "IM 3510",
+        "IM 4510",
+        "IM 5510",
+        "IM 6010",
+        "IM 7010"
+      ],
+      "segment": "A3 mono electrophotographic MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "R12",
+        "R13"
+      ],
+      "model_evidence": "official_regional_launch",
+      "release_year": 2026,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Japan/AP model availability varies.",
+      "release_year_scope": "regional_launch_or_availability_year"
+    },
+    {
+      "id": "RI09",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM 7000",
+        "IM 8000",
+        "IM 9000"
+      ],
+      "segment": "A3 high-volume mono laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI03",
+        "NRI04",
+        "NRI01"
+      ],
+      "model_evidence": "model_specifications_and_model_network_manual",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "70/80/90 ppm, separate high-volume lab target.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI10",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM C300",
+        "IM C300F",
+        "IM C400F",
+        "IM C400SRF"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI01",
+        "R19"
+      ],
+      "model_evidence": "official_feature_and_family_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI11",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM C320F",
+        "IM C401F",
+        "IM C401SRF"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI01",
+        "R14"
+      ],
+      "model_evidence": "official_feature_and_launch_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI12",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM 370F",
+        "IM 460F"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI01",
+        "R17"
+      ],
+      "model_evidence": "model_specifications_and_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "460F has documented A3 bypass/ADF exceptions.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI13",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "IM 550F",
+        "IM 600F",
+        "IM 600SRF"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI05",
+        "NRI01"
+      ],
+      "model_evidence": "model_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI14",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "P 800",
+        "P 801"
+      ],
+      "segment": "A4 mono laser printer",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI06",
+        "NRI10"
+      ],
+      "model_evidence": "official_product_and_manual_lists",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "P800 has Web Image Monitor; obtain exact P801 manual before capability inheritance.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI15",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "P C600",
+        "P C375"
+      ],
+      "segment": "A4 colour laser printer",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI07",
+        "NRI08"
+      ],
+      "model_evidence": "model_specifications",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Different storage/firmware generations.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI16",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "MP 6503",
+        "MP 7503",
+        "MP 9003"
+      ],
+      "segment": "A3 high-volume mono laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI05"
+      ],
+      "model_evidence": "model_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Conditional older installed-fleet candidates; firmware-component evidence, not new product claims.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RI17",
+      "brand": "Ricoh",
+      "model_prefix": "",
+      "model_ids": [
+        "MP 501",
+        "MP 601"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "RICOH",
+      "model_source_ids": [
+        "NRI05"
+      ],
+      "model_evidence": "model_firmware_feature_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Conditional older installed-fleet candidates.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA01",
+      "brand": "Canon",
+      "model_prefix": "imageRUNNER ADVANCE DX",
+      "model_ids": [
+        "C3730",
+        "C3725",
+        "C3720",
+        "C3835",
+        "C3830",
+        "C3826",
+        "C3822",
+        "C3935",
+        "C3930",
+        "C3926",
+        "C3922"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01",
+        "C01",
+        "C09"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Base IDs; i/region suffixes are variant identities.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA02",
+      "brand": "Canon",
+      "model_prefix": "imageRUNNER ADVANCE DX",
+      "model_ids": [
+        "C5760",
+        "C5750",
+        "C5740",
+        "C5735",
+        "C5870",
+        "C5860",
+        "C5850",
+        "C5840"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01",
+        "C04",
+        "C05"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA03",
+      "brand": "Canon",
+      "model_prefix": "imageRUNNER ADVANCE DX",
+      "model_ids": [
+        "C7780",
+        "C7770",
+        "C7765"
+      ],
+      "segment": "A3 high-volume colour laser MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Settings retrieval/distribution evidence; exact model protocol guide still needed.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA04",
+      "brand": "Canon",
+      "model_prefix": "imageRUNNER ADVANCE DX",
+      "model_ids": [
+        "4751",
+        "4745",
+        "4735",
+        "4725",
+        "4845",
+        "4835",
+        "4825",
+        "4945",
+        "4935",
+        "4925"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Region suffixes and editions retained on discovered device.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA05",
+      "brand": "Canon",
+      "model_prefix": "imageRUNNER ADVANCE DX",
+      "model_ids": [
+        "6780",
+        "6765",
+        "6755",
+        "6855",
+        "6870",
+        "6860",
+        "6980"
+      ],
+      "segment": "A3 high-volume mono laser MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA06",
+      "brand": "Canon",
+      "model_prefix": "imageRUNNER ADVANCE DX",
+      "model_ids": [
+        "8705",
+        "8795",
+        "8786",
+        "8905",
+        "8995",
+        "8986"
+      ],
+      "segment": "A3 high-volume mono laser MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01",
+        "NCA02",
+        "NCA03",
+        "NCA04",
+        "NCA05"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "8900 has direct SNMPv1/v3 evidence; do not infer v2c.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA07",
+      "brand": "Canon",
+      "model_prefix": "imageRUNNER ADVANCE DX",
+      "model_ids": [
+        "C357",
+        "C257",
+        "C359",
+        "C259",
+        "C477",
+        "C478"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "A4 workgroup variants require distinct protocol/firmware checks.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA08",
+      "brand": "Canon",
+      "model_prefix": "imageRUNNER ADVANCE DX",
+      "model_ids": [
+        "717",
+        "617",
+        "527",
+        "719",
+        "619",
+        "529"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA09",
+      "brand": "Canon",
+      "model_prefix": "imageFORCE",
+      "model_ids": [
+        "C5140",
+        "C5150",
+        "C5160",
+        "C5170"
+      ],
+      "segment": "A3 colour electrophotographic MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01",
+        "C07",
+        "C08"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Exact newer-generation SCEP evidence is available.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "CA10",
+      "brand": "Canon",
+      "model_prefix": "imageFORCE",
+      "model_ids": [
+        "6155",
+        "6160",
+        "6170",
+        "8105",
+        "8195",
+        "8186"
+      ],
+      "segment": "A3 mono electrophotographic MFP",
+      "management_profile": "CANON",
+      "model_source_ids": [
+        "NCA01"
+      ],
+      "model_evidence": "vendor_settings_tool_compatibility",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Listed in current settings tool; first-sale dates not inferred.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "XE01",
+      "brand": "Xerox",
+      "model_prefix": "AltaLink",
+      "model_ids": [
+        "C8130",
+        "C8135",
+        "C8145",
+        "C8155",
+        "C8170"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "XEROX",
+      "model_source_ids": [
+        "X01",
+        "X02"
+      ],
+      "model_evidence": "vendor_family_administrator_documentation",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "XE02",
+      "brand": "Xerox",
+      "model_prefix": "AltaLink",
+      "model_ids": [
+        "C8230",
+        "C8235",
+        "C8245",
+        "C8255",
+        "C8270"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "XEROX",
+      "model_source_ids": [
+        "X02",
+        "X03",
+        "X04"
+      ],
+      "model_evidence": "vendor_family_administrator_documentation",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "XE03",
+      "brand": "Xerox",
+      "model_prefix": "AltaLink",
+      "model_ids": [
+        "B8145",
+        "B8155",
+        "B8170"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "XEROX",
+      "model_source_ids": [
+        "X02",
+        "NXE01"
+      ],
+      "model_evidence": "vendor_family_administrator_documentation",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "XE04",
+      "brand": "Xerox",
+      "model_prefix": "AltaLink",
+      "model_ids": [
+        "B8245",
+        "B8255",
+        "B8270"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "XEROX",
+      "model_source_ids": [
+        "NXE01",
+        "X02"
+      ],
+      "model_evidence": "vendor_family_administrator_documentation",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "B8270 rated 72 ppm in current page; do not derive speed from model number.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "XE05",
+      "brand": "Xerox",
+      "model_prefix": "VersaLink",
+      "model_ids": [
+        "C620",
+        "B620"
+      ],
+      "segment": "A4 laser printer, colour C / mono B",
+      "management_profile": "XEROX",
+      "model_source_ids": [
+        "X05",
+        "X06",
+        "X07"
+      ],
+      "model_evidence": "vendor_family_administrator_documentation",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Separate ConnectKey generation and qualification from AltaLink.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "XE06",
+      "brand": "Xerox",
+      "model_prefix": "VersaLink",
+      "model_ids": [
+        "C625",
+        "B625",
+        "C415",
+        "B415"
+      ],
+      "segment": "A4 laser MFP, colour C / mono B",
+      "management_profile": "XEROX",
+      "model_source_ids": [
+        "X05",
+        "X06"
+      ],
+      "model_evidence": "vendor_family_administrator_documentation",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Guide inventory evidence; exact operation coverage remains model-specific.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KM01",
+      "brand": "Konica Minolta",
+      "model_prefix": "bizhub",
+      "model_ids": [
+        "C250i",
+        "C300i",
+        "C360i",
+        "C450i",
+        "C550i",
+        "C650i",
+        "C750i"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "KONICA",
+      "model_source_ids": [
+        "K02",
+        "K03",
+        "NKM01"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KM02",
+      "brand": "Konica Minolta",
+      "model_prefix": "bizhub",
+      "model_ids": [
+        "C251i",
+        "C301i",
+        "C361i",
+        "C451i",
+        "C551i",
+        "C651i",
+        "C751i"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "KONICA",
+      "model_source_ids": [
+        "K04",
+        "NKM01",
+        "NKM02",
+        "NKM03"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Do not normalise C751i into C750i; Hong Kong sheet reports 75 mono / 70 colour.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KM03",
+      "brand": "Konica Minolta",
+      "model_prefix": "bizhub",
+      "model_ids": [
+        "300i",
+        "360i",
+        "450i",
+        "550i",
+        "650i",
+        "750i"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "KONICA",
+      "model_source_ids": [
+        "NKM01"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Older i-series generation.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KM04",
+      "brand": "Konica Minolta",
+      "model_prefix": "bizhub",
+      "model_ids": [
+        "301i",
+        "361i",
+        "451i",
+        "551i",
+        "651i",
+        "751i"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "KONICA",
+      "model_source_ids": [
+        "NKM01",
+        "K09"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KM05",
+      "brand": "Konica Minolta",
+      "model_prefix": "bizhub",
+      "model_ids": [
+        "850i",
+        "950i"
+      ],
+      "segment": "A3 high-volume mono laser MFP",
+      "management_profile": "KONICA",
+      "model_source_ids": [
+        "NKM01",
+        "NKM04"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "AccurioPrint badges also exist; preserve actual badge, controller and exact firmware.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KM06",
+      "brand": "Konica Minolta",
+      "model_prefix": "bizhub",
+      "model_ids": [
+        "C3350i",
+        "C4050i",
+        "C3351i",
+        "C4051i"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "KONICA",
+      "model_source_ids": [
+        "NKM01"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Model-specific OpenAPI operation coverage still to obtain.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KM07",
+      "brand": "Konica Minolta",
+      "model_prefix": "bizhub",
+      "model_ids": [
+        "4050i",
+        "4750i",
+        "4051i",
+        "4751i"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "KONICA",
+      "model_source_ids": [
+        "NKM01"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KY01",
+      "brand": "Kyocera",
+      "model_prefix": "TASKalfa",
+      "model_ids": [
+        "2554ci",
+        "3554ci",
+        "4054ci",
+        "5054ci",
+        "6054ci",
+        "7054ci"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "KYOCERA",
+      "model_source_ids": [
+        "Y05",
+        "NKY01"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KY02",
+      "brand": "Kyocera",
+      "model_prefix": "TASKalfa",
+      "model_ids": [
+        "5004i",
+        "6004i",
+        "7004i",
+        "7003i",
+        "8003i",
+        "9003i"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "KYOCERA",
+      "model_source_ids": [
+        "Y05",
+        "NKY04"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Older 7003/8003/9003 remain conditional installed-fleet targets.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KY03",
+      "brand": "Kyocera",
+      "model_prefix": "TASKalfa",
+      "model_ids": [
+        "MZ2501ci",
+        "MZ3501ci",
+        "MZ4001ci",
+        "MZ5001ci",
+        "MZ6001ci",
+        "MZ7001ci"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "KYOCERA",
+      "model_source_ids": [
+        "Y03",
+        "Y04"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "JP/AP generation; regional availability and firmware names differ.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KY04",
+      "brand": "Kyocera",
+      "model_prefix": "TASKalfa",
+      "model_ids": [
+        "MZ5001i",
+        "MZ6001i",
+        "MZ7001i"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "KYOCERA",
+      "model_source_ids": [
+        "Y03"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KY05",
+      "brand": "Kyocera",
+      "model_prefix": "ECOSYS",
+      "model_ids": [
+        "PA4500x",
+        "PA5000x",
+        "PA5500x",
+        "PA6000x"
+      ],
+      "segment": "A4 mono laser printer",
+      "management_profile": "KYOCERA",
+      "model_source_ids": [
+        "NKY02",
+        "NKY03"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KY06",
+      "brand": "Kyocera",
+      "model_prefix": "ECOSYS",
+      "model_ids": [
+        "MA4500ix",
+        "MA4500ifx",
+        "MA5500ifx",
+        "MA6000ifx"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "KYOCERA",
+      "model_source_ids": [
+        "NKY02",
+        "NKY03",
+        "Y07"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Shared July 2026 CCRX guide, not proof of unrestricted public REST.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "KY07",
+      "brand": "Kyocera",
+      "model_prefix": "ECOSYS",
+      "model_ids": [
+        "MA4000cix"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "KYOCERA",
+      "model_source_ids": [
+        "Y06"
+      ],
+      "model_evidence": "named_model_vendor_documents",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "LE01",
+      "brand": "Lexmark",
+      "model_prefix": "",
+      "model_ids": [
+        "CS730",
+        "CS735",
+        "CS737",
+        "CS820",
+        "CS827"
+      ],
+      "segment": "A4 colour laser printer",
+      "management_profile": "LEXMARK",
+      "model_source_ids": [
+        "NLE01"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "MVE table SNMPv3 footnote applies; exact package and region still required.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "LE02",
+      "brand": "Lexmark",
+      "model_prefix": "",
+      "model_ids": [
+        "CX730",
+        "CX735",
+        "CX737",
+        "CX820",
+        "CX825",
+        "CX827",
+        "CX830",
+        "CX833",
+        "CX860"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "LEXMARK",
+      "model_source_ids": [
+        "NLE01"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "LE03",
+      "brand": "Lexmark",
+      "model_prefix": "",
+      "model_ids": [
+        "CX930",
+        "CX931",
+        "CX942",
+        "CX943",
+        "CX944"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "LEXMARK",
+      "model_source_ids": [
+        "NLE01"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "LE04",
+      "brand": "Lexmark",
+      "model_prefix": "",
+      "model_ids": [
+        "MS725",
+        "MS821",
+        "MS822",
+        "MS823",
+        "MS824",
+        "MS825",
+        "MS826"
+      ],
+      "segment": "A4 mono laser printer",
+      "management_profile": "LEXMARK",
+      "model_source_ids": [
+        "NLE01"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "LE05",
+      "brand": "Lexmark",
+      "model_prefix": "",
+      "model_ids": [
+        "MX721",
+        "MX722",
+        "MX725",
+        "MX822",
+        "MX824",
+        "MX826"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "LEXMARK",
+      "model_source_ids": [
+        "NLE01"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "LE06",
+      "brand": "Lexmark",
+      "model_prefix": "",
+      "model_ids": [
+        "MX931"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "LEXMARK",
+      "model_source_ids": [
+        "NLE01"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "LE07",
+      "brand": "Lexmark",
+      "model_prefix": "",
+      "model_ids": [
+        "XC9325",
+        "XC9335",
+        "XC9445",
+        "XC9455",
+        "XC9465"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "LEXMARK",
+      "model_source_ids": [
+        "NLE01"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Dealer/enterprise names retained, no unsupported one-to-one OEM mapping.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "LE08",
+      "brand": "Lexmark",
+      "model_prefix": "",
+      "model_ids": [
+        "XM5365",
+        "XM5370"
+      ],
+      "segment": "A4 mono laser MFP",
+      "management_profile": "LEXMARK",
+      "model_source_ids": [
+        "NLE01"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "LE09",
+      "brand": "Lexmark",
+      "model_prefix": "",
+      "model_ids": [
+        "CX532",
+        "CX635",
+        "MX632"
+      ],
+      "segment": "A4 laser MFP, colour CX / mono MX",
+      "management_profile": "LEXMARK",
+      "model_source_ids": [
+        "NLE01"
+      ],
+      "model_evidence": "vendor_management_table",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Direct CX532/CX635 manual evidence is separate from MVE compatibility.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "SH01",
+      "brand": "Sharp",
+      "model_prefix": "BP-",
+      "model_ids": [
+        "70M75",
+        "70M90"
+      ],
+      "segment": "A3 high-volume mono laser MFP",
+      "management_profile": "SHARP",
+      "model_source_ids": [
+        "NSH01",
+        "NSH03"
+      ],
+      "model_evidence": "vendor_operation_compatibility_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "SH02",
+      "brand": "Sharp",
+      "model_prefix": "BP-",
+      "model_ids": [
+        "50M26",
+        "50M31",
+        "50M36",
+        "50M45",
+        "50M55",
+        "50M65",
+        "70M31",
+        "70M36",
+        "70M45",
+        "70M55",
+        "70M65"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "SHARP",
+      "model_source_ids": [
+        "NSH01",
+        "NSH02"
+      ],
+      "model_evidence": "vendor_operation_compatibility_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "SH03",
+      "brand": "Sharp",
+      "model_prefix": "BP-",
+      "model_ids": [
+        "50C26",
+        "50C31",
+        "50C36",
+        "50C45",
+        "50C55",
+        "50C65",
+        "70C31",
+        "70C36",
+        "70C45",
+        "70C55",
+        "70C65"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "SHARP",
+      "model_source_ids": [
+        "NSH02",
+        "A01"
+      ],
+      "model_evidence": "vendor_operation_compatibility_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Matrix distinguishes cloning/firmware/power/security from monitoring.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "SH04",
+      "brand": "Sharp",
+      "model_prefix": "MX-",
+      "model_ids": [
+        "M1056",
+        "M1206"
+      ],
+      "segment": "A3 high-volume mono laser MFP",
+      "management_profile": "SHARP",
+      "model_source_ids": [
+        "NSH01"
+      ],
+      "model_evidence": "vendor_operation_compatibility_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "IT-guide matrix explicitly excludes Fiery option for this row.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "SH05",
+      "brand": "Sharp",
+      "model_prefix": "MX-",
+      "model_ids": [
+        "C407P",
+        "C507P",
+        "C607P"
+      ],
+      "segment": "A4 colour laser printer",
+      "management_profile": "SHARP",
+      "model_source_ids": [
+        "NSH02"
+      ],
+      "model_evidence": "vendor_operation_compatibility_matrix",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Negative control: SRDM lists no firmware/clone/security management for this group.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "TO01",
+      "brand": "Toshiba",
+      "model_prefix": "e-STUDIO",
+      "model_ids": [
+        "2525AC",
+        "3025AC",
+        "3525AC",
+        "4525AC",
+        "5525AC",
+        "6525AC"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "TOSHIBA",
+      "model_source_ids": [
+        "T01",
+        "T02"
+      ],
+      "model_evidence": "model_specifications_and_administrator_guide",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "TO02",
+      "brand": "Toshiba",
+      "model_prefix": "e-STUDIO",
+      "model_ids": [
+        "6526AC",
+        "6527AC",
+        "7527AC"
+      ],
+      "segment": "A3 high-volume colour laser MFP",
+      "management_profile": "TOSHIBA",
+      "model_source_ids": [
+        "NTO01"
+      ],
+      "model_evidence": "model_specifications_and_administrator_guide",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "TO03",
+      "brand": "Toshiba",
+      "model_prefix": "e-STUDIO",
+      "model_ids": [
+        "2528A",
+        "3028A",
+        "3528A",
+        "4528A",
+        "5528A",
+        "6528A"
+      ],
+      "segment": "A3 mono laser MFP",
+      "management_profile": "TOSHIBA",
+      "model_source_ids": [
+        "T03",
+        "T07"
+      ],
+      "model_evidence": "model_specifications_and_administrator_guide",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "TO04",
+      "brand": "Toshiba",
+      "model_prefix": "e-STUDIO",
+      "model_ids": [
+        "6529A",
+        "7529A",
+        "9029A"
+      ],
+      "segment": "A3 high-volume mono laser MFP",
+      "management_profile": "TOSHIBA",
+      "model_source_ids": [
+        "T06"
+      ],
+      "model_evidence": "model_specifications_and_administrator_guide",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "BR01",
+      "brand": "Brother",
+      "model_prefix": "",
+      "model_ids": [
+        "HL-L9410CDN",
+        "HL-L9430CDN",
+        "HL-L9470CDN",
+        "HL-EX470W"
+      ],
+      "segment": "A4 enterprise colour laser printer",
+      "management_profile": "BROTHER",
+      "model_source_ids": [
+        "NBR01"
+      ],
+      "model_evidence": "named_model_network_guide",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "BR02",
+      "brand": "Brother",
+      "model_prefix": "",
+      "model_ids": [
+        "MFC-L9610CDN",
+        "MFC-L9630CDN",
+        "MFC-L9670CDN",
+        "MFC-EX670W"
+      ],
+      "segment": "A4 enterprise colour laser MFP",
+      "management_profile": "BROTHER",
+      "model_source_ids": [
+        "NBR01",
+        "B04"
+      ],
+      "model_evidence": "named_model_network_guide",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "BR03",
+      "brand": "Brother",
+      "model_prefix": "",
+      "model_ids": [
+        "HL-L6415DW",
+        "MFC-L6810DW",
+        "MFC-L6915DW"
+      ],
+      "segment": "A4 enterprise mono laser printer / MFP",
+      "management_profile": "BROTHER",
+      "model_source_ids": [
+        "B01",
+        "B02"
+      ],
+      "model_evidence": "model_specifications_and_network_manual",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "HL is printer; MFC is MFP.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "EP01",
+      "brand": "Epson",
+      "model_prefix": "WorkForce Enterprise",
+      "model_ids": [
+        "AM-C4000",
+        "AM-C5000",
+        "AM-C6000"
+      ],
+      "segment": "A3 colour enterprise inkjet MFP",
+      "management_profile": "EPSON",
+      "model_source_ids": [
+        "E02",
+        "E03"
+      ],
+      "model_evidence": "model_launch_and_administrator_guide",
+      "release_year": 2023,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "regional_launch_or_availability_year"
+    },
+    {
+      "id": "EP02",
+      "brand": "Epson",
+      "model_prefix": "WorkForce Enterprise",
+      "model_ids": [
+        "AM-C10000"
+      ],
+      "segment": "A3 high-volume colour enterprise inkjet MFP",
+      "management_profile": "EPSON",
+      "model_source_ids": [
+        "E06"
+      ],
+      "model_evidence": "official_launch",
+      "release_year": 2026,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "New flagship; exact protocol guide must be checked before inheriting AM-C6000 coverage.",
+      "release_year_scope": "regional_launch_or_availability_year"
+    },
+    {
+      "id": "EP03",
+      "brand": "Epson",
+      "model_prefix": "WorkForce Enterprise",
+      "model_ids": [
+        "WF-C21000"
+      ],
+      "segment": "A3 high-volume colour page-array inkjet MFP",
+      "management_profile": "EPSON",
+      "model_source_ids": [
+        "NEP01",
+        "NEP02"
+      ],
+      "model_evidence": "model_specifications_and_firmware_download",
+      "release_year": null,
+      "lifecycle": "Discontinued regional European SKU; firmware download listed",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "European SKU explicitly discontinued; maintained download page is separate evidence.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "EP04",
+      "brand": "Epson",
+      "model_prefix": "WorkForce Pro",
+      "model_ids": [
+        "WF-C5390",
+        "WF-C5890"
+      ],
+      "segment": "A4 colour inkjet printer / MFP",
+      "management_profile": "EPSON",
+      "model_source_ids": [
+        "NEP03",
+        "E07"
+      ],
+      "model_evidence": "model_family_documents",
+      "release_year": 2023,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "WF-C5390 printer; WF-C5890 MFP; verify exact firmware and controller.",
+      "release_year_scope": "regional_launch_or_availability_year"
+    },
+    {
+      "id": "OK01",
+      "brand": "OKI",
+      "model_prefix": "",
+      "model_ids": [
+        "C650dn",
+        "ES6450"
+      ],
+      "segment": "A4 colour LED printer",
+      "management_profile": "OKI",
+      "model_source_ids": [
+        "O01",
+        "O02",
+        "O03",
+        "O05"
+      ],
+      "model_evidence": "model_specifications_and_network_manual",
+      "release_year": 2021,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "regional_launch_or_availability_year"
+    },
+    {
+      "id": "OK02",
+      "brand": "OKI",
+      "model_prefix": "",
+      "model_ids": [
+        "C824",
+        "C834",
+        "C844",
+        "MC853",
+        "MC873",
+        "MC883"
+      ],
+      "segment": "A3 colour LED printer / MFP",
+      "management_profile": "OKI",
+      "model_source_ids": [
+        "NOK01",
+        "NOK02"
+      ],
+      "model_evidence": "official_support_and_family_context",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Older conditional candidates; C-prefix printers and MC-prefix MFPs have separate documentation.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "SA01",
+      "brand": "Samsung",
+      "model_prefix": "MultiXpress",
+      "model_ids": [
+        "X4220RX",
+        "X4250LX",
+        "X4300LX"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "SAMSUNG",
+      "model_source_ids": [
+        "G01",
+        "G02",
+        "G03"
+      ],
+      "model_evidence": "model_specifications_and_SyncThru_manual",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Legacy HP-hosted Samsung support; separate from FutureSmart.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "FU01",
+      "brand": "Fujifilm",
+      "model_prefix": "Apeos",
+      "model_ids": [
+        "C3570",
+        "C4570",
+        "C5570",
+        "C7070"
+      ],
+      "segment": "A3 colour laser MFP",
+      "management_profile": "FUJIFILM",
+      "model_source_ids": [
+        "F01",
+        "F02"
+      ],
+      "model_evidence": "model_specifications",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "FU02",
+      "brand": "Fujifilm",
+      "model_prefix": "Apeos",
+      "model_ids": [
+        "C6580",
+        "C7580",
+        "C8180"
+      ],
+      "segment": "A3 high-volume colour laser MFP",
+      "management_profile": "FUJIFILM",
+      "model_source_ids": [
+        "NFU01"
+      ],
+      "model_evidence": "model_security_guide",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Evaluated secure configuration explicitly disables SNMP: feature availability is not enabled-policy evidence.",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "FU03",
+      "brand": "Fujifilm",
+      "model_prefix": "Apeos",
+      "model_ids": [
+        "C3530",
+        "C4030"
+      ],
+      "segment": "A4 colour laser MFP",
+      "management_profile": "FUJIFILM",
+      "model_source_ids": [
+        "F04"
+      ],
+      "model_evidence": "model_specifications",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "",
+      "release_year_scope": "unverified"
+    },
+    {
+      "id": "RS01",
+      "brand": "RISO",
+      "model_prefix": "ComColor",
+      "model_ids": [
+        "GL9730",
+        "GL7430"
+      ],
+      "segment": "A3 enterprise inkjet printer",
+      "management_profile": "RISO",
+      "model_source_ids": [
+        "Z01",
+        "Z05"
+      ],
+      "model_evidence": "model_specifications_and_administrator_guide",
+      "release_year": null,
+      "lifecycle": "Listed in official documentation; regional sale and support lifecycle unverified",
+      "qualification_status": "research_candidate_unvalidated",
+      "note": "Validate external controller separately from engine.",
+      "release_year_scope": "unverified"
+    }
+  ],
+  "management_profiles": {
+    "HP_FS": {
+      "label": "HP FutureSmart enterprise/managed candidate",
+      "read_path": "SNMP plus EWS; exact object/firmware coverage must be probed",
+      "configuration_path": "EWS and Web Jetadmin; third-party management contract/private MIB still to obtain",
+      "firmware_path": "Documented FutureSmart .bdl via EWS/Web Jetadmin; exact product/package match required",
+      "general_admin_api": "No unrestricted public general administrative REST contract verified",
+      "source_ids": [
+        "NHP19",
+        "NHP20",
+        "H11"
+      ],
+      "scope": "Family research context only; a model-table entry does not prove every operation"
+    },
+    "RICOH": {
+      "label": "Ricoh controller-specific qualification",
+      "read_path": "Web Image Monitor; Standard/Private MIB definitions through Ricoh developer program",
+      "configuration_path": "Ricoh Device Interfaces / PMAPI / private MIB coverage requires program access and exact model matrix",
+      "firmware_path": "ACT and model update tools provide vendor routes; third-party unattended upload contract unverified",
+      "general_admin_api": "Partner management interfaces documented; unrestricted model-specific contract not verified",
+      "source_ids": [
+        "R08",
+        "R09",
+        "R10",
+        "R11",
+        "NRI01",
+        "NRI05"
+      ],
+      "scope": "Do not propagate SmartSDK or one IM generation to every model"
+    },
+    "CANON": {
+      "label": "Canon Remote UI and Device Settings Configurator",
+      "read_path": "Remote UI; exact DX8900 manual documents SNMPv1/v3",
+      "configuration_path": "DSC supports settings retrieval/distribution on listed DX/third-generation devices; operation exceptions apply",
+      "firmware_path": "Confirm exact CDS/service/update procedure and package entitlement",
+      "general_admin_api": "Settings-tool compatibility is not an open wire API specification",
+      "source_ids": [
+        "NCA01",
+        "NCA02",
+        "NCA03",
+        "C08"
+      ],
+      "scope": "Exact SNMP evidence for DX8900 and earlier report targets, not every listed model"
+    },
+    "XEROX": {
+      "label": "Xerox AltaLink / separate VersaLink track",
+      "read_path": "SNMP and EWS; AltaLink standard-MIB evidence in specification",
+      "configuration_path": "EWS clone files / Fleet Orchestrator documented for specified AltaLink families",
+      "firmware_path": "AltaLink .dlm routes and verification documented; separate VersaLink guide required",
+      "general_admin_api": "EIP administrative coverage and SDK access must be verified per operation",
+      "source_ids": [
+        "X02",
+        "X03"
+      ],
+      "scope": "AltaLink B/C81xx and B/C82xx documentation is not a blanket VersaLink contract"
+    },
+    "KONICA": {
+      "label": "Konica Minolta Web Connection / OpenAPI",
+      "read_path": "Web Connection and SNMP; exact current MIB package to obtain",
+      "configuration_path": "OpenAPI device information and configuration is explicitly described in vendor security paper",
+      "firmware_path": "Fleet RMM / service firmware paths exist; third-party upload contract and exact versions to obtain",
+      "general_admin_api": "Partner OpenAPI management evidence; operation schema/licence compatibility not yet obtained",
+      "source_ids": [
+        "K02",
+        "K03",
+        "K10",
+        "NKM01"
+      ],
+      "scope": "Vendor security paper describes interface; model-level operations still need SDK compatibility"
+    },
+    "KYOCERA": {
+      "label": "Kyocera Command Center RX",
+      "read_path": "SNMP and CCRX; 7054ci explicitly lists v1/v2c/v3",
+      "configuration_path": "CCRX, Net Viewer / Device Manager; HyPAS does not prove general administrative REST",
+      "firmware_path": "Vendor utility paths exist; exact third-party protocol/package entitlement unverified",
+      "general_admin_api": "No unrestricted device administrative REST contract verified",
+      "source_ids": [
+        "NKY01",
+        "NKY03",
+        "Y07",
+        "Y08"
+      ],
+      "scope": "Specific 7054ci/SCEP and MA-series evidence must not be inherited by all MZ/ECOSYS devices"
+    },
+    "LEXMARK": {
+      "label": "Lexmark Markvision Enterprise 4.7",
+      "read_path": "Named MVE support with SNMPv3 prerequisites; model firmware/EOFS check required",
+      "configuration_path": "MVE enforces configurations; proprietary LST/NPAP/XMLNT paths documented",
+      "firmware_path": "MVE file upload and scheduled window documented; Firmware Updates access-control prerequisite",
+      "general_admin_api": "Fleet Tracker server REST and workflow JSAPI are separate from device administration",
+      "source_ids": [
+        "NLE01",
+        "NLE02",
+        "NLE03",
+        "NLE04",
+        "L07",
+        "L08"
+      ],
+      "scope": "Compatibility plus vendor-tool operation evidence, not a public device protocol implementation"
+    },
+    "SHARP": {
+      "label": "Sharp operation-by-model matrix",
+      "read_path": "SRDM discovery/status/meters; exact row determines available fields",
+      "configuration_path": "Web management/cloning and SRDM capability matrix",
+      "firmware_path": "Network / one-to-many SRDM update on supported rows; explicit unsupported rows retained",
+      "general_admin_api": "OSA is not proof of unrestricted fleet-administration REST",
+      "source_ids": [
+        "NSH01",
+        "NSH02",
+        "NSH03"
+      ],
+      "scope": "A4 OEM-derived groups can have much narrower operations than A3 BP groups"
+    },
+    "TOSHIBA": {
+      "label": "Toshiba e-BRIDGE / TopAccess",
+      "read_path": "TopAccess and SNMP; software inventory includes multiple components",
+      "configuration_path": "TopAccess; general third-party administrative operation schema unverified",
+      "firmware_path": "Component versions documented; system firmware upload rights/protocol need confirmation",
+      "general_admin_api": "No general open administrative REST contract verified",
+      "source_ids": [
+        "T01",
+        "T04",
+        "T07"
+      ],
+      "scope": "Regional security options and controller generation must match"
+    },
+    "BROTHER": {
+      "label": "Brother enterprise network devices",
+      "read_path": "SNMP/Web Based Management; exact enterprise colour/mono guides required",
+      "configuration_path": "BRAdmin / Mass Deployment Tool settings",
+      "firmware_path": "Firmware Update Tool vendor server route; offline redistribution/API unverified",
+      "general_admin_api": "No general administrative REST contract verified",
+      "source_ids": [
+        "B02",
+        "B04",
+        "B05",
+        "NBR01"
+      ],
+      "scope": "Enterprise family names and firmware tools do not prove identical admin settings"
+    },
+    "EPSON": {
+      "label": "Epson enterprise inkjet",
+      "read_path": "SNMP and Web Config; AM-C6000 guide is exact family anchor",
+      "configuration_path": "Epson Device Admin batch settings and Web Config",
+      "firmware_path": "Web Config / Device Admin paths; recovery and model revisions differ",
+      "general_admin_api": "Open Platform workflow support is not a general management REST contract",
+      "source_ids": [
+        "E03",
+        "E04",
+        "E05",
+        "NEP02"
+      ],
+      "scope": "Do not inherit AM-C6000 protocol details onto AM-C10000 or older WF models"
+    },
+    "OKI": {
+      "label": "OKI LED model-specific qualification",
+      "read_path": "Exact C650 guide documents SNMPv1/v3; MIB files on supplied media",
+      "configuration_path": "Configuration Tool / model EWS; some settings excluded from cloning",
+      "firmware_path": "Official C650 updater; A3 devices require their own tool/version checks",
+      "general_admin_api": "No general administrative REST contract verified",
+      "source_ids": [
+        "O02",
+        "O03",
+        "O04",
+        "O05"
+      ],
+      "scope": "C650 evidence does not prove A3 firmware/API parity"
+    },
+    "SAMSUNG": {
+      "label": "Legacy Samsung SyncThru",
+      "read_path": "SyncThru Web Service model guide",
+      "configuration_path": "SyncThru-generation administrative UI and tools",
+      "firmware_path": "Legacy support and package entitlement must be checked",
+      "general_admin_api": "No general open administration contract verified",
+      "source_ids": [
+        "G01",
+        "G02",
+        "G03"
+      ],
+      "scope": "HP ownership does not establish FutureSmart compatibility"
+    },
+    "FUJIFILM": {
+      "label": "Fujifilm Apeos Internet Services",
+      "read_path": "SNMPv3 and Internet Services in exact family documents; secure mode may disable SNMP",
+      "configuration_path": "Internet Services / vendor management tooling",
+      "firmware_path": "Obtain exact regional customer/service route; no third-party contract verified",
+      "general_admin_api": "Workflow interfaces are separate from general administrative API coverage",
+      "source_ids": [
+        "F03",
+        "F05",
+        "F06",
+        "NFU01"
+      ],
+      "scope": "Evaluated security configuration may differ from normal deployed policy"
+    },
+    "RISO": {
+      "label": "RISO ComColor",
+      "read_path": "RISO Console and SNMP-related administrator settings",
+      "configuration_path": "RISO Console / exact external-controller guide",
+      "firmware_path": "Customer-accessible third-party update contract unverified",
+      "general_admin_api": "No general administrative REST contract verified",
+      "source_ids": [
+        "Z01",
+        "Z05"
+      ],
+      "scope": "Engine and optional print controller need separate fingerprints"
+    }
+  },
+  "operation_evidence": [
+    {
+      "id": "HP_E877",
+      "model_ids": [
+        "E877",
+        "E87740",
+        "E87750",
+        "E87760",
+        "E87770"
+      ],
+      "brand": "HP",
+      "monitoring": {
+        "status": "documented_exact_generic_SKU_plus_family_manual",
+        "source_ids": [
+          "NHP14",
+          "NHP04"
+        ]
+      },
+      "configuration": {
+        "status": "documented_EWS_vendor_tool",
+        "source_ids": [
+          "NHP04",
+          "NHP13"
+        ]
+      },
+      "security": {
+        "status": "documented_exact_E877dn_SKU",
+        "source_ids": [
+          "NHP14"
+        ]
+      },
+      "firmware": {
+        "status": "family_revision_list_and_platform_update_procedure",
+        "source_ids": [
+          "NHP02",
+          "H11"
+        ]
+      },
+      "third_party_admin_contract": "unverified",
+      "physical_validation": false
+    },
+    {
+      "id": "HP_E876_E825",
+      "model_ids": [
+        "E87640",
+        "E87650",
+        "E87660",
+        "E82540",
+        "E82550",
+        "E82560"
+      ],
+      "brand": "HP",
+      "monitoring": {
+        "status": "documented_named_model_manual_SNMPv1_v2c_v3",
+        "source_ids": [
+          "NHP05"
+        ]
+      },
+      "configuration": {
+        "status": "documented_EWS_and_WJA",
+        "source_ids": [
+          "NHP05",
+          "NHP01"
+        ]
+      },
+      "security": {
+        "status": "documented_TLS_8021X_IPsec_certificates_protocol_controls",
+        "source_ids": [
+          "NHP05"
+        ]
+      },
+      "firmware": {
+        "status": "documented_EWS_firmware_upgrade",
+        "source_ids": [
+          "NHP05",
+          "H11"
+        ]
+      },
+      "third_party_admin_contract": "unverified",
+      "physical_validation": false
+    },
+    {
+      "id": "HP_WORKPATH_APPS",
+      "model_ids": [
+        "exact_products_in_NHP03_only"
+      ],
+      "brand": "HP",
+      "app_management": {
+        "status": "published_API_and_local_manager_route_documented",
+        "minimum_firmware": "5.9.2.3; model exceptions on compatibility page",
+        "licence": "Essential and/or Premium Workpath licence",
+        "source_ids": [
+          "NHP03",
+          "NHP07"
+        ]
+      },
+      "general_device_management": "not_established_by_this_app_management_evidence",
+      "physical_validation": false
+    },
+    {
+      "id": "RICOH_HIGH_VOLUME_MONO",
+      "model_ids": [
+        "IM 7000",
+        "IM 8000",
+        "IM 9000"
+      ],
+      "brand": "Ricoh",
+      "monitoring": {
+        "status": "SNMPv3_settings_in_exact_family_manual",
+        "source_ids": [
+          "NRI04"
+        ]
+      },
+      "configuration": {
+        "status": "Web_Image_Monitor_and_partner_interface_candidate",
+        "source_ids": [
+          "NRI04",
+          "R08",
+          "R09"
+        ]
+      },
+      "firmware": {
+        "status": "ACT_and_SMTP_OAuth_component_requirements_documented",
+        "source_ids": [
+          "NRI01",
+          "NRI05"
+        ]
+      },
+      "third_party_admin_contract": "exact_model_licenced_contract_required",
+      "physical_validation": false
+    },
+    {
+      "id": "CANON_DX8900",
+      "model_ids": [
+        "8905",
+        "8995",
+        "8986"
+      ],
+      "brand": "Canon",
+      "monitoring": {
+        "status": "SNMPv1_v3_explicit_v2c_unverified",
+        "source_ids": [
+          "NCA03"
+        ]
+      },
+      "configuration": {
+        "status": "Remote_UI_and_DSC_documented",
+        "source_ids": [
+          "NCA01",
+          "NCA02"
+        ]
+      },
+      "security": {
+        "status": "8021X_and_SNMP_access_controls_documented",
+        "source_ids": [
+          "NCA02"
+        ]
+      },
+      "firmware": {
+        "status": "third_party_unattended_update_route_unverified",
+        "source_ids": []
+      },
+      "third_party_admin_contract": "unverified",
+      "physical_validation": false
+    },
+    {
+      "id": "SHARP_HIGH_VOLUME_MONO",
+      "model_ids": [
+        "70M75",
+        "70M90"
+      ],
+      "brand": "Sharp",
+      "monitoring": {
+        "status": "SNMPv3_and_SRDM_meters_documented",
+        "source_ids": [
+          "NSH01",
+          "NSH03"
+        ]
+      },
+      "configuration": {
+        "status": "web_clone_and_SRDM_documented",
+        "source_ids": [
+          "NSH01",
+          "NSH03"
+        ]
+      },
+      "security": {
+        "status": "TLS13_8021X_protocol_controls_documented",
+        "source_ids": [
+          "NSH03"
+        ]
+      },
+      "firmware": {
+        "status": "network_and_SRDM_one_to_many_documented",
+        "source_ids": [
+          "NSH03"
+        ]
+      },
+      "third_party_admin_contract": "unverified",
+      "physical_validation": false
+    },
+    {
+      "id": "SHARP_A4_LIMIT",
+      "model_ids": [
+        "C407P",
+        "C507P",
+        "C607P"
+      ],
+      "brand": "Sharp",
+      "monitoring": {
+        "status": "toner_monitoring_in_vendor_matrix",
+        "source_ids": [
+          "NSH02"
+        ]
+      },
+      "configuration": {
+        "status": "SRDM_power_security_clone_not_supported_in_checked_matrix",
+        "source_ids": [
+          "NSH02"
+        ]
+      },
+      "firmware": {
+        "status": "SRDM_update_not_supported_in_checked_matrix",
+        "source_ids": [
+          "NSH02"
+        ]
+      },
+      "third_party_admin_contract": "other_update_routes_not_ruled_out",
+      "physical_validation": false
+    },
+    {
+      "id": "KYOCERA_7054ci",
+      "model_ids": [
+        "7054ci"
+      ],
+      "brand": "Kyocera",
+      "monitoring": {
+        "status": "SNMPv1_v2c_v3_explicit",
+        "source_ids": [
+          "NKY01"
+        ]
+      },
+      "configuration": {
+        "status": "CCRX_and_vendor_tools_listed",
+        "source_ids": [
+          "NKY01",
+          "Y08"
+        ]
+      },
+      "security": {
+        "status": "SCEP_TLS13_TPM_secure_boot_explicit",
+        "source_ids": [
+          "NKY01"
+        ]
+      },
+      "firmware": {
+        "status": "third_party_unattended_transport_unverified",
+        "source_ids": []
+      },
+      "third_party_admin_contract": "unverified",
+      "physical_validation": false
+    },
+    {
+      "id": "LEXMARK_MVE",
+      "model_ids": [
+        "selected_models_in_NLE01_with_footnote_2"
+      ],
+      "brand": "Lexmark",
+      "monitoring": {
+        "status": "vendor_support_table_requires_SNMPv3_enabled",
+        "source_ids": [
+          "NLE01"
+        ]
+      },
+      "configuration": {
+        "status": "MVE_configuration_enforcement_and_channels_documented",
+        "source_ids": [
+          "NLE02"
+        ]
+      },
+      "security": {
+        "status": "manager_mediated_CA_enrolment_and_certificate_install_documented",
+        "source_ids": [
+          "NLE04"
+        ]
+      },
+      "firmware": {
+        "status": "vendor_tool_upload_schedule_and_access_control_documented",
+        "source_ids": [
+          "NLE03"
+        ]
+      },
+      "third_party_admin_contract": "proprietary_protocols_not_a_full_public_schema",
+      "physical_validation": false
+    }
+  ],
+  "hp_variant_examples": [
+    {
+      "base_model": "E87740",
+      "bundle": "dn",
+      "product_number": "3SJ19A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87750",
+      "bundle": "dn",
+      "product_number": "3SJ20A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87760",
+      "bundle": "dn",
+      "product_number": "3SJ21A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87770",
+      "bundle": "dn",
+      "product_number": "3SJ22A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87740",
+      "bundle": "Flow z",
+      "product_number": "3SJ35A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87750",
+      "bundle": "Flow z",
+      "product_number": "3SJ36A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87760",
+      "bundle": "Flow z",
+      "product_number": "3SJ37A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87770",
+      "bundle": "Flow z",
+      "product_number": "3SJ38A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E877",
+      "bundle": "dn",
+      "product_number": "5QK03A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E877",
+      "bundle": "Flow z",
+      "product_number": "5QK08A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E877",
+      "bundle": "Core generic",
+      "product_number": "5QK20A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87640",
+      "bundle": "du",
+      "product_number": "5RC86A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87650",
+      "bundle": "du",
+      "product_number": "5RC87A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87660",
+      "bundle": "du",
+      "product_number": "5RC88A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E82540",
+      "bundle": "Flow z",
+      "product_number": "X3A68A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E82550",
+      "bundle": "Flow z",
+      "product_number": "X3A71A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E82560",
+      "bundle": "Flow z",
+      "product_number": "X3A74A",
+      "source_ids": [
+        "NHP03"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87640",
+      "bundle": "dn",
+      "product_number": "X3A87A",
+      "source_ids": [
+        "NHP05"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87640",
+      "bundle": "Flow z",
+      "product_number": "X3A86A",
+      "source_ids": [
+        "NHP05"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87650",
+      "bundle": "dn",
+      "product_number": "X3A90A",
+      "source_ids": [
+        "NHP05"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87650",
+      "bundle": "Flow z",
+      "product_number": "X3A89A",
+      "source_ids": [
+        "NHP05"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87660",
+      "bundle": "dn",
+      "product_number": "X3A93A",
+      "source_ids": [
+        "NHP05"
+      ],
+      "physical_validation": false
+    },
+    {
+      "base_model": "E87660",
+      "bundle": "Flow z",
+      "product_number": "X3A92A",
+      "source_ids": [
+        "NHP05"
+      ],
+      "physical_validation": false
+    }
+  ],
+  "sources": {
+    "NHP01": {
+      "title": "Web Jetadmin 10.6 late breaking news, edition 63, September 2026",
+      "url": "https://support.hp.com/emea_middle_east-en/document/ish_3017251-3017406-16",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP02": {
+      "title": "HP FutureSmart firmware version and revision matrix",
+      "url": "https://support.hp.com/ph-en/document/ish_4025423-4025481-16",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP03": {
+      "title": "Workpath exact device and product-number compatibility",
+      "url": "https://developers.hp.com/workpath/compatible-devices",
+      "access": "full_page",
+      "checked_on": "2026-10-28"
+    },
+    "NHP04": {
+      "title": "E877 user guide, management chapter",
+      "url": "https://kaas.hpcloud.hp.com/pdf-public/pdf_3075457_en-US-1.pdf",
+      "access": "official_indexed_sections_full_fetch_too_large",
+      "checked_on": "2026-10-28"
+    },
+    "NHP05": {
+      "title": "E82540/50/60 and E87640/50/60 user guide",
+      "url": "https://h10032.www1.hp.com/ctg/Manual/c05387361.pdf",
+      "access": "full_pdf_and_targeted_sections",
+      "checked_on": "2026-10-28"
+    },
+    "NHP06": {
+      "title": "HP A3 and A4 managed portfolio",
+      "url": "https://h20195.www2.hp.com/v2/GetDocument.aspx?docname=c08740367",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP07": {
+      "title": "Workpath alternative deployment FAQ",
+      "url": "https://support.hp.com/at-de/document/ish_13877154-13872747-16?fallbackLocale=us-en&validated=true",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP08": {
+      "title": "Web Jetadmin ports and direction of communication",
+      "url": "https://support.hp.com/hk-en/document/ish_3007439-11769595-16",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP09": {
+      "title": "Universal Print support in FutureSmart 5.8.1.1; named enterprise/managed models",
+      "url": "https://kaas.hpcloud.hp.com/pdf-public/pdf_11219519_en-US-1.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP10": {
+      "title": "E725/E778/E783 model specifications and variants",
+      "url": "https://support.hp.com/sg-en/document/c05443354",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP11": {
+      "title": "Managed A4 E40040/E42540/E45028/E47528 exact model identities",
+      "url": "https://support.hp.com/us-en/document/ish_3245298-3245359-16",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP12": {
+      "title": "PageWide Managed model identities in HP support matrix",
+      "url": "https://support.hp.com/gb-en/document/ish_8516332-8516384-16",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP13": {
+      "title": "Managed speed licence registration and LPDC",
+      "url": "https://support.hp.com/au-en/document/ish_5609980-5610028-16",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP14": {
+      "title": "E877dn 5QK03A specifications",
+      "url": "https://www.hp.com/emea_africa-en/products/printers/product-details/product-specifications/38348453",
+      "access": "full_page",
+      "checked_on": "2026-10-28"
+    },
+    "NHP15": {
+      "title": "LaserJet Enterprise MFP 8601dn specifications",
+      "url": "https://www.hp.com/us-en/shop/pdp/hp-laserjet-enterprise-mfp-8601dn",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP16": {
+      "title": "Color LaserJet Enterprise 8801 user guide, management protocols",
+      "url": "https://kaas.hpcloud.hp.com/pdf-public/pdf_11513794_en-US-1.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP17": {
+      "title": "LaserJet Enterprise 8501 specifications",
+      "url": "https://support.hp.com/gb-en/product/product-specs/hp-laserjet-enterprise-8501-printer-series/2102657284",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP18": {
+      "title": "Enterprise 5502 guide hub naming new mono enterprise model families",
+      "url": "https://support.hp.com/us-en/product/setup-user-guides/hp-laserjet-enterprise-5502dn-printer-series/2103151462",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP19": {
+      "title": "SNMPv3 management best practices for Web Jetadmin",
+      "url": "https://kaas.hpcloud.hp.com/pdf-public/pdf_6892698_en-US-1.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NHP20": {
+      "title": "Web Jetadmin user guide; Manageability Contract and SNMP crypto requirements",
+      "url": "https://kaas.hpcloud.hp.com/pdf-public/pdf_3017438_en-US-1.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NRI01": {
+      "title": "Always Current Technology named-model applicability",
+      "url": "https://www.ricoh-usa.com/en/products/always-current-technology/always-current-technology-instructions-and-versions",
+      "access": "full_page",
+      "checked_on": "2026-10-28"
+    },
+    "NRI02": {
+      "title": "IM C6500 / C8000 specification brochure",
+      "url": "https://www.ricoh-ap.com/products/office-printing/mfp-colour/-/media/ra/files/pdfs/products_brochure/office_solutions/printers_and_copiers/mfp_colour/ricoh-im-c6500-c8000-brochure.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NRI03": {
+      "title": "IM 7000 / 8000 / 9000 specification sheet",
+      "url": "https://assets.ricoh-usa.com/j2jqn9lauv41/1CdwVWGQXlWPUvDB7EZqqr/387ce4601d87d7cb760faf613c87ae31/IM_7000_8000_9000-spec-sheet_RUS_EN_FINAL_V1.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NRI04": {
+      "title": "IM 7000 / 8000 / 9000 network configuration manual (Japanese)",
+      "url": "https://manuals.ricoh.com/mfp/p_manual/IM9000JPN/ja/setup/int/network.htm",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NRI05": {
+      "title": "OAuth 2.0 availability and firmware-component requirements by Ricoh model",
+      "url": "https://www.ricoh-ap.com/support/enabling-oauth-2-authentication-for-ricoh-products",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NRI06": {
+      "title": "P 800 A4 mono printer and management software",
+      "url": "https://www.ricoh-ap.com/products/office-printing/black-and-white-printer/p-800",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NRI07": {
+      "title": "P C600 specifications and Web Image Monitor",
+      "url": "https://www.ricoh-ap.com/products/office-printing/colour-printer/p-c600",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NRI08": {
+      "title": "P C375 specifications and Web Image Monitor",
+      "url": "https://www.ricoh-ap.com/products/office-printing/colour-printer/p-c375",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NRI09": {
+      "title": "Ricoh regional configurator, including C6510/C8010",
+      "url": "https://www.ricoh-ap.com/configurators",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NRI10": {
+      "title": "Ricoh official manuals inventory including P 801",
+      "url": "https://www.ricoh-ap.com/downloads/manual-for-office-solutions",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NCA01": {
+      "title": "Device Settings Configurator 2.1.1 supported devices and operation restrictions",
+      "url": "https://oip.manual.canon/USRMB-0556-zz-DS-enUV/",
+      "access": "full_page",
+      "checked_on": "2026-10-28"
+    },
+    "NCA02": {
+      "title": "DX 8900 network settings, RFC2790 and management permissions",
+      "url": "https://oip.manual.canon/USRMA-8320-zz-CS-8900-enAU/contents/devu-set_reg-pref-nw.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NCA03": {
+      "title": "DX 8900 SNMPv1/v3 monitoring and controlling",
+      "url": "https://oip.manual.canon/USRMA-8319-zz-CS-8900-enUS/contents/devu-setup-nw-pref_fit-snmp_moni_control.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NCA04": {
+      "title": "DX 8900 network protocols and ports",
+      "url": "https://oip.manual.canon/USRMA-8318-zz-CS-8900-enGB/contents/devu-apdx-sys_spec-nw.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NCA05": {
+      "title": "DX 8900 US brochure",
+      "url": "https://www.usa.canon.com/bin/canon/downloadasset?path=%2Fcontent%2Fdam%2Fcanon-assets%2Fbrochures%2Fbusiness%2Fcopiers-and-mfp%2Fimagerunner-advance-dx%2FimageRUNNER-ADV-DX-8900-Series-ProductBrochure.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NXE01": {
+      "title": "AltaLink B8245 / B8255 / B8270 specifications",
+      "url": "https://www.shop.xerox.com/altalink-b8200-series",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NXE02": {
+      "title": "AltaLink B82xx/C82xx security disclosure",
+      "url": "https://securitydocs.business.xerox.com/wp-content/uploads/2024/09/Security-Guide-Information-Assurance-Disclosure-Xerox%C2%AE-AltaLink%C2%AE-B82XX-and-C82XX.pdf",
+      "access": "official_index_full_fetch_failed",
+      "checked_on": "2026-10-28"
+    },
+    "NKM01": {
+      "title": "Konica Minolta named-model security advisory, June 2025",
+      "url": "https://www.konicaminolta.eu/eu-en/support/vulnerability-information/pass-back-attack-vulnerability-in-konica-minolta-multifunction-printers",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NKM02": {
+      "title": "C651i regional specifications",
+      "url": "https://www.konicaminolta.eu/eu-en/digital-workplace/printing-devices/bizhub-c651i",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NKM03": {
+      "title": "C751i Hong Kong datasheet",
+      "url": "https://www.konicaminolta.hk/hk/wp-content/uploads/2025/03/bizhub-C751i-datasheet_low-1.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NKM04": {
+      "title": "AccurioPrint 850i/950i high-volume office and light-production positioning",
+      "url": "https://www.konicaminolta.eu/eu-en/news/konica-minolta-launches-accurioprint-850i-and-950i-series-to-help-customers-rethink-efficiency",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NKY01": {
+      "title": "TASKalfa 7054ci exact protocols, security and storage",
+      "url": "https://www.kyoceradocumentsolutions.us/content/download-center-americas/us/documents/brochures-and-specs/TASKalfa_7054ci_Spec_Sheet_pdf.download.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NKY02": {
+      "title": "PA6000/MA6000 series official named-model support notice, June 2023",
+      "url": "https://www.kyoceradocumentsolutions.com/global/en/support-and-download/support-information/info_20230622.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NKY03": {
+      "title": "MA6000ifx official support hub and July 2026 Command Center RX guide",
+      "url": "https://www.kyoceradocumentsolutions.us/en/support/downloads.name-L3VzL2VuL21mcC9FQ09TWVNNQTYwMDBJRlg%3D.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NKY04": {
+      "title": "Command Center RX advisory with explicit affected-model list",
+      "url": "https://www.kyoceradocumentsolutions.eu/en/about-us/contact-us/press/kyocera-command-center-rx-%28ccrx%29-security-vulnerability.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NLE01": {
+      "title": "Markvision Enterprise 4.7 supported printers and footnotes",
+      "url": "https://publications.lexmark.com/publications/lexmark_solutions/MarkVision/AG/v4.7/html/en/GUID-96923c7e-f5e1-4123-87f2-d4baf2ddfbcf-en.html",
+      "access": "full_page",
+      "checked_on": "2026-10-28"
+    },
+    "NSH01": {
+      "title": "Sharp IT Reference Guide; model-by-operation device management matrix",
+      "url": "https://business.sharpusa.com/portals/0/downloads/guides/IT_Reference_Guide.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NSH02": {
+      "title": "Sharp Remote Device Manager capability matrix",
+      "url": "https://business.sharpusa.com/Portals/0/downloads/Literature/SRDM_Data_Sheet.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NSH03": {
+      "title": "BP-70M75 / BP-70M90 exact specifications",
+      "url": "https://business.sharpusa.com/portals/0/downloads/Literature/BP-70M75_70M90-Specification-Sheet.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NTO01": {
+      "title": "Toshiba 6526AC/6527AC/7527AC global product page",
+      "url": "https://www.toshibatec.com/cnt/products_overseas/MFP/eS7527AC_series/",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NBR01": {
+      "title": "Brother 2022 enterprise colour model group, network configuration",
+      "url": "https://support.brother.com/g/b/faqend.aspx?c=us_ot&faqid=faq00000027_035&lang=en&prod=mfcl9670cdn_all",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NEP01": {
+      "title": "Epson WF-C21000 European specs, explicitly discontinued regional SKU",
+      "url": "https://www.epson.eu/en_EU/products/printers/inkjet/business-inkjet/workforce-enterprise-wf-c21000/p/29267",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NEP02": {
+      "title": "Epson WF-C21000 firmware and network management downloads",
+      "url": "https://www.epson.eu/en_EU/support/sc/epson-workforce-enterprise-wf-c21000/s/s1780",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NFU01": {
+      "title": "Apeos C8180/C7580/C6580 evaluated secure-configuration guide",
+      "url": "https://support-fb.fujifilm.com/driver_downloads/security_function_AC8180_C7580_C6580_gm1043e2-1.pdf",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NLE02": {
+      "title": "Markvision 4.7 server-to-printer ports",
+      "url": "https://publications.lexmark.com/publications/lexmark_solutions/MarkVision/AG/v4.7/html/en/GUID-0cdeb48e-9b19-491c-b31e-2b30b2e4488c-en.html",
+      "access": "full_target_section",
+      "checked_on": "2026-10-28"
+    },
+    "NLE03": {
+      "title": "Markvision 4.7 firmware update procedure and access-control prerequisites",
+      "url": "https://publications.lexmark.com/publications/lexmark_solutions/MarkVision/AG/v4.7/html/en/GUID-3776b84f-3e48-45d7-b122-9d04fe0b5f7b-en.html",
+      "access": "full_target_section",
+      "checked_on": "2026-10-28"
+    },
+    "NLE04": {
+      "title": "Markvision 4.7 certificate automation architecture",
+      "url": "https://publications.lexmark.com/publications/lexmark_solutions/MarkVision/AG/v4.7/html/en/GUID-0f35f6c8-7344-4ea5-a3ab-2f349be62d38-en.html",
+      "access": "full_target_section",
+      "checked_on": "2026-10-28"
+    },
+    "NOK01": {
+      "title": "C824/C834/C844 official specifications",
+      "url": "https://www.oki.com/printing/online-manuals-18/470955/id/contents/contents/ap_000012.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NOK02": {
+      "title": "MC853/MC873/MC883 official specifications",
+      "url": "https://www.oki.com/printing/online-manuals-12/459925/id/contents/contents/am_000039.html",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "NEP03": {
+      "title": "WF-C5390 and WF-C5890 January 2023 launch",
+      "url": "https://news.epson.com/news/workforce-pro-wf-c5890-c5390",
+      "access": "official_search_index",
+      "checked_on": "2026-10-28"
+    },
+    "S01": {
+      "title": "RFC 3805, Printer MIB v2",
+      "first_pass_access_note": "read.",
+      "url": "https://www.rfc-editor.org/rfc/rfc3805",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "S02": {
+      "title": "RFC 2790, Host Resources MIB",
+      "first_pass_access_note": "read.",
+      "url": "https://www.rfc-editor.org/rfc/rfc2790",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "S03": {
+      "title": "RFC 8011, IPP model and semantics",
+      "first_pass_access_note": "read.",
+      "url": "https://www.rfc-editor.org/rfc/rfc8011",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "S05": {
+      "title": "RFC 3414, SNMPv3 USM",
+      "first_pass_access_note": "read.",
+      "url": "https://www.rfc-editor.org/rfc/rfc3414",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "S09": {
+      "title": "RFC 6762, mDNS",
+      "first_pass_access_note": "read.",
+      "url": "https://www.rfc-editor.org/rfc/rfc6762",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "S10": {
+      "title": "RFC 6763, DNS-SD",
+      "first_pass_access_note": "read.",
+      "url": "https://www.rfc-editor.org/rfc/rfc6763",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R23": {
+      "title": "IPA/JISEC Ricoh and regional-badge certification",
+      "first_pass_access_note": "indexed; exact named alias set.",
+      "url": "https://www.ipa.go.jp/en/security/jisec/software/certified-cert/c0638_it8682.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R24": {
+      "title": "Ricoh history / acquired sales organizations PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.ricoh.com/-/Media/Ricoh/Sites/com/IR/financial_data/annual_report/ar/10/ar12.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "H09": {
+      "title": "HP enterprise eSCL configuration guidance",
+      "first_pass_access_note": "indexed; platform scope.",
+      "url": "https://support.hp.com/ro-en/document/c04945509",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "H12": {
+      "title": "HP WXP certificate policies / EST Connector",
+      "first_pass_access_note": "indexed; manager scope.",
+      "url": "https://learn.workforceexperience.hp.com/docs/installing-and-managing-certificates-using-printer-policies",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "C06": {
+      "title": "DX C5800 network menu / IPP Everywhere / RFC 2790",
+      "first_pass_access_note": "indexed.",
+      "url": "https://oip.manual.canon/USRMA-5488-zz-CS-5800-enUS/contents/devu-set_reg-pref-nw.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "K06": {
+      "title": "C360i/C361i firmware release information PDF",
+      "first_pass_access_note": "indexed; Fleet RMM/NDES conditions.",
+      "url": "https://cscsupportftp.mykonicaminolta.com/DownloadFile/Download.ashx?fileversionid=39530&productid=2175",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "A04": {
+      "title": "Sharp new BP-series launch, October 2025",
+      "first_pass_access_note": "read.",
+      "url": "https://global.sharp/corporate/news/251009-a.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "A09": {
+      "title": "Sharp evaluated guidance/firmware archive",
+      "first_pass_access_note": "indexed; not necessarily latest firmware.",
+      "url": "https://global.sharp/products/copier/certified/download/cc-certified.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "T04": {
+      "title": "EU 25AC brochure PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://fi.toshibatec.eu/publicsite-service/resource/download/pseu/en/93e9c5fb-a118-4378-87c0-20891df166d3/030ef8eb494c8943c444bb6adf66b2cc/BR_eSTUDIO6525AC_series.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R21": {
+      "title": "Firmware Update Tool model applicability",
+      "first_pass_access_note": "read shell/applicability; transport not available.",
+      "url": "https://kb.gsd.ricoh.com/app/answers/ans_product/a_id/293886",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R27": {
+      "title": "Always Current Technology deployment/update explanation",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.ricoh.com.my/dynamic-workplace-intelligence/ricoh-always-current-technology/ract-learn-more",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "H06": {
+      "title": "Enterprise/Managed model equivalents",
+      "first_pass_access_note": "indexed.",
+      "url": "https://support.hp.com/be-fr/document/ish_13770559-13697423-16",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "H07": {
+      "title": "FutureSmart version/model table",
+      "first_pass_access_note": "indexed; dynamic, not a pinned update recommendation.",
+      "url": "https://support.hp.com/sg-en/document/ish_4025423-4025481-16",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "H03": {
+      "title": "M528 series datasheet",
+      "first_pass_access_note": "indexed; direct retrieval timeout.",
+      "url": "https://h20195.www2.hp.com/v2/GetDocument.aspx?docname=c08015961",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "H04": {
+      "title": "M555 series December 2020 datasheet",
+      "first_pass_access_note": "indexed; direct retrieval timeout.",
+      "url": "https://h20195.www2.hp.com/v2/getpdf.aspx/4aa7-8159enuc.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R03": {
+      "title": "Ricoh Australia 2019 IM C launch",
+      "first_pass_access_note": "read/indexed.",
+      "url": "https://www.ricoh.com.au/news/ricoh-unveils-new-intelligent-devices",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R04": {
+      "title": "Ricoh AP 2023 IM C launch",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.ricoh-ap.com/news/2023/05/09/ricoh-introduces-new-im-c-series-a3-multifunction-printers",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R05": {
+      "title": "US IM C series brochure PDF",
+      "first_pass_access_note": "indexed; regional members and specs.",
+      "url": "https://assets.ricoh-usa.com/j2jqn9lauv41/1zi0tYuWi9f18Oz7SEKVY3/960afe1aeb53bafdb38a2df058041a7b/IM_C_Series_Brochure_RUSA.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R22": {
+      "title": "Japan IM C SD variants launch",
+      "first_pass_access_note": "indexed.",
+      "url": "https://jp.ricoh.com/release/2025/0203_1",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R06": {
+      "title": "Japan IM Cxx11 launch, 17 August 2026",
+      "first_pass_access_note": "indexed; sale date 24 August.",
+      "url": "https://jp.ricoh.com/release/2026/0817_1",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R07": {
+      "title": "IM 3500 AP product/specification page",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.ricoh-ap.com/products/office-printing/mfp-black-and-white/im-3500",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R11": {
+      "title": "2023 MFP/printer security white paper PDF",
+      "first_pass_access_note": "read; TPM, encryption, TLS, port controls.",
+      "url": "https://www.ricoh.com/-/Media/Ricoh/Sites/com/security/pdf/mfp-security-whitepaper.pdf?230929=",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R12": {
+      "title": "Japan new mono IM launch",
+      "first_pass_access_note": "indexed; January 2026 availability.",
+      "url": "https://jp.ricoh.com/release/2025/1222_1",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R13": {
+      "title": "AP mono IM xx10 launch, April 2026",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.ricoh-ap.com/news/2026/04/24/ricoh-introduces-new-im-xx10-series-a3-black-and-white-multifunction-printers",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R19": {
+      "title": "Ricoh intelligent-device range brochure PDF",
+      "first_pass_access_note": "indexed; differing regional capacity.",
+      "url": "https://www.ricoh-ap.com/en/products/office-printing/mfp-colour/-/media/ra/files/pdfs/products_brochure/office_solutions/printers_and_copiers/range_brochure/ricoh_intelligent_devices_brochure.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R14": {
+      "title": "AP IM C320F / M C320FW / P C375 launch",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.ricoh-ap.com/news/2024/09/21/ricoh-unveils-new-a4-colour-laser-mfps",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R17": {
+      "title": "IM 460F AP specification page",
+      "first_pass_access_note": "read.",
+      "url": "https://www.ricoh-ap.com/products/office-printing/mfp-black-and-white/im-460f",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "C01": {
+      "title": "Canon DX C3900 and other 2023 launches",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.usa.canon.com/newsroom/2023/20230523-printer",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "C09": {
+      "title": "DX platform launch, March 2020",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.usa.canon.com/newsroom/2020/20200310-iradv-dx",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "C04": {
+      "title": "DX C5800 / 6800 2021 launch",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.usa.canon.com/newsroom/2021/20210601-products",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "C05": {
+      "title": "DX C5800 brochure PDF",
+      "first_pass_access_note": "read.",
+      "url": "https://www.usa.canon.com/bin/canon/downloadasset?path=%2Fcontent%2Fdam%2Fcanon-assets%2Fbrochures%2Fbusiness%2Fcopiers-and-mfp%2Fimagerunner-advance-dx%2FEnterprise_iR-ADV-DX-5800-Series_Brochure.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "C07": {
+      "title": "imageFORCE C5100 / 6100 launch, July 2025",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.usa.canon.com/newsroom/2025/20250722-printer",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "C08": {
+      "title": "imageFORCE C5100 certificate/import/export manual",
+      "first_pass_access_note": "indexed.",
+      "url": "https://oip.manual.canon/USRMA-9286-zz-CS-5100-enUS/contents/devu-set_menu_list-impt_expt-mng-dev-certificate.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "X01": {
+      "title": "AltaLink 8100 launch, July 2020",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.news.xerox.com/news/xerox-launches-connectkey-enabled-altalink-digital-workplace-assistant",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "X02": {
+      "title": "B/C8100 and B/C8200 administrator guide PDF, July 2025",
+      "first_pass_access_note": "read; SNMP, eSCL, cloning and firmware.",
+      "url": "https://download.support.xerox.com/pub/docs/ALB81XX/userdocs/any-os/en_GB/Xerox_AltaLink_B8100_C8100_AltaLink_B8200_C8200_series_mfp_sag_en-US.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "X03": {
+      "title": "AltaLink C8200 detailed specification PDF",
+      "first_pass_access_note": "read; explicit RFC MIBs and protocols.",
+      "url": "https://www.office.xerox.com/latest/AC8SS-04UA.PDF",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "X04": {
+      "title": "AltaLink 8200 launch, July 2024",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.news.xerox.com/news/xerox-transforms-document-processing-with-new-ai-assisted-xerox-altalink-8200-series-multi-function-printers",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "X05": {
+      "title": "VersaLink C625/C620 brochure PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.office.xerox.com/latest/V6CBR-012.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "X06": {
+      "title": "Xerox secure-installation guide index",
+      "first_pass_access_note": "indexed; exact-series guide availability.",
+      "url": "https://security.business.xerox.com/en-usdocuments/installation-guides/",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "X07": {
+      "title": "VersaLink C625 detailed specifications, Spanish PDF",
+      "first_pass_access_note": "indexed; 650/2850 capacity.",
+      "url": "https://www.office.xerox.com/latest/V6CSS-01L.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "K02": {
+      "title": "C360i/C300i/C250i SNMP administration manual",
+      "first_pass_access_note": "indexed.",
+      "url": "https://manuals.konicaminolta.eu/bizhub-C360i-C300i-C250i/EN/bizhub-c360i-c300i-c250i/contents/id08-_104516893.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "K03": {
+      "title": "Konica Minolta security technical support paper",
+      "first_pass_access_note": "indexed; OpenAPI administration scope.",
+      "url": "https://www.konicaminolta.com/global-en/security/mfp/setting/pdf/SecurityTechnicalSupportPaper_en.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "K04": {
+      "title": "Japan 2024 bizhub 1i launch",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.konicaminolta.com/jp-ja/newsroom/2024/0515-01-01.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "K09": {
+      "title": "OAuth firmware model/version applicability",
+      "first_pass_access_note": "indexed; secondary model families.",
+      "url": "https://www.konicaminolta.eu/eu-en/support/oauth2.0-information",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "Y05": {
+      "title": "TASKalfa family Asia brochure PDF",
+      "first_pass_access_note": "indexed; regional storage/options.",
+      "url": "https://www.kyoceradocumentsolutions.com/vn/vi/products/catalog/pdf/Brochure_TASKalfa_2554ci_3554ci_4054ci_5054ci_6054ci_7054ci_5004i_6004i_7004i_AS.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "Y03": {
+      "title": "Japan TASKalfa MZ launch schedule",
+      "first_pass_access_note": "indexed; 2025 availability.",
+      "url": "https://www.kyoceradocumentsolutions.com/global/ja/news/rls_2024/rls_20241202.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "Y04": {
+      "title": "MZ family reliability/security and Net Viewer",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.kyoceradocumentsolutions.com/asia/en/products/mfp/taskalfa-mz7001ci/features-security.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "Y07": {
+      "title": "ECOSYS MA4500ifx specification PDF",
+      "first_pass_access_note": "indexed; Printer MIB/WS-Discovery.",
+      "url": "https://www.kyoceradocumentsolutions.us/content/download-center-americas/us/documents/brochures-and-specs/KDA_ECOSYS_MA4500ifx_pdf.download.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "Y06": {
+      "title": "ECOSYS MA4000cix product page",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.kyoceradocumentsolutions.us/en/products/mfp/ECOSYSMA4000CIX.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "A01": {
+      "title": "BP-70C31/36/45 specification PDF",
+      "first_pass_access_note": "indexed; LED, protocols and firmware management.",
+      "url": "https://business.sharpusa.com/portals/0/downloads/Literature/BP-70C31_70C36_70C45-Specification-Sheet.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "T01": {
+      "title": "Toshiba global 25AC product/security specifications",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.toshibatec.com/cnt/products_overseas/MFP/eS6525AC_series/",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "T02": {
+      "title": "US 25AC specification PDF, June 2026 revision",
+      "first_pass_access_note": "indexed.",
+      "url": "https://business.toshiba.com/app/uploads/2026/06/2525AC-3025AC-3525AC-4525AC-Spec-Sheet-EN.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "T03": {
+      "title": "Toshiba quick-start guide, October 2022 PDF",
+      "first_pass_access_note": "indexed; family existence by 2022.",
+      "url": "https://business.toshiba.com/downloads/KB/f1Ulds/20151/eS6528A_QS_EN_0001.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "T07": {
+      "title": "TopAccess guide / Current Software List PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://business.toshiba.com/downloads/KB/f1Ulds/20992/eS6528A_TAG_EN_0003.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "T06": {
+      "title": "e-STUDIO6529A/7529A/9029A brochure PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://business.toshiba.com/app/uploads/2023/04/6529A-7529A-9029A-Brochure-EN.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "B04": {
+      "title": "MFC-L9670CDN firmware and management-tool downloads",
+      "first_pass_access_note": "indexed.",
+      "url": "https://support.brother.com/g/b/downloadlist.aspx?c=us&lang=en&os=10012&prod=mfcl9670cdn_all",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "B01": {
+      "title": "MFC-L6915DW product/specification page",
+      "first_pass_access_note": "read.",
+      "url": "https://www.brother-usa.com/p/laser-printers/MFCL6915DW",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "B02": {
+      "title": "MFC-L6915DW family protocol/security specifications",
+      "first_pass_access_note": "read.",
+      "url": "https://support.brother.com/g/s/id/htmldoc/mfc/cv_mfcl6915dw/use/html/GUID-6CD1909F-A0FF-4E39-8C38-E80D9857564E_1.html?lang=en&prod=dcpl5610dn_us",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "E02": {
+      "title": "US AM-C4000/C5000/C6000 launch",
+      "first_pass_access_note": "indexed.",
+      "url": "https://news.epson.com/news/workforce-enterprise-am-c4000-c5000-c6000",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "E03": {
+      "title": "AM series administrator/user guide PDF",
+      "first_pass_access_note": "indexed; SNMP and firmware procedure.",
+      "url": "https://files.support.epson.com/docid/other/npd7005-00_en.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "E06": {
+      "title": "US AM-C10000 launch, June 2026",
+      "first_pass_access_note": "indexed.",
+      "url": "https://news.epson.com/news/workforce-enterprise-am-c10000-mfp",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "E07": {
+      "title": "WF-C5890 product specifications",
+      "first_pass_access_note": "indexed.",
+      "url": "https://epson.com/For-Work/Printers/Inkjet/WorkForce-Pro-WF-C5890-Color-MFP/p/C11CK23201?blaid=5961692",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "O01": {
+      "title": "OKI C650 launch, March 2021",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.oki.com/sg/printing/about-us/news-room/press-releases/2021/210316_ODSP_C650_OKI_Launches_World_Smallest_High_Performance_A4_Colour_Printer/index.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "O02": {
+      "title": "C650/ES6450 specifications manual",
+      "first_pass_access_note": "read.",
+      "url": "https://www.oki.com/printing/online-manuals-Z002/EE8001-1215/id/contents/contents/33916965.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "O03": {
+      "title": "OKI SNMPv3 and supplied MIB-file location",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.oki.com/printing/online-manuals-Z002/EE8001-6614/id/contents/contents/241796849.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "O05": {
+      "title": "C650dn official firmware/updater page",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.oki.com/es/printing/support/firmware/colour/09006144/",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "G01": {
+      "title": "Samsung X4300 SyncThru administration manual, HP-hosted",
+      "first_pass_access_note": "indexed, extensive official extract.",
+      "url": "https://printersetup.ext.hp.com/ts/manual/Samsung%20X4300%20Series/English/manual/sws.htm",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "G02": {
+      "title": "HP Samsung SL-X4300LX specifications",
+      "first_pass_access_note": "indexed.",
+      "url": "https://support.hp.com/ro-en/product/product-specs/samsung-multixpress-sl-x4300-color-laser-multifunction-printer-series/model/16449692",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "G03": {
+      "title": "HP Samsung firmware-version checking",
+      "first_pass_access_note": "indexed.",
+      "url": "https://support.hp.com/au-en/document/c05584061",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "F01": {
+      "title": "Fujifilm Apeos C5570/4570/3570/3070 brochure PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://asset.fujifilm.com/www/in/files/2024-07/7c4415f3b39e90052e7787cc50562056/apeos-c5570-c4570-c3570-brochure_ind.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "F02": {
+      "title": "Fujifilm US Apeos C7070-family brochure PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://asset.fujifilm.com/www/us/files/2024-11/f06ebb5723fb04af46f09583c1cd7212/apeos_c7070_brochure.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "F04": {
+      "title": "Apeos C4030/C3530 brochure PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://asset.fujifilm.com/www/in/files/2025-04/0d239230c247f480ec5fe82dc7feb2fd/apeos-c4030-c3530-brochure_in.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "Z01": {
+      "title": "RISO global GL specifications",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.riso.co.jp/english/product/comcolor/gl/spec/index.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "Z05": {
+      "title": "ComColor GL administrator guide PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.riso.com/download/manual/gl/GL_AdministratorsGuide_ENG.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "H11": {
+      "title": "HP Enterprise/Managed firmware-update procedure",
+      "first_pass_access_note": "indexed; `.bdl`, EWS/WJA.",
+      "url": "https://support.hp.com/au-en/document/ish_4158468-4158516-16",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R08": {
+      "title": "RiDP device interfaces",
+      "first_pass_access_note": "read; standard/private MIB and SmartDeviceMonitor API.",
+      "url": "https://ricoh-ridp.com/ricoh-device-interfaces",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R09": {
+      "title": "Ricoh Japan developer-program contact/interface list",
+      "first_pass_access_note": "indexed; PMAPI/Common/Private/GJ MIB.",
+      "url": "https://www.mlsvc.ricoh.co.jp/regist/is?SMPFORM=lap-sik-87c49836449aea2ce532de713da3aafa",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "R10": {
+      "title": "Ricoh SmartSDK overview",
+      "first_pass_access_note": "indexed; REST workflow/API scope.",
+      "url": "https://emea.ricoh-developer.com/about-us/membership/smart-membership-benefits/smartsdk-overview",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "K10": {
+      "title": "Fleet RMM user guide PDF",
+      "first_pass_access_note": "indexed; communication checks.",
+      "url": "https://konicaminolta.ca/wps/wcm/connect/bca/a5e9861a-cc04-4360-a46e-484aa26f3209/FleetRMMUserGuide.pdf?MOD=AJPERES",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "Y08": {
+      "title": "TASKalfa Command Center RX guide PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://dam.kyoceradocumentsolutions.com/content/dam/gdam_dc/dc_global/document/manual/product_080/commandcenterrx_taskalfa7054ci_en_03.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "L07": {
+      "title": "Fleet Tracker server Open API",
+      "first_pass_access_note": "indexed.",
+      "url": "https://publications.lexmark.com/publications/lexmark_solutions/Fleet_Manager/AG/html/en/openAPI-group.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "L08": {
+      "title": "Document Distributor REST/SOAP job API",
+      "first_pass_access_note": "indexed; jobs, not device administration.",
+      "url": "https://publications.lexmark.com/publications/lexmark_solutions/Document_Distributor/SDK_Guide/v5.4/html/en/understanding-job-submission-web-service-api-topic.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "B05": {
+      "title": "Brother secure SNMP modes / older utility compatibility",
+      "first_pass_access_note": "indexed.",
+      "url": "https://support.brother.com/g/b/sp/faqend.aspx?c=nz&faqid=faq00100232_002&lang=en&prod=mfcl8690cdw_eu_as&src=ipas",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "E04": {
+      "title": "AM series US user guide PDF",
+      "first_pass_access_note": "indexed; security and Web Config firmware.",
+      "url": "https://files.support.epson.com/docid/cpd6/cpd62840.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "E05": {
+      "title": "Epson Device Admin and supported devices",
+      "first_pass_access_note": "indexed.",
+      "url": "https://epson.com/Accessories/Printer-Accessories/Epson-Device-Admin/p/DEVICEADMIN",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "O04": {
+      "title": "MC853 official Configuration Tool/download information",
+      "first_pass_access_note": "indexed.",
+      "url": "https://www.oki.com/de/printing/support/drivers-and-utilities/colour-multifunction/45850404/",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "F03": {
+      "title": "Fujifilm Internet Services SNMPv3 help",
+      "first_pass_access_note": "indexed; Apeos 5570 help scope.",
+      "url": "https://opencds-fb.fujifilm.com/gen/product2_aux/prod/ews_help/ap/apeos_5570/en/contents/07_protocol/pro_setting_snmp_v3.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "F05": {
+      "title": "Fujifilm Internet Services setup explanation",
+      "first_pass_access_note": "indexed; C3567-family scope.",
+      "url": "https://opencds-fb.fujifilm.com/gen/product2_aux/prod/manual/ap_c3567_ug/solution/en/000005.html",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    },
+    "F06": {
+      "title": "Apeos C325 audit-log guide PDF",
+      "first_pass_access_note": "indexed.",
+      "url": "https://support-fb.fujifilm.com/driver_downloads/gm2160e5-1.pdf",
+      "access": "carried_from_first_pass_see_access_note",
+      "checked_on": "2026-10-28"
+    }
+  }
+}

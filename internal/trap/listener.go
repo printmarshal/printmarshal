@@ -1,0 +1,121 @@
+// Package trap receives SNMP traps and informs from devices (spec §8.3
+// asynchronous alerts) and hands them to the fleet as events.
+package trap
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net"
+	"strings"
+
+	"github.com/gosnmp/gosnmp"
+
+	"printmarshal/internal/driver/snmp"
+	"printmarshal/internal/model"
+)
+
+// Handler consumes decoded traps.
+type Handler interface {
+	HandleTrap(ctx context.Context, sourceIP string, description string, severity model.Severity, varbinds map[string]string)
+}
+
+// Listener wraps gosnmp's trap listener.
+type Listener struct {
+	addr string
+	h    Handler
+	log  *slog.Logger
+	tl   *gosnmp.TrapListener
+}
+
+// New returns a listener bound to addr (e.g. "0.0.0.0:162"; ports below 1024 need privileges).
+func New(addr string, h Handler, log *slog.Logger) *Listener {
+	return &Listener{addr: addr, h: h, log: log}
+}
+
+// Well-known trap OIDs.
+const (
+	oidSnmpTrapOID  = ".1.3.6.1.6.3.1.1.4.1.0"
+	oidColdStart    = ".1.3.6.1.6.3.1.1.5.1"
+	oidWarmStart    = ".1.3.6.1.6.3.1.1.5.2"
+	oidLinkDown     = ".1.3.6.1.6.3.1.1.5.3"
+	oidLinkUp       = ".1.3.6.1.6.3.1.1.5.4"
+	oidAuthFailure  = ".1.3.6.1.6.3.1.1.5.5"
+	oidPrinterAlert = ".1.3.6.1.2.1.43.18.2.0.1" // printerV2Alert (RFC 3805)
+)
+
+// Run listens until ctx ends.
+func (l *Listener) Run(ctx context.Context) error {
+	l.tl = gosnmp.NewTrapListener()
+	l.tl.Params = gosnmp.Default
+	l.tl.Params.Community = "" // accept any community on receive; devices are matched by source address
+	l.tl.OnNewTrap = l.onTrap
+	errCh := make(chan error, 1)
+	go func() { errCh <- l.tl.Listen(l.addr) }()
+	select {
+	case <-l.tl.Listening():
+		l.log.Info("trap listener ready", "addr", l.addr)
+	case err := <-errCh:
+		return err
+	}
+	select {
+	case <-ctx.Done():
+		l.tl.Close()
+		return nil
+	case err := <-errCh:
+		return err
+	}
+}
+
+func (l *Listener) onTrap(p *gosnmp.SnmpPacket, addr *net.UDPAddr) {
+	vars := map[string]string{}
+	trapOID := ""
+	desc := ""
+	sev := model.SeverityWarning
+	var alertRows []snmp.PDU
+	for _, v := range p.Variables {
+		pdu := snmp.PDU{OID: v.Name, Type: v.Type, Value: v.Value}
+		vars[v.Name] = snmp.Str(pdu)
+		switch {
+		case v.Name == oidSnmpTrapOID:
+			trapOID = snmp.Str(pdu)
+		case strings.HasPrefix(v.Name, snmp.OIDPrtAlertTable+"."):
+			alertRows = append(alertRows, pdu)
+		}
+	}
+	if p.Version == gosnmp.Version1 && trapOID == "" {
+		trapOID = fmt.Sprintf("%s generic=%d specific=%d", p.Enterprise, p.GenericTrap, p.SpecificTrap)
+	}
+	if len(alertRows) > 0 {
+		if alerts := snmp.ParseDeviceAlerts(alertRows); len(alerts) > 0 {
+			a := alerts[0]
+			desc = a.Description
+			if a.Severity != model.SeverityOK {
+				sev = a.Severity
+			}
+		}
+	}
+	if desc == "" {
+		switch trapOID {
+		case oidColdStart:
+			desc, sev = "Device cold start", model.SeverityWarning
+		case oidWarmStart:
+			desc, sev = "Device warm start", model.SeverityWarning
+		case oidLinkDown:
+			desc, sev = "Link down", model.SeverityCritical
+		case oidLinkUp:
+			desc, sev = "Link up", model.SeverityOK
+		case oidAuthFailure:
+			desc, sev = "SNMP authentication failure", model.SeverityWarning
+		case oidPrinterAlert:
+			desc = "Printer alert"
+		default:
+			desc = "Trap " + trapOID
+		}
+	}
+	if sev == model.SeverityOK {
+		l.log.Info("informational trap", "source", addr.IP.String(), "description", desc)
+		return
+	}
+	l.h.HandleTrap(context.Background(), addr.IP.String(), desc, sev, vars)
+}

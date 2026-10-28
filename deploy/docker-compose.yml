@@ -1,0 +1,29 @@
+# Small-site deployment (spec §12). The engine needs host networking so that
+# mDNS / WS-Discovery multicast and SNMP traps reach it; ordinary bridge
+# networking makes discovery look broken when it is not.
+services:
+  printmarshal:
+    build: ..
+    image: printmarshal:latest
+    network_mode: host          # required for zero-config discovery and traps
+    environment:
+      PM_LISTEN: ":8080"
+      PM_DATA_DIR: /data
+      PM_TRAP_LISTEN: "0.0.0.0:1162"
+      PM_POLL_INTERVAL: 5m
+      # PM_ADMIN_PASSWORD: set-me-on-first-run     # else see the container log
+      # PM_SECRET_KEY: base64-32-bytes              # else generated into /data/secret.key
+      # PM_CONFIG: /config/printmarshal.json
+    volumes:
+      - pm-data:/data
+      # - ./printmarshal.json:/config/printmarshal.json:ro
+    restart: unless-stopped
+
+  # Optional simulated printer for trying things out without hardware.
+  # printer-sim:
+  #   image: printmarshal:latest
+  #   entrypoint: ["/usr/local/bin/pm-sim", "-fixture", "/opt/printmarshal/fixtures/generic-laser.snmp", "-snmp", "0.0.0.0:161", "-ipp", "0.0.0.0:631"]
+  #   networks: [printers]
+
+volumes:
+  pm-data: {}
