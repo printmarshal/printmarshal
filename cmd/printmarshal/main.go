@@ -22,6 +22,7 @@ import (
 	"printmarshal/internal/config"
 	"printmarshal/internal/configmgmt"
 	"printmarshal/internal/driver/escl"
+	"printmarshal/internal/driver/fwsim"
 	"printmarshal/internal/driver/ipp"
 	"printmarshal/internal/driver/snmp"
 	"printmarshal/internal/engine"
@@ -125,6 +126,9 @@ func run(cfgPath string) error {
 	esclOpts.Timeout = cfg.Poll.IPPTimeout.D()
 	esclOpts.InsecureTLS = cfg.Poll.IPPInsecureTLS
 	reg.Register(escl.New(escl.NewTransport(esclOpts), esclOpts))
+	if v := os.Getenv("PM_FIRMWARE_SIM_TARGETS"); v != "" { // simulator-only firmware delivery (docs/firmware.md)
+		reg.Register(fwsim.New(strings.Split(v, ","), fwsim.Options{}))
+	}
 	plugins.RegisterAll(reg, log) // vendor plugins: enrichment at the edge (spec §6)
 	eng := engine.New(reg, log, cfg.Poll.Concurrency)
 

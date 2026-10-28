@@ -63,6 +63,55 @@ type Campaign struct {
 	CreatedAt               time.Time      `json:"createdAt"`
 	UpdatedAt               time.Time      `json:"updatedAt"`
 	Error                   string         `json:"error,omitempty"`
+
+	// Additive fields (firmware feature).
+	Description string `json:"description,omitempty"`
+	// DryRun campaigns validate and report only; no driver ever delivers an image.
+	DryRun bool `json:"dryRun"`
+	// AllowDowngrade lets a package older than the installed version through (rollback).
+	AllowDowngrade bool `json:"allowDowngrade"`
+	// VerifyTimeoutSecs bounds post-update verification per device (0 = service default).
+	VerifyTimeoutSecs int `json:"verifyTimeoutSecs,omitempty"`
+	// PauseReason explains a paused status: canary | threshold | operator | interrupted.
+	PauseReason string `json:"pauseReason,omitempty"`
+	// JobID is the job currently (or last) executing the campaign.
+	JobID     string `json:"jobId,omitempty"`
+	StartedBy string `json:"startedBy,omitempty"`
+}
+
+// Pause reasons.
+const (
+	PauseCanary      = "canary"      // wave 1 finished; waiting for operator confirmation
+	PauseThreshold   = "threshold"   // failure threshold exceeded
+	PauseOperator    = "operator"    // explicit pause
+	PauseInterrupted = "interrupted" // the server restarted while the campaign ran
+)
+
+// Finished reports whether the campaign is in a terminal status.
+func (c *Campaign) Finished() bool {
+	switch c.Status {
+	case CampaignCompleted, CampaignFailed, CampaignCancelled:
+		return true
+	}
+	return false
+}
+
+// Terminal reports whether a campaign device will not change again.
+func (s CampaignDeviceStatus) Terminal() bool {
+	switch s {
+	case CampaignDeviceSkipped, CampaignDeviceSucceeded, CampaignDeviceFailed:
+		return true
+	}
+	return false
+}
+
+// FirmwareHistoryEntry is one device's participation in a campaign, for the
+// per-device update history.
+type FirmwareHistoryEntry struct {
+	CampaignDevice
+	CampaignName string `json:"campaignName"`
+	PackageID    string `json:"packageId"`
+	DryRun       bool   `json:"dryRun"`
 }
 
 // CampaignDeviceStatus is a device's progress inside a campaign.
