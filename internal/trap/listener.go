@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gosnmp/gosnmp"
 
@@ -26,11 +28,100 @@ type Listener struct {
 	h    Handler
 	log  *slog.Logger
 	tl   *gosnmp.TrapListener
+
+	// Allowed restricts accepted sources (CIDRs or addresses); nil = any.
+	Allowed []*net.IPNet
+	// RatePerMinute caps handled traps per source address (0 = 60).
+	RatePerMinute int
+
+	mu     sync.Mutex
+	seen   map[string][]time.Time
+	denied map[string]time.Time // last time a drop was logged per source
 }
 
 // New returns a listener bound to addr (e.g. "0.0.0.0:162"; ports below 1024 need privileges).
 func New(addr string, h Handler, log *slog.Logger) *Listener {
-	return &Listener{addr: addr, h: h, log: log}
+	return &Listener{addr: addr, h: h, log: log, seen: map[string][]time.Time{}, denied: map[string]time.Time{}}
+}
+
+// ParseSources turns CIDRs or bare addresses into networks.
+func ParseSources(list []string) ([]*net.IPNet, error) {
+	var out []*net.IPNet
+	for _, s := range list {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if !strings.Contains(s, "/") {
+			if ip := net.ParseIP(s); ip != nil {
+				if ip.To4() != nil {
+					s += "/32"
+				} else {
+					s += "/128"
+				}
+			}
+		}
+		_, n, err := net.ParseCIDR(s)
+		if err != nil {
+			return nil, fmt.Errorf("trap allowed source %q: %w", s, err)
+		}
+		out = append(out, n)
+	}
+	return out, nil
+}
+
+// accept applies the source allow-list and the per-source rate limit (audit A13).
+func (l *Listener) accept(ip net.IP) bool {
+	if len(l.Allowed) > 0 {
+		ok := false
+		for _, n := range l.Allowed {
+			if n.Contains(ip) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			l.drop(ip.String(), "source not in trap.allowedSources")
+			return false
+		}
+	}
+	limit := l.RatePerMinute
+	if limit <= 0 {
+		limit = 60
+	}
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	key := ip.String()
+	keep := l.seen[key][:0]
+	for _, t := range l.seen[key] {
+		if now.Sub(t) < time.Minute {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) >= limit {
+		l.seen[key] = keep
+		l.dropLocked(key, "rate limit exceeded")
+		return false
+	}
+	l.seen[key] = append(keep, now)
+	return true
+}
+
+func (l *Listener) drop(src, why string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.dropLocked(src, why)
+}
+
+// dropLocked logs at most one drop per source per minute so a flood cannot
+// flood the log too.
+func (l *Listener) dropLocked(src, why string) {
+	if t, ok := l.denied[src]; ok && time.Since(t) < time.Minute {
+		return
+	}
+	l.denied[src] = time.Now()
+	l.log.Warn("trap dropped", "source", src, "reason", why)
 }
 
 // Well-known trap OIDs.
@@ -68,6 +159,9 @@ func (l *Listener) Run(ctx context.Context) error {
 }
 
 func (l *Listener) onTrap(p *gosnmp.SnmpPacket, addr *net.UDPAddr) {
+	if !l.accept(addr.IP) {
+		return
+	}
 	vars := map[string]string{}
 	trapOID := ""
 	desc := ""

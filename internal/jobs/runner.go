@@ -169,6 +169,10 @@ func (r *Runner) run(ctx context.Context, j *model.Job) {
 	}
 	jc.mu.Unlock()
 	r.persistNow(j)
+	if r.events != nil {
+		cp := *j
+		r.events(model.Event{Type: "job.finished", At: fin, Data: &cp})
+	}
 	r.mu.Lock()
 	ws := r.waiters[j.ID]
 	delete(r.waiters, j.ID)

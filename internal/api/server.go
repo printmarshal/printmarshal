@@ -15,9 +15,11 @@ import (
 	"strings"
 	"time"
 
+	"printmarshal/internal/alerts"
 	"printmarshal/internal/auth"
 	"printmarshal/internal/config"
 	"printmarshal/internal/configmgmt"
+	"printmarshal/internal/events"
 	"printmarshal/internal/firmware"
 	"printmarshal/internal/fleet"
 	"printmarshal/internal/model"
@@ -34,19 +36,29 @@ type Server struct {
 	Firmware   *firmware.Service
 	Auth       *auth.Service
 	Hub        *Hub
+	Bus        *events.Bus
+	Notifier   *alerts.Notifier
 	Cfg        *config.Config
 	Log        *slog.Logger
 	UI         http.Handler
 	Version    string
+
+	logins *loginLimiter
+	http   *httpStats
 }
 
 // Handler builds the router.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	if s.logins == nil {
+		s.logins = newLoginLimiter(s.Cfg.Auth.LoginFailuresPerMinute)
+	}
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "version": s.Version})
 	})
+	mux.HandleFunc("GET /readyz", s.ready)
+	mux.Handle("GET /metrics", s.require(model.RoleViewer, s.metrics))
 
 	// Auth
 	mux.HandleFunc("POST /api/auth/login", s.login)
@@ -105,6 +117,7 @@ func (s *Server) Handler() http.Handler {
 	s.firmwareRoutes(mux)
 	s.catalogRoutes(mux)
 	s.printProviderRoutes(mux)
+	s.eventRoutes(mux)
 
 	// Users, audit, notifications, settings
 	mux.Handle("GET /api/users", s.require(model.RoleAdmin, s.listUsers))
@@ -136,6 +149,7 @@ func (s *Server) require(min model.Role, next http.HandlerFunc) http.Handler {
 			return
 		}
 		if !u.Role.Allows(min) {
+			s.security(r.Context(), r, "auth.denied", u.Username, r.Method+" "+r.URL.Path+" requires "+string(min), "denied")
 			writeErr(w, http.StatusForbidden, fmt.Sprintf("requires %s role", min))
 			return
 		}
@@ -166,7 +180,14 @@ func (s *Server) logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		sw := &statusWriter{ResponseWriter: w, status: 200}
+		st := s.stats()
+		st.inflight.Add(1)
 		next.ServeHTTP(sw, r)
+		st.inflight.Add(-1)
+		if c := sw.status / 100; c >= 1 && c <= 5 {
+			st.requests[c].Add(1)
+		}
+		st.latency.Add(time.Since(start).Milliseconds())
 		if strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Path != "/api/stream" {
 			s.Log.Debug("http", "method", r.Method, "path", r.URL.Path, "status", sw.status, "ms", time.Since(start).Milliseconds())
 		}
@@ -212,7 +233,31 @@ func actor(r *http.Request) string {
 }
 
 func (s *Server) audit(ctx context.Context, r *http.Request, action, target string, before, after map[string]any, result string) {
-	_ = s.Store.AddAudit(ctx, &model.AuditEntry{Actor: actor(r), Action: action, Target: target, Before: before, After: after, Result: result})
+	s.auditAs(ctx, actor(r), clientIP(r), action, target, before, after, result)
+}
+
+// auditAs writes an audit entry; failures are logged loudly rather than
+// swallowed (audit A03), and a security event is published for exporters.
+func (s *Server) auditAs(ctx context.Context, who, ip, action, target string, before, after map[string]any, result string) {
+	e := &model.AuditEntry{Actor: who, Action: action, Target: target, Before: before, After: after, Result: result}
+	if err := s.Store.AddAudit(ctx, e); err != nil {
+		s.Log.Error("AUDIT WRITE FAILED", "actor", who, "action", action, "target", target, "result", result, "err", err)
+	}
+	if s.Bus != nil {
+		s.Bus.PublishFrom(model.Event{Type: "audit.recorded", Data: map[string]any{"actor": who, "action": action, "target": target, "result": result}}, events.Origin{Source: "operator", Actor: who, IP: ip})
+	}
+}
+
+// security publishes an auth.* event and mirrors it into the audit log.
+func (s *Server) security(ctx context.Context, r *http.Request, typ, who, detail, result string) {
+	ip := clientIP(r)
+	if s.Bus != nil {
+		s.Bus.PublishFrom(model.Event{Type: typ, Data: map[string]any{"user": who, "detail": detail, "result": result, "ip": ip, "summary": who + ": " + detail}}, events.Origin{Source: "operator", Actor: who, IP: ip})
+	}
+	e := &model.AuditEntry{Actor: who, Action: typ, Target: detail, Result: result}
+	if err := s.Store.AddAudit(ctx, e); err != nil {
+		s.Log.Error("AUDIT WRITE FAILED", "actor", who, "action", typ, "err", err)
+	}
 }
 
 func intQuery(r *http.Request, key string, def int) int {
@@ -235,19 +280,39 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	ip := clientIP(r)
+	if s.logins.Blocked(ip) {
+		s.security(r.Context(), r, "auth.failed", body.Username, "rate limited", "throttled")
+		w.Header().Set("Retry-After", "60")
+		writeErr(w, http.StatusTooManyRequests, "too many failed sign-ins; try again in a minute")
+		return
+	}
 	token, u, err := s.Auth.Login(r.Context(), body.Username, body.Password)
 	if err != nil {
+		s.logins.Fail(ip)
+		s.security(r.Context(), r, "auth.failed", body.Username, "invalid credentials", "denied")
 		time.Sleep(300 * time.Millisecond)
 		writeErr(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
+	s.logins.Reset(ip)
+	s.security(r.Context(), r, "auth.login", u.Username, "signed in", "ok")
 	s.Auth.SetCookie(w, token)
 	writeJSON(w, http.StatusOK, map[string]any{"user": u, "token": token})
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if tok := auth.TokenFromRequest(r); tok != "" {
-		_ = s.Auth.Logout(r.Context(), tok)
+		who := ""
+		if u, err := s.Auth.Authenticate(r); err == nil {
+			who = u.Username
+		}
+		if err := s.Auth.Logout(r.Context(), tok); err != nil {
+			s.Log.Warn("logout", "err", err)
+		}
+		if who != "" {
+			s.security(r.Context(), r, "auth.logout", who, "signed out", "ok")
+		}
 	}
 	s.Auth.ClearCookie(w)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
@@ -275,7 +340,13 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	s.audit(r.Context(), r, "user.password", u.Username, nil, nil, "ok")
+	// A password change ends every other session of the account (audit A04).
+	revoked, err := s.Auth.RevokeOtherSessions(r.Context(), u.ID, auth.TokenFromRequest(r))
+	if err != nil {
+		s.Log.Error("revoke sessions after password change", "user", u.Username, "err", err)
+	}
+	s.audit(r.Context(), r, "user.password", u.Username, nil, map[string]any{"revokedSessions": revoked}, "ok")
+	s.security(r.Context(), r, "auth.session.revoked", u.Username, fmt.Sprintf("%d other session(s) ended after password change", revoked), "ok")
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

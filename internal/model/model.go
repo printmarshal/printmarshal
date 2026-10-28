@@ -567,3 +567,21 @@ func Percent(level, max int) *int {
 	}
 	return &p
 }
+
+// Outbox is one durable, retried notification delivery (one event × one
+// destination). Deliveries survive restarts; the notifier worker drains them.
+type Outbox struct {
+	ID        int64      `json:"id"`
+	EventID   string     `json:"eventId"`
+	Event     string     `json:"event"`
+	Notifier  string     `json:"notifier"`
+	Subject   string     `json:"subject"`
+	Body      string     `json:"body"`
+	Payload   any        `json:"payload,omitempty"`
+	State     string     `json:"state"` // pending | delivered | dead
+	Attempts  int        `json:"attempts"`
+	LastError string     `json:"lastError,omitempty"`
+	NextAt    time.Time  `json:"nextAt"`
+	CreatedAt time.Time  `json:"createdAt"`
+	DoneAt    *time.Time `json:"doneAt,omitempty"`
+}

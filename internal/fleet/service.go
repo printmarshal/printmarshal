@@ -24,13 +24,12 @@ import (
 
 // Service is the fleet façade.
 type Service struct {
-	Store    store.Store
-	Engine   *engine.Engine
-	Jobs     *jobs.Runner
-	Cfg      *config.Config
-	Log      *slog.Logger
-	Events   func(model.Event)
-	Notifier *alerts.Notifier
+	Store  store.Store
+	Engine *engine.Engine
+	Jobs   *jobs.Runner
+	Cfg    *config.Config
+	Log    *slog.Logger
+	Events func(model.Event)
 	// Consumables links installed supplies to stock items and forecasts them.
 	Consumables *consumables.Service
 	// Probe is the cheap liveness check used by active scans.
@@ -41,8 +40,8 @@ type Service struct {
 }
 
 // New builds a service and registers its job types.
-func New(st store.Store, eng *engine.Engine, runner *jobs.Runner, cfg *config.Config, log *slog.Logger, events func(model.Event), notifier *alerts.Notifier, probe discovery.Prober) *Service {
-	s := &Service{Store: st, Engine: eng, Jobs: runner, Cfg: cfg, Log: log, Events: events, Notifier: notifier, Probe: probe, polling: map[string]bool{},
+func New(st store.Store, eng *engine.Engine, runner *jobs.Runner, cfg *config.Config, log *slog.Logger, events func(model.Event), probe discovery.Prober) *Service {
+	s := &Service{Store: st, Engine: eng, Jobs: runner, Cfg: cfg, Log: log, Events: events, Probe: probe, polling: map[string]bool{},
 		Consumables: consumables.New(st, log)}
 	runner.Register("discovery", s.runDiscovery)
 	runner.Register("poll", s.runPoll)
@@ -103,9 +102,6 @@ func (s *Service) IdentifyAndUpsert(ctx context.Context, address string, methods
 	}
 	if created {
 		s.emit("device.discovered", dev)
-		if s.Notifier != nil {
-			s.Notifier.Notify("device.discovered", "New device: "+dev.Name(), fmt.Sprintf("%s %s at %s (serial %s)", dev.Make, dev.Model, dev.Address, dev.Serial), dev)
-		}
 	}
 	return dev, created, nil
 }
@@ -234,10 +230,6 @@ func (s *Service) reconcileAlerts(ctx context.Context, dev *model.Device, desire
 		keep[d.Source] = append(keep[d.Source], d.Key)
 		if raised {
 			s.emit("alert.raised", a)
-			if s.Notifier != nil {
-				s.Notifier.Notify("alert.raised", fmt.Sprintf("[%s] %s: %s", strings.ToUpper(string(a.Severity)), dev.Name(), a.Description),
-					fmt.Sprintf("%s (%s, %s)\n%s", dev.Name(), dev.Model, dev.Address, a.Description), map[string]any{"alert": a, "device": dev})
-			}
 		}
 	}
 	for _, src := range sources {
@@ -248,10 +240,6 @@ func (s *Service) reconcileAlerts(ctx context.Context, dev *model.Device, desire
 		}
 		for _, a := range cleared {
 			s.emit("alert.cleared", a)
-			if s.Notifier != nil {
-				s.Notifier.Notify("alert.cleared", fmt.Sprintf("[CLEARED] %s: %s", dev.Name(), a.Description),
-					fmt.Sprintf("%s (%s)\n%s is resolved", dev.Name(), dev.Address, a.Description), map[string]any{"alert": a, "device": dev})
-			}
 		}
 	}
 }
@@ -553,9 +541,6 @@ func (s *Service) HandleTrap(ctx context.Context, sourceIP string, description s
 	a, raised, err := s.Store.RaiseAlert(ctx, dev.ID, key, "trap", severity, description)
 	if err == nil && raised {
 		s.emit("alert.raised", a)
-		if s.Notifier != nil {
-			s.Notifier.Notify("alert.raised", fmt.Sprintf("[TRAP] %s: %s", dev.Name(), description), fmt.Sprintf("%s (%s) sent a trap: %s", dev.Name(), dev.Address, description), map[string]any{"alert": a, "device": dev, "varbinds": varbinds})
-		}
 	}
 	// Reconcile trap state with polled state.
 	if _, err := s.SubmitPoll(ctx, []string{dev.ID}, "trap"); err != nil {

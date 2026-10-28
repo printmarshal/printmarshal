@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"printmarshal/internal/alerts"
 	"printmarshal/internal/auth"
 	"printmarshal/internal/config"
 	"printmarshal/internal/configmgmt"
@@ -48,7 +47,7 @@ func newConfigServer(t *testing.T) (*httptest.Server, *Server, *model.Device, *s
 		return fx, "v2c", nil
 	}))
 	eng := engine.New(reg, log, 2)
-	fl := fleet.New(st, eng, runner, cfg, log, hub.Publish, alerts.NewNotifier(nil, st, log), nil)
+	fl := fleet.New(st, eng, runner, cfg, log, hub.Publish, nil)
 	cm := configmgmt.New(fl.DepsOf())
 	a := auth.New(st, time.Hour, false, log)
 	if err := a.Bootstrap(context.Background(), "adminpass123"); err != nil {

@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,6 +27,7 @@ import (
 	"printmarshal/internal/driver/ipp"
 	"printmarshal/internal/driver/snmp"
 	"printmarshal/internal/engine"
+	"printmarshal/internal/events"
 	"printmarshal/internal/firmware"
 	"printmarshal/internal/fleet"
 	"printmarshal/internal/jobs"
@@ -132,9 +134,15 @@ func run(cfgPath string) error {
 	plugins.RegisterAll(reg, log) // vendor plugins: enrichment at the edge (spec §6)
 	eng := engine.New(reg, log, cfg.Poll.Concurrency)
 
+	bus := events.NewBus() // single event contract: live stream + durable notifications (docs/events.md)
+	bus.Unknown = func(t string) { log.Warn("event type is not in the catalogue", "type", t) }
 	hub := api.NewHub()
+	hub.Origins = cfg.Auth.AllowedOrigins
+	bus.Subscribe(hub)
 	notifier := alerts.NewNotifier(cfg.Notifiers, st, log)
-	runner := jobs.New(st, log, cfg.Jobs.Workers, hub.Publish)
+	notifier.Attach(bus)
+	go notifier.Run(ctx)
+	runner := jobs.New(st, log, cfg.Jobs.Workers, bus.Publish)
 	defer runner.Stop()
 
 	// Cheap liveness probe for active scans: one SNMP system-group read.
@@ -150,19 +158,28 @@ func run(cfgPath string) error {
 		return true
 	}
 
-	fl := fleet.New(st, eng, runner, cfg, log, hub.Publish, notifier, probe)
+	fl := fleet.New(st, eng, runner, cfg, log, bus.Publish, probe)
 	deps := fl.DepsOf()
 	cfgSvc := configmgmt.New(deps)
 	secSvc := security.New(deps)
 	fwSvc := firmware.New(deps)
 
 	authSvc := auth.New(st, cfg.Auth.SessionTTL.D(), cfg.Auth.SecureCookies, log)
+	authSvc.PasswordFile = filepath.Join(cfg.DataDir, "initial-admin-password")
+	if !cfg.Auth.SecureCookies && !isLoopback(cfg.Listen) {
+		log.Warn("auth.secureCookies is off while listening on a non-loopback address: put PrintMarshal behind TLS and set PM_SECURE_COOKIES=true (docs/security.md)", "listen", cfg.Listen)
+	}
 	if err := authSvc.Bootstrap(ctx, os.Getenv("PM_ADMIN_PASSWORD")); err != nil {
 		return err
 	}
 
 	if cfg.Trap.Enabled {
 		tl := trap.New(cfg.Trap.Listen, fl, log)
+		allowed, err := trap.ParseSources(cfg.Trap.AllowedSources)
+		if err != nil {
+			return err
+		}
+		tl.Allowed, tl.RatePerMinute = allowed, cfg.Trap.RatePerMinute
 		go func() {
 			if err := tl.Run(ctx); err != nil {
 				log.Error("trap listener stopped", "err", err)
@@ -183,7 +200,7 @@ func run(cfgPath string) error {
 		}
 	}()
 
-	srv := &api.Server{Store: st, Fleet: fl, ConfigMgmt: cfgSvc, Security: secSvc, Firmware: fwSvc, Auth: authSvc, Hub: hub, Cfg: cfg, Log: log, UI: web.Handler(), Version: version}
+	srv := &api.Server{Store: st, Fleet: fl, ConfigMgmt: cfgSvc, Security: secSvc, Firmware: fwSvc, Auth: authSvc, Hub: hub, Bus: bus, Notifier: notifier, Cfg: cfg, Log: log, UI: web.Handler(), Version: version}
 	httpSrv := &http.Server{Addr: cfg.Listen, Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() {
@@ -202,6 +219,19 @@ func run(cfgPath string) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = httpSrv.Shutdown(shutdownCtx)
-	hub.Publish(model.Event{Type: "server.stopping"})
+	bus.Publish(model.Event{Type: "server.stopping"})
 	return nil
+}
+
+// isLoopback reports whether a listen address binds only to localhost.
+func isLoopback(listen string) bool {
+	host, _, err := net.SplitHostPort(listen)
+	if err != nil || host == "" {
+		return false
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

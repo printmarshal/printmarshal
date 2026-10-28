@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"printmarshal/internal/alerts"
 	"printmarshal/internal/config"
 	"printmarshal/internal/driver/snmp"
 	"printmarshal/internal/engine"
@@ -45,8 +44,7 @@ func newTestService(t *testing.T, fixture string) (*Service, store.Store) {
 	var events []model.Event
 	runner := jobs.New(st, log, 2, func(e model.Event) { events = append(events, e) })
 	t.Cleanup(runner.Stop)
-	notifier := alerts.NewNotifier(nil, st, log)
-	svc := New(st, eng, runner, cfg, log, func(e model.Event) {}, notifier, func(ctx context.Context, a string) bool { return true })
+	svc := New(st, eng, runner, cfg, log, func(e model.Event) {}, func(ctx context.Context, a string) bool { return true })
 	return svc, st
 }
 

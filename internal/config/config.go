@@ -43,6 +43,12 @@ type Config struct {
 	Trap struct {
 		Enabled bool   `json:"enabled"`
 		Listen  string `json:"listen"` // e.g. "0.0.0.0:1162"
+		// AllowedSources are CIDRs (or single addresses) traps are accepted from.
+		// Empty = any source, but a trap is only acted on when it comes from
+		// the address of a known device.
+		AllowedSources []string `json:"allowedSources,omitempty"`
+		// RatePerMinute caps traps handled per source address (0 = default 60).
+		RatePerMinute int `json:"ratePerMinute,omitempty"`
 	} `json:"trap"`
 
 	Alerts struct {
@@ -60,6 +66,12 @@ type Config struct {
 	Auth struct {
 		SessionTTL    Duration `json:"sessionTtl"`
 		SecureCookies bool     `json:"secureCookies"`
+		// AllowedOrigins are extra Origin host patterns accepted on the WebSocket
+		// stream (e.g. "console.example.com", "*.corp.example"). Same-origin is
+		// always accepted; nothing else is unless listed here.
+		AllowedOrigins []string `json:"allowedOrigins,omitempty"`
+		// LoginFailuresPerMinute per source IP before sign-in is rate limited (0 = default 10).
+		LoginFailuresPerMinute int `json:"loginFailuresPerMinute,omitempty"`
 	} `json:"auth"`
 
 	Telemetry struct {

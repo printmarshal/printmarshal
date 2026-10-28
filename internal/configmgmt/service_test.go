@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"printmarshal/internal/alerts"
 	"printmarshal/internal/config"
 	"printmarshal/internal/driver/snmp"
 	"printmarshal/internal/engine"
@@ -61,7 +60,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	}
 	runner := jobs.New(st, log, 2, emit)
 	t.Cleanup(runner.Stop)
-	fl := fleet.New(st, eng, runner, cfg, log, emit, alerts.NewNotifier(nil, st, log), nil)
+	fl := fleet.New(st, eng, runner, cfg, log, emit, nil)
 	svc := New(fl.DepsOf())
 	ident, caps, err := eng.Identify(context.Background(), "10.0.0.5", model.Creds{})
 	if err != nil {

@@ -512,10 +512,6 @@ func (s *Service) raiseAlert(ctx context.Context, dev *model.Device, key string,
 	}
 	if raised {
 		s.emit("alert.raised", a)
-		if s.Fleet != nil && s.Fleet.Notifier != nil {
-			s.Fleet.Notifier.Notify("alert.raised", fmt.Sprintf("[%s] %s: %s", strings.ToUpper(string(sev)), dev.Name(), desc),
-				fmt.Sprintf("%s (%s, %s)\n%s", dev.Name(), dev.Model, dev.Address, desc), map[string]any{"alert": a, "device": dev})
-		}
 	}
 }
 

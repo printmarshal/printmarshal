@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"printmarshal/internal/alerts"
 	"printmarshal/internal/config"
 	"printmarshal/internal/engine"
 	"printmarshal/internal/fleet"
@@ -114,7 +113,7 @@ func newHarness(t *testing.T) *harness {
 	t.Cleanup(runner.Stop)
 	reg := engine.NewRegistry()
 	eng := engine.New(reg, log, 4)
-	fl := fleet.New(st, eng, runner, cfg, log, nil, alerts.NewNotifier(nil, st, log), nil)
+	fl := fleet.New(st, eng, runner, cfg, log, nil, nil)
 	svc := New(fl.DepsOf())
 	svc.TLSProbe, svc.PortProbe = nil, nil
 	return &harness{t: t, st: st, svc: svc, runner: runner, reg: reg, logBuf: buf}

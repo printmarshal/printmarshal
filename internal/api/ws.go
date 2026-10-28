@@ -9,6 +9,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"printmarshal/internal/events"
 	"printmarshal/internal/model"
 )
 
@@ -16,6 +17,9 @@ import (
 type Hub struct {
 	mu   sync.RWMutex
 	subs map[chan []byte]struct{}
+	// Origins are extra Origin host patterns accepted besides same-origin
+	// (config auth.allowedOrigins). Empty means same-origin only.
+	Origins []string
 }
 
 // NewHub returns an empty hub.
@@ -56,7 +60,7 @@ func (h *Hub) unsubscribe(ch chan []byte) {
 
 // ServeHTTP upgrades to WebSocket and streams events until the client leaves.
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: []string{"*"}})
+	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: h.Origins})
 	if err != nil {
 		return
 	}
@@ -84,6 +88,22 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return
 			}
+		}
+	}
+}
+
+// Handle implements events.Subscriber: every bus event reaches the live stream.
+func (h *Hub) Handle(env events.Envelope) {
+	b, err := json.Marshal(env)
+	if err != nil {
+		return
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for ch := range h.subs {
+		select {
+		case ch <- b:
+		default:
 		}
 	}
 }

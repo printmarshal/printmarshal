@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"printmarshal/internal/alerts"
 	"printmarshal/internal/auth"
 	"printmarshal/internal/config"
 	"printmarshal/internal/engine"
@@ -36,7 +35,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *Server) {
 	runner := jobs.New(st, log, 1, hub.Publish)
 	t.Cleanup(runner.Stop)
 	eng := engine.New(engine.NewRegistry(), log, 2)
-	fl := fleet.New(st, eng, runner, cfg, log, hub.Publish, alerts.NewNotifier(nil, st, log), nil)
+	fl := fleet.New(st, eng, runner, cfg, log, hub.Publish, nil)
 	a := auth.New(st, time.Hour, false, log)
 	if err := a.Bootstrap(context.Background(), "adminpass123"); err != nil {
 		t.Fatal(err)

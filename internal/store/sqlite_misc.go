@@ -690,3 +690,11 @@ func (s *SQLite) DeleteSession(ctx context.Context, tokenHash string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash=?`, tokenHash)
 	return err
 }
+
+func (s *SQLite) DeleteUserSessions(ctx context.Context, userID, keepHash string) (int64, error) {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id=? AND token_hash<>?`, userID, keepHash)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}

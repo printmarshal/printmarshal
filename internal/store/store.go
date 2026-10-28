@@ -119,6 +119,7 @@ type Store interface {
 	ConfigStore
 	SecurityStore
 	FirmwareStore
+	OutboxStore
 
 	Close() error
 
@@ -188,6 +189,8 @@ type Store interface {
 	CreateSession(ctx context.Context, tokenHash, userID string, expires time.Time) error
 	GetSession(ctx context.Context, tokenHash string) (*model.User, error)
 	DeleteSession(ctx context.Context, tokenHash string) error
+	// DeleteUserSessions revokes every session of a user except keepHash ("" = all).
+	DeleteUserSessions(ctx context.Context, userID, keepHash string) (int64, error)
 
 	// Consumables (stock items are operator-owned; polls never write them)
 	ListConsumables(ctx context.Context, f ConsumableFilter) ([]*model.Consumable, error)

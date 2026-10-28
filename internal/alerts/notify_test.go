@@ -12,9 +12,26 @@ import (
 	"time"
 
 	"printmarshal/internal/config"
+	"printmarshal/internal/events"
+	"printmarshal/internal/model"
 	"printmarshal/internal/secrets"
 	"printmarshal/internal/store"
 )
+
+func newTestNotifier(t *testing.T, dests []config.Notifier) (*Notifier, *store.SQLite, *events.Bus) {
+	t.Helper()
+	box, _ := secrets.New(make([]byte, 32))
+	st, err := store.OpenSQLite(t.TempDir()+"/t.db", box)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { st.Close() })
+	n := NewNotifier(dests, st, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	n.Backoff, n.MaxBackoff, n.MaxAttempts = time.Millisecond, 5*time.Millisecond, 3
+	bus := events.NewBus()
+	n.Attach(bus)
+	return n, st, bus
+}
 
 func TestWebhookDeliveryAndLog(t *testing.T) {
 	var mu sync.Mutex
@@ -31,31 +48,24 @@ func TestWebhookDeliveryAndLog(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	box, _ := secrets.New(make([]byte, 32))
-	st, err := store.OpenSQLite(t.TempDir()+"/t.db", box)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer st.Close()
-	n := NewNotifier([]config.Notifier{
-		{Name: "slack", Type: "slack", URL: srv.URL + "/slack"},                                   // default: alert.* only
-		{Name: "hook", Type: "webhook", URL: srv.URL + "/hook", Events: []string{"*"}},             // everything
-		{Name: "bad", Type: "teams", URL: srv.URL + "/fail", Events: []string{"alert.raised"}},     // fails
+	n, st, bus := newTestNotifier(t, []config.Notifier{
+		{Name: "slack", Type: "slack", URL: srv.URL + "/slack"},                                      // default: alert.* only
+		{Name: "hook", Type: "webhook", URL: srv.URL + "/hook", Events: []string{"*"}},               // every notifiable event
+		{Name: "bad", Type: "teams", URL: srv.URL + "/fail", Events: []string{"alert.raised"}},       // fails
 		{Name: "jobs", Type: "discord", URL: srv.URL + "/discord", Events: []string{"job.finished"}}, // not subscribed to alerts
-	}, st, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	n.Notify("alert.raised", "[CRITICAL] LP-1: Paper jam", "LP-1 (10.0.0.5)\nPaper jam", map[string]any{"device": "LP-1", "secret": "should-not-matter"})
+	})
+	ctx := context.Background()
+	bus.Publish(model.Event{Type: "alert.raised", Data: &model.Alert{DeviceID: "dev-1", Severity: model.SeverityCritical, Description: "Paper jam", Source: "poll"}})
+	bus.Publish(model.Event{Type: "device.updated", Data: map[string]any{"x": 1}}) // not notifiable: nobody gets it
 
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		logs, _ := st.ListNotificationLog(context.Background(), 10)
-		if len(logs) == 3 {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
+	pending, _ := st.ListOutbox(ctx, "pending", 50)
+	if len(pending) != 3 {
+		t.Fatalf("expected 3 outbox rows (slack, hook, bad), got %d", len(pending))
 	}
-	logs, _ := st.ListNotificationLog(context.Background(), 10)
+	n.Drain(ctx) // first attempt for all three
+	logs, _ := st.ListNotificationLog(ctx, 10)
 	if len(logs) != 3 {
-		t.Fatalf("expected 3 delivery attempts (slack, hook, bad), got %d", len(logs))
+		t.Fatalf("expected 3 delivery attempts, got %d", len(logs))
 	}
 	okCount := 0
 	for _, l := range logs {
@@ -70,6 +80,34 @@ func TestWebhookDeliveryAndLog(t *testing.T) {
 	}
 	if okCount != 2 {
 		t.Errorf("ok deliveries = %d", okCount)
+	}
+	// Retries with backoff until dead, then a notification.dead event.
+	var dead []events.Envelope
+	bus.Subscribe(events.SubscriberFunc(func(e events.Envelope) {
+		if e.Type == "notification.dead" {
+			dead = append(dead, e)
+		}
+	}))
+	for i := 0; i < 10 && len(dead) == 0; i++ {
+		time.Sleep(10 * time.Millisecond)
+		n.Drain(ctx)
+	}
+	rows, _ := st.ListOutbox(ctx, "dead", 10)
+	if len(rows) != 1 || rows[0].Notifier != "bad" || rows[0].Attempts != 3 {
+		t.Fatalf("dead rows = %+v", rows)
+	}
+	if len(dead) != 1 {
+		t.Fatalf("notification.dead events = %d", len(dead))
+	}
+	// The dead event is itself notifiable, but never sent back to the failing destination.
+	pending, _ = st.ListOutbox(ctx, "pending", 50)
+	for _, p := range pending {
+		if p.Notifier == "bad" {
+			t.Errorf("dead notice queued to the failed destination: %+v", p)
+		}
+	}
+	if err := st.RequeueDead(ctx, rows[0].ID); err != nil {
+		t.Fatal(err)
 	}
 	mu.Lock()
 	defer mu.Unlock()

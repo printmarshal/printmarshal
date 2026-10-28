@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -26,6 +27,9 @@ type Service struct {
 	ttl    time.Duration
 	secure bool
 	log    *slog.Logger
+	// PasswordFile, when set, receives the generated initial admin password
+	// (mode 0600) instead of the log.
+	PasswordFile string
 }
 
 // CookieName carries the session token for the SPA.
@@ -65,8 +69,16 @@ func (s *Service) Bootstrap(ctx context.Context, envPassword string) error {
 		return err
 	}
 	if generated {
-		// This is the one place a secret is deliberately printed: there is no
-		// other way to hand the operator their initial password.
+		// The generated password goes to a 0600 file in the data directory, not
+		// to the log, which is usually shipped elsewhere (audit A18).
+		if s.PasswordFile != "" {
+			if err := os.WriteFile(s.PasswordFile, []byte(pw+"\n"), 0o600); err == nil {
+				s.log.Warn("created initial admin user; the generated password is in a file. Change it after first login, then delete the file", "username", "admin", "file", s.PasswordFile)
+				return nil
+			} else {
+				s.log.Error("could not write the initial password file; printing it once instead", "file", s.PasswordFile, "err", err)
+			}
+		}
 		s.log.Warn("created initial admin user; change this password after first login", "username", "admin", "password", pw)
 	} else {
 		s.log.Info("created initial admin user from PM_ADMIN_PASSWORD", "username", "admin")
@@ -138,7 +150,8 @@ func hashToken(t string) string {
 }
 
 // TokenFromRequest extracts the session token from the Authorization header,
-// the session cookie, or (for WebSocket clients) the access_token query param.
+// the session cookie. Tokens are never read from the query string: URLs end
+// up in proxy and browser logs (audit A05).
 func TokenFromRequest(r *http.Request) string {
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(strings.ToLower(h), "bearer ") {
 		return strings.TrimSpace(h[7:])
@@ -146,7 +159,7 @@ func TokenFromRequest(r *http.Request) string {
 	if c, err := r.Cookie(CookieName); err == nil {
 		return c.Value
 	}
-	return r.URL.Query().Get("access_token")
+	return ""
 }
 
 // Authenticate resolves the user for a request.
@@ -180,4 +193,20 @@ func WithUser(ctx context.Context, u *model.User) context.Context {
 func UserFrom(ctx context.Context) *model.User {
 	u, _ := ctx.Value(ctxKey{}).(*model.User)
 	return u
+}
+
+// RevokeOtherSessions ends every session of the user except the one holding
+// keepToken (used after a password change, audit A04). It returns how many
+// sessions were revoked.
+func (s *Service) RevokeOtherSessions(ctx context.Context, userID, keepToken string) (int64, error) {
+	keep := ""
+	if keepToken != "" {
+		keep = hashToken(keepToken)
+	}
+	return s.store.DeleteUserSessions(ctx, userID, keep)
+}
+
+// RevokeAllSessions ends every session of the user (admin reset / user delete).
+func (s *Service) RevokeAllSessions(ctx context.Context, userID string) (int64, error) {
+	return s.store.DeleteUserSessions(ctx, userID, "")
 }
