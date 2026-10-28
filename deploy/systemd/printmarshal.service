@@ -1,0 +1,78 @@
+# PrintMarshal on a bare Linux host (docs/operations.md, "systemd").
+#
+# Install:
+#   install -m 0755 bin/printmarshal /usr/local/bin/printmarshal
+#   useradd --system --home-dir /var/lib/printmarshal --shell /usr/sbin/nologin printmarshal
+#   install -d -m 0750 -o root -g printmarshal /etc/printmarshal
+#   install -m 0640 -g printmarshal deploy/systemd/printmarshal.env.example /etc/printmarshal/printmarshal.env
+#   install -m 0644 deploy/systemd/printmarshal.service /etc/systemd/system/printmarshal.service
+#   systemctl daemon-reload && systemctl enable --now printmarshal
+#   journalctl -u printmarshal -f        # first start prints the admin password unless PM_ADMIN_PASSWORD is set
+#
+# /var/lib/printmarshal (StateDirectory) is created and owned automatically.
+
+[Unit]
+Description=PrintMarshal printer fleet management
+Documentation=https://github.com/printmarshal/printmarshal/blob/main/docs/operations.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=printmarshal
+Group=printmarshal
+
+# Settings: /etc/printmarshal/printmarshal.env (PM_* variables, secrets) and
+# optionally PM_CONFIG=/etc/printmarshal/printmarshal.json for notifiers etc.
+EnvironmentFile=-/etc/printmarshal/printmarshal.env
+Environment=PM_DATA_DIR=/var/lib/printmarshal
+ExecStart=/usr/local/bin/printmarshal
+
+StateDirectory=printmarshal
+StateDirectoryMode=0700
+ConfigurationDirectory=printmarshal
+WorkingDirectory=/var/lib/printmarshal
+UMask=0077
+
+Restart=on-failure
+RestartSec=5s
+# SIGTERM -> graceful HTTP shutdown (10 s) and jobs are marked interrupted.
+KillSignal=SIGTERM
+TimeoutStopSec=20s
+
+# The trap listener may bind the privileged port 162 (PM_TRAP_LISTEN=0.0.0.0:162)
+# without running as root.  Remove both lines if you stay on 1162.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# --- Hardening (systemd-analyze security printmarshal) ---------------------
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+DevicePolicy=closed
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+# Discovery and polling are plain UDP/TCP sockets; no raw sockets are used.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RemoveIPC=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @mount @debug @cpu-emulation @obsolete
+# Deny rather than kill: the Go runtime raises RLIMIT_NOFILE at start and ignores a refusal.
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

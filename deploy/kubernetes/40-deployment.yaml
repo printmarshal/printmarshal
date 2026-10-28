@@ -1,0 +1,144 @@
+# PrintMarshal engine + API + UI in one pod.
+#
+# hostNetwork: true  -- the trade-off
+#   Zero-config discovery sends and receives multicast (mDNS 224.0.0.251:5353,
+#   WS-Discovery 239.255.255.250:3702) and printers push SNMP traps to UDP
+#   162/1162.  Neither reaches a pod on the overlay/CNI network: multicast is
+#   not routed into pod networks, and a Service in front of a UDP port rewrites
+#   the source address so a trap cannot be matched to its device.  With
+#   hostNetwork the pod uses the node's interfaces, so it sees whatever VLANs
+#   the node sees.  The costs: ports 8080/tcp and 1162/udp are bound on the node
+#   itself (one replica per node, hence Recreate + replicas: 1), NetworkPolicies
+#   do not apply, DNS must use ClusterFirstWithHostNet, and the pod must be
+#   pinned (nodeSelector/affinity) to a node that is actually on the printer
+#   network.
+#
+# Alternatives
+#   * No hostNetwork at all: keep the pod on the CNI, set discovery.enabled=false
+#     and rely on active scans (discovery.targets = the printer CIDRs) plus
+#     polling.  Everything except multicast discovery and traps works.  Traps can
+#     still arrive through a UDP Service with externalTrafficPolicy: Local (keeps
+#     the source IP) -- see 50-service.yaml.
+#   * macvlan / ipvlan via Multus: give the pod a second interface with a real
+#     address on the printer VLAN (NetworkAttachmentDefinition + the
+#     k8s.v1.cni.cncf.io/networks annotation).  Multicast and traps then work
+#     without hostNetwork and without binding node ports.
+#   * DaemonSet: only if every node sits on the printer network *and* the state
+#     is shared -- it is not (SQLite on one RWO volume), so a DaemonSet would run
+#     N independent servers.  Prefer a Deployment pinned to one node.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: printmarshal
+  namespace: printmarshal
+  labels:
+    app.kubernetes.io/name: printmarshal
+    app.kubernetes.io/component: server
+spec:
+  replicas: 1                     # SQLite + ReadWriteOnce volume + host ports: exactly one
+  strategy:
+    type: Recreate                # the old pod must release the volume and the host ports first
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: printmarshal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: printmarshal
+        app.kubernetes.io/component: server
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      # Pin to the node(s) with L2 access to the printer VLAN:
+      # nodeSelector:
+      #   printmarshal.io/printer-network: "true"
+      serviceAccountName: printmarshal
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: printmarshal
+          # Replace with your registry; `make docker` produces printmarshal:<version>.
+          image: printmarshal:latest
+          imagePullPolicy: IfNotPresent
+          args: ["-config", "/config/printmarshal.json"]
+          env:
+            - name: PM_DATA_DIR
+              value: /data
+            - name: PM_LOG_FORMAT
+              value: json
+            - name: PM_LOG_LEVEL
+              value: info
+            - name: PM_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: printmarshal-secrets
+                  key: PM_ADMIN_PASSWORD
+                  optional: true          # omitted -> generated and printed in the log on first start
+            - name: PM_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: printmarshal-secrets
+                  key: PM_SECRET_KEY
+                  optional: true          # omitted -> generated into /data/secret.key
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: snmp-trap
+              containerPort: 1162
+              protocol: UDP
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30          # up to 60 s for schema migrations on a large database
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi             # see "Sizing" in docs/operations.md
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp             # SQLite temp files with a read-only root
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: printmarshal-data
+        - name: config
+          configMap:
+            name: printmarshal-config
+        - name: tmp
+          emptyDir: {}

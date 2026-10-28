@@ -1,0 +1,31 @@
+# Optional TLS termination in front of the UI/API.  When TLS is terminated here
+# set PM_SECURE_COOKIES=true (or auth.secureCookies in the ConfigMap) so the
+# session cookie is only ever sent over HTTPS.  The API uses WebSockets on
+# /api/stream; most ingress controllers pass them through by default.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: printmarshal
+  namespace: printmarshal
+  labels:
+    app.kubernetes.io/name: printmarshal
+  annotations:
+    # cert-manager.io/cluster-issuer: letsencrypt
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"   # keep the event stream open
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - printmarshal.example.com
+      secretName: printmarshal-tls
+  rules:
+    - host: printmarshal.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: printmarshal
+                port:
+                  name: http

@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "printmarshal.fullname" . }}
+  labels:
+    {{- include "printmarshal.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "printmarshal.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+{{- if .Values.service.trap.enabled }}
+---
+# SNMP traps on the standard port.  externalTrafficPolicy Local preserves the
+# printer's source address, which is how a trap is matched to its device.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "printmarshal.fullname" . }}-trap
+  labels:
+    {{- include "printmarshal.labels" . | nindent 4 }}
+  {{- with .Values.service.trap.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.trap.type }}
+  {{- if ne .Values.service.trap.type "ClusterIP" }}
+  externalTrafficPolicy: Local
+  {{- end }}
+  selector:
+    {{- include "printmarshal.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: snmp-trap
+      port: {{ .Values.service.trap.port }}
+      targetPort: snmp-trap
+      protocol: UDP
+{{- end }}
