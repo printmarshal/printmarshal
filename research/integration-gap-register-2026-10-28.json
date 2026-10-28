@@ -18,7 +18,7 @@
     "assumptions": [
       "Single-organization self-hosted installation is the baseline; multi-site is optional.",
       "SaaS services, identity brokers, collectors, message buses and external secret stores must remain optional.",
-      "Current configuration and future security/firmware writes require exact driver capability, resource authorization, approvals and recorded results."
+      "Current configuration/firmware workflows and future security writes require exact driver capability, resource authorization, approvals and recorded results."
     ]
   },
   "priority_definitions": {
@@ -45,7 +45,7 @@
       "P2": 18,
       "P3": 4
     },
-    "code_evidence_anchors": 54,
+    "code_evidence_anchors": 60,
     "primary_sources": 47
   },
   "audit_findings": [
@@ -72,7 +72,7 @@
       "priority": "P1",
       "kind": "implementation_defect",
       "title": "Declared and delivered event sets differ",
-      "observation": "Notifier configuration names job.finished, but the job runner emits job.updated only to the Hub. Manual alert clear/ack and consumable replacement events also publish to the Hub without the notifier. The new configuration service emits config.applied only through its event publisher/Hub.",
+      "observation": "Notifier configuration names job.finished, but the job runner emits job.updated only to the Hub. Manual alert clear/ack and consumable replacement events also publish to the Hub without the notifier. The new configuration service emits config.applied only through its event publisher/Hub. Firmware campaign/device events likewise use the live event publisher rather than the notifier.",
       "impact": "An incident can remain open externally after an operator clears it, and subscribers can configure an event that is never delivered.",
       "recommendation": "Define a single event catalogue and route all eligible transitions through the durable publisher; record automatic versus manual resolution and preserve event origin.",
       "code_evidence_ids": [
@@ -81,7 +81,9 @@
         "C19",
         "C20",
         "C47",
-        "C48"
+        "C48",
+        "C55",
+        "C56"
       ],
       "source_ids": []
     },
@@ -90,7 +92,7 @@
       "priority": "P1",
       "kind": "implementation_defect",
       "title": "Audit records can be silently lost and omit security context",
-      "observation": "The API audit helper discards AddAudit errors. Login/logout and middleware denials do not create audit events. Audit rows lack request ID, immutable principal ID, origin IP, principal type and external export state. Configuration applies perform device I/O, then persist a write record and call another audit helper that also ignores AddAudit errors.",
+      "observation": "The API audit helper discards AddAudit errors. Login/logout and middleware denials do not create audit events. Audit rows lack request ID, immutable principal ID, origin IP, principal type and external export state. Configuration applies perform device I/O, then persist a write record and call another audit helper that also ignores AddAudit errors. The firmware service does log audit insertion failure, but only after delivery, and does not durably retry it.",
       "impact": "A security team cannot reliably reconstruct access and actions or assume that every recorded change has an audit trail.",
       "recommendation": "Make local mutations and audit/outbox atomic. For existing configuration writes and future device operations, persist authorized intent before I/O and separate verified/unknown outcomes; record authentication/denial events with bounded redacted context.",
       "code_evidence_ids": [
@@ -102,7 +104,8 @@
         "C24",
         "C48",
         "C49",
-        "C53"
+        "C53",
+        "C59"
       ],
       "source_ids": [
         "W07"
@@ -240,16 +243,17 @@
       "priority": "P1",
       "kind": "enterprise_feature_gap",
       "title": "Authorization is global and coarse",
-      "observation": "Role.Allows is a three-level rank. require only checks that rank. Existing groups and credential scopes route fleet work but do not constrain which resources a user can read or change. Newly implemented configuration apply/revert routes are available to every global operator; dryRun is optional and the service does not bind execution to a prior approval/rehearsal.",
+      "observation": "Role.Allows is a three-level rank. require only checks that rank. Existing groups and credential scopes route fleet work but do not constrain which resources a user can read or change. Newly implemented configuration apply/revert routes are available to every global operator; dryRun is optional and the service does not bind execution to a prior approval/rehearsal. Firmware start/confirm gates exist, but both are global operator actions rather than separately scoped approver/executor permissions.",
       "impact": "A site operator or integration cannot be limited to a site/group/action; global streams and exports share that boundary.",
-      "recommendation": "Add action/resource policy checks across list, export, bulk jobs, streams and credentials. Apply them to existing configuration writes, distinguish dry-run/approval/execution, and split future security/firmware permissions.",
+      "recommendation": "Add action/resource policy checks across list, export, bulk jobs, streams and credentials. Apply them to existing configuration writes, distinguish dry-run/approval/execution, and split security and firmware permissions.",
       "code_evidence_ids": [
         "C03",
         "C04",
         "C37",
         "C38",
         "C33",
-        "C53"
+        "C53",
+        "C32"
       ],
       "source_ids": [
         "W06"
@@ -351,16 +355,21 @@
       "id": "A17",
       "priority": "P2",
       "kind": "declared_only",
-      "title": "PKI/security/firmware workflows remain scaffolding",
-      "observation": "SCEP/EST/ACME enums and CAProfile exist, but security and firmware route files remain empty and vendor plugin registration is empty. Configuration routes and standards-based read/write jobs were merged during this review and are now implemented.",
-      "impact": "Certificate enrollment, security-policy remediation and signed firmware integrations cannot be advertised from type names or schemas. Existing configuration jobs are a useful implementation base, with the trust/audit limitations recorded separately.",
-      "recommendation": "Build CA-provider and printer-install adapters with separate compatibility evidence; apply resource, approval and audit controls to current configuration jobs and future security/firmware writes.",
+      "title": "PKI/security and enterprise vendor delivery remain unimplemented",
+      "observation": "SCEP/EST/ACME and CAProfile are declarations; security routes remain empty and vendor plugin registration is empty. Configuration workflows now exist. Firmware inventory, packages, campaign gates and version verification also now exist, with delivery through an explicitly registered simulator-only driver.",
+      "impact": "The application has reusable workflow infrastructure, but no evidence of enterprise vendor firmware delivery, CA enrollment or printer certificate/security rollout. Simulator success does not establish support for real vendor endpoints.",
+      "recommendation": "Build independently qualified CA and exact vendor delivery/install adapters. Reuse current workflows with resource permissions, approval identity and trustworthy audit; require exact compatibility and package-origin validation before real firmware delivery.",
       "code_evidence_ids": [
         "C29",
         "C31",
         "C32",
         "C33",
-        "C34"
+        "C34",
+        "C55",
+        "C56",
+        "C57",
+        "C58",
+        "C60"
       ],
       "source_ids": [
         "W35"
@@ -510,12 +519,13 @@
         "C37",
         "C38",
         "C33",
-        "C53"
+        "C53",
+        "C32"
       ],
       "source_ids": [
         "W06"
       ],
-      "proposal": "Add principal/action/resource checks and explicit site/group scope; distinguish credential routing from authorization and split future firmware/security privileges. Enforce these controls on the now-implemented configuration apply/revert API.",
+      "proposal": "Add principal/action/resource checks and explicit site/group scope; distinguish credential routing from authorization and split future firmware/security privileges. Enforce these controls on the now-implemented configuration apply/revert API. Firmware campaign start/confirm roles also need resource scope and separation policy.",
       "acceptance_criteria": [
         "Cross-site list, direct ID, export, job, telemetry and WebSocket access are denied or filtered consistently.",
         "Bulk targets are authorized at submission and execution; dynamic group edits cannot expand access silently.",
@@ -706,12 +716,14 @@
         "C19",
         "C20",
         "C47",
-        "C48"
+        "C48",
+        "C55",
+        "C56"
       ],
       "source_ids": [
         "W29"
       ],
-      "proposal": "Centralize all selected transition events and add severity/site filters, deduplication, maintenance windows, escalation, digest and flapping policies. Include config.applied and distinguish accepted from verified configuration results.",
+      "proposal": "Centralize all selected transition events and add severity/site filters, deduplication, maintenance windows, escalation, digest and flapping policies. Include config.applied and distinguish accepted from verified configuration results. Route firmware campaign/device outcomes through durable destinations, not only the live Hub.",
       "acceptance_criteria": [
         "Automatic and manual clear both update an external incident according to policy.",
         "A configured job.finished subscription receives terminal success/partial/failure consistently.",
@@ -1225,12 +1237,14 @@
         "C42",
         "C48",
         "C49",
-        "C53"
+        "C53",
+        "C56",
+        "C59"
       ],
       "source_ids": [
         "W07"
       ],
-      "proposal": "Durable principal/action/outcome events, append restrictions and local transaction coupling. Extend existing configuration jobs with authorized pre-I/O intent, verified/unknown outcomes and transactional audit/outbox; preserve the same contract for future security/firmware operations.",
+      "proposal": "Durable principal/action/outcome events, append restrictions and local transaction coupling. Extend current configuration/firmware workflows with authorized pre-I/O intent, durable audit/export and reconcilable unknown outcomes. Firmware already polls for version verification; preserve that distinction from driver acceptance.",
       "acceptance_criteria": [
         "Simulated local audit persistence failure cannot silently commit an unaudited privileged metadata change.",
         "A crash/timeout during printer I/O yields reconcilable pending/unknown outcome, not false success.",
@@ -1510,7 +1524,7 @@
       "id": "G39",
       "domain": "firmware",
       "title": "Approved firmware repositories and offline evidence packages",
-      "current_state": "firmware_routes_scaffold",
+      "current_state": "packages_campaigns_and_simulator_delivery_vendor_integration_missing",
       "priority": "P2",
       "relative_effort": "L",
       "depends_on": [
@@ -1521,14 +1535,19 @@
       ],
       "code_evidence_ids": [
         "C32",
-        "C34"
+        "C34",
+        "C55",
+        "C56",
+        "C57",
+        "C58",
+        "C60"
       ],
       "source_ids": [],
-      "proposal": "Customer-approved package repositories/mirrors with provenance, compatibility metadata, checksums and vendor-signature verification where supported; use prior printer research for exact update rights.",
+      "proposal": "Extend current package upload/SHA-256 checks and staged campaigns with approved repositories/offline manifests, package-origin/vendor-signature verification where supported, exact product/region/branch compatibility and qualified real vendor delivery/recovery. Existing substring matching and a stored digest are insufficient proof of package applicability or origin.",
       "acceptance_criteria": [
         "A package for the wrong product/region/branch is rejected.",
         "Offline import preserves source/release metadata and never invents an undocumented vendor upload API.",
-        "No campaign is advertised until exact vendor-driver update/recovery qualification exists."
+        "No real vendor update is advertised until exact vendor-driver delivery/authentication/recovery qualification exists."
       ],
       "implementation_status": "research_only_not_implemented"
     },
@@ -1733,7 +1752,7 @@
     },
     "C24": {
       "path": "/srv/printmarshal/cmd/printmarshal/main.go",
-      "line": 55,
+      "line": 57,
       "title": "Optional stdout JSON operational logs",
       "anchor": "func newLogger() *slog.Logger {"
     },
@@ -1746,7 +1765,7 @@
     "C26": {
       "path": "/srv/printmarshal/internal/driver/ipp/driver.go",
       "line": 76,
-      "title": "Configurable insecure TLS for printer reads",
+      "title": "Shared IPP transport with configurable unverified TLS",
       "anchor": "func NewTransport(opts Options) Transport {"
     },
     "C27": {
@@ -1781,8 +1800,8 @@
     },
     "C32": {
       "path": "/srv/printmarshal/internal/api/firmware.go",
-      "line": 7,
-      "title": "Firmware route placeholder",
+      "line": 23,
+      "title": "Firmware routes, global roles and campaign gates",
       "anchor": "func (s *Server) firmwareRoutes(mux *http.ServeMux) {"
     },
     "C33": {
@@ -1835,7 +1854,7 @@
     },
     "C41": {
       "path": "/srv/printmarshal/cmd/printmarshal/main.go",
-      "line": 166,
+      "line": 175,
       "title": "HTTP server transport and health deployment scope",
       "anchor": "httpSrv := &http.Server{Addr: cfg.Listen, Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}"
     },
@@ -1916,6 +1935,42 @@
       "title": "Existing dry-run, apply and revert tests",
       "anchor": "func TestApplyDryRunThenRealThenRevert(t *testing.T) {",
       "line": 157
+    },
+    "C55": {
+      "path": "/srv/printmarshal/internal/firmware/service.go",
+      "title": "Firmware event publisher and driver resolution",
+      "anchor": "func (s *Service) updater(dev *model.Device) (engine.FirmwareUpdater, string, error) {",
+      "line": 135
+    },
+    "C56": {
+      "path": "/srv/printmarshal/internal/firmware/run.go",
+      "title": "Firmware delivery and post-delivery version verification",
+      "anchor": "func (s *Service) updateDevice(ctx context.Context, jc *jobs.Context, c *model.Campaign, pkg *model.FirmwarePackage, row *model.CampaignDevice) {",
+      "line": 230
+    },
+    "C57": {
+      "path": "/srv/printmarshal/internal/driver/fwsim/driver.go",
+      "title": "Simulator-only firmware capability boundary",
+      "anchor": "func (d *Driver) Supports(dev *model.Device, cap model.Capability) bool {",
+      "line": 98
+    },
+    "C58": {
+      "path": "/srv/printmarshal/internal/firmware/fwversion/version.go",
+      "title": "Loose firmware vendor/model compatibility matching",
+      "anchor": "func Check(pkg *model.FirmwarePackage, dev *model.Device, allowDowngrade bool) Verdict {",
+      "line": 158
+    },
+    "C59": {
+      "path": "/srv/printmarshal/internal/firmware/run.go",
+      "title": "Firmware audit after delivery; failure logged without durable retry",
+      "anchor": "func (s *Service) auditDelivery(ctx context.Context, c *model.Campaign, dev *model.Device, pkg *model.FirmwarePackage, drv string, res *model.FirmwareResult, err error) {",
+      "line": 398
+    },
+    "C60": {
+      "path": "/srv/printmarshal/docs/firmware.md",
+      "title": "Firmware workflow and simulator qualification scope",
+      "anchor": "# Firmware management (spec §8.6, roadmap phase 6)",
+      "line": 1
     }
   },
   "primary_sources": {
@@ -2204,7 +2259,8 @@
   },
   "source_snapshot": {
     "captured_on": "2026-10-28",
-    "repository_head_at_capture": "1d33f5000be157df0f111edf68b7381b8e0a60a3",
+    "captured_at_utc": "2026-10-28 19:42:12 UTC",
+    "repository_head_at_capture": "516811ad051eb64ffa14f531e709d67198484b1b",
     "files": {
       "internal/auth/auth.go": {
         "sha256": "5bb18264354556a52b6ff19947c5c89bbf57b1fe8294d740fe83c0c8e8cb7541",
@@ -2275,24 +2331,24 @@
         "lines": 9
       },
       "internal/api/firmware.go": {
-        "sha256": "b586542cf12f4510b23ccda2de4a6f33a41d556cfd13ce54fb3da8a491424185",
-        "lines": 9
+        "sha256": "2ba536646bc02f1f2d9d46bc466af36deb4d7283aec1cf01a61f502968c16916",
+        "lines": 434
       },
       "internal/plugins/all.go": {
         "sha256": "9fb7321e1af1006cdea82f05c89f80803066eec08bec9b24e01981d4949bde43",
         "lines": 17
       },
       "cmd/printmarshal/main.go": {
-        "sha256": "b0c2dc13ee636fb2e038abbfb4da51655f290bda6df398693ce1f2ede4b892c8",
-        "lines": 186
+        "sha256": "df31044049d0d8bedebfde933fdafb011102a24d37a12008277a00d4d392053f",
+        "lines": 195
       },
       "deploy/docker-compose.yml": {
         "sha256": "43ef468ee48eabea189e3f6154b24703b9337ddcc7f587d6e3e70ba7e434d361",
         "lines": 29
       },
       "README.md": {
-        "sha256": "e62e577c658047564d7316b5bfabe06f1c962cb6ade1a87fdba52eb350b08e5e",
-        "lines": 140
+        "sha256": "2e024672835a99727e248b397adb3814e040278c57411efe29e6bb5dc3e51431",
+        "lines": 150
       },
       "go.mod": {
         "sha256": "1b1ccfeea075210738259eb20affb6b6a5f17b3b18df291477c8eeef16bf1dc1",
@@ -2325,16 +2381,49 @@
       "docs/configuration.md": {
         "sha256": "ef18ff15c0e519396f5131ec1444ed0bdf6453dbbba1a0fe93ece582b9a4d5e5",
         "lines": 153
+      },
+      "internal/firmware/service.go": {
+        "sha256": "2f813afe656087ba151086e45a7dc8ef9c852e1aef0b076e3d4061c4e0f3b1ea",
+        "lines": 226
+      },
+      "internal/firmware/run.go": {
+        "sha256": "6e92384fe31182f877e1117ece50007600b4c3683297de37225f65a5c8578184",
+        "lines": 436
+      },
+      "internal/driver/fwsim/driver.go": {
+        "sha256": "230ecd6d34fa871a8556b2db6e4e6e205d7ebc8ceec14433fe6a4b6af4337fe6",
+        "lines": 229
+      },
+      "internal/firmware/fwversion/version.go": {
+        "sha256": "3905ac91c3ee0834a363c24f157e0d0ad1c292240d57f0b93943dad369ccfd94",
+        "lines": 230
+      },
+      "internal/firmware/packages.go": {
+        "sha256": "756d7835b7fcaf05f88e9a2e4c98e5581a49a255090c0240e130265b87fdc783",
+        "lines": 148
+      },
+      "internal/firmware/campaign.go": {
+        "sha256": "f232fb1dd4ccf363d0ed85698801e422ef1178c4a2990157a67829aadd3b113e",
+        "lines": 465
+      },
+      "internal/model/firmware.go": {
+        "sha256": "118876dd687a6fc4790f9205a8b313e60e5013cf0b0ca819260b7693fccdfb88",
+        "lines": 151
+      },
+      "docs/firmware.md": {
+        "sha256": "afe46493b36f872d4c86a832367c7cd22e32b291eda2f18f0aea0e624160d0ca",
+        "lines": 211
       }
     },
-    "note": "The final snapshot includes the configuration-management merge that landed during this review. README's early read-only status text conflicts with its configuration section and implemented routes; findings follow the code. Later development can change line links and implementation; use these hashes and literal anchors to identify this static audit."
+    "note": "Configuration and firmware merges landed during this review. The final inspection includes their routes and targeted workflow/driver paths. Configuration jobs and simulator-only firmware campaigns exist; security routes and enterprise vendor plugin registration remain empty. README's phase/status text lags configuration code. This is a static snapshot during active development, not a full regression or live provider/device certification. Use hashes and literal anchors if subsequent development moves lines."
   },
   "recommended_validation": {
     "performed": [
       "Static source and schema inspection",
       "Literal code anchor verification",
       "Official documentation research",
-      "Gap dependency graph validation"
+      "Gap dependency graph validation",
+      "Rechecked configuration and firmware merges and recorded their implemented versus unqualified integration boundaries"
     ],
     "proposed_not_executed": [
       "Session and WebSocket revocation tests",

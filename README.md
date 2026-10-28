@@ -21,8 +21,8 @@ What works today:
 
 - **Discovery** — mDNS/DNS-SD and WS-Discovery zero-config, plus active scans of IPs,
   ranges and CIDR blocks with a bounded worker pool and an explicit cap on large scans.
-- **Identification** over SNMP (system group, Host Resources MIB, Printer MIB) and IPP
-  (`Get-Printer-Attributes`), merged into one record and de-duplicated by serial → UUID →
+- **Identification** over SNMP (system group, Host Resources MIB, Printer MIB), IPP
+  (`Get-Printer-Attributes`) and eSCL (scanner capabilities, which also marks MFPs), merged into one record and de-duplicated by serial → UUID →
   MAC → address. Each device gets a *capability profile* recording which driver serves
   which capability.
 - **Monitoring** — scheduled and on-demand polls of status, supplies, trays, counters and
