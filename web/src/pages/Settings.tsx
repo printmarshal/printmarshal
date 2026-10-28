@@ -5,8 +5,9 @@ import type { AuditEntry, ConsumableSettings, User } from '../types'
 import { useDensity, useTheme } from '../theme'
 import { Ic } from '../components/icons'
 import { Av, Banner, Btn, Card, EmptyState, Pill, Seg, Tag } from '../components/ui'
+import PrintProviderSection from '../components/printprovider/PrintProviderSection'
 
-type Section = 'users' | 'notifications' | 'system' | 'appearance' | 'audit' | 'account'
+type Section = 'users' | 'notifications' | 'system' | 'printprovider' | 'appearance' | 'audit' | 'account'
 
 export default function Settings({ user }: { user: User }) {
   const location = useLocation()
@@ -18,6 +19,7 @@ export default function Settings({ user }: { user: User }) {
     { v: 'users', label: 'Users & roles', icon: <Ic.users />, show: isAdmin },
     { v: 'notifications', label: 'Notifications', icon: <Ic.bell />, show: true },
     { v: 'system', label: 'System & consumables', icon: <Ic.server />, show: true },
+    { v: 'printprovider', label: 'Print provider', icon: <Ic.printer />, show: true },
     { v: 'appearance', label: 'Appearance', icon: <Ic.dashboard />, show: true },
     { v: 'audit', label: 'Audit trail', icon: <Ic.activity />, show: canOperate },
     { v: 'account', label: 'My account', icon: <Ic.user />, show: true },
@@ -36,6 +38,7 @@ export default function Settings({ user }: { user: User }) {
           {current === 'users' && <Users me={user} />}
           {current === 'notifications' && <Notifications />}
           {current === 'system' && <System isAdmin={isAdmin} />}
+          {current === 'printprovider' && <PrintProviderSection user={user} />}
           {current === 'appearance' && <Appearance />}
           {current === 'audit' && <Audit />}
           {current === 'account' && <Account />}

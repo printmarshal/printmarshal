@@ -77,6 +77,11 @@ What works today:
   the last management path and audits every write; SCEP / EST / ACME (dns-01)
   certificate enrollment with expiry alerts; SNMP community and admin password
   rotation that never exposes the secret.
+- **Print provider (optional, off by default)** ([docs](docs/print-provider.md)) — a
+  CUPS / IPP Everywhere bridge for a Linux host that should also serve print queues
+  for discovered printers: plan, dry run, sync as an audited job, per-device removal.
+  It only configures CUPS on the PrintMarshal host and never changes a printer; it is
+  a convenience, not print management.
 - **Platform** — REST + WebSocket API, role-based users (viewer / operator / admin),
   encrypted credential store whose secrets are write-only through the API, an audit log,
   resumable jobs with per-device results, a React web UI, a printer simulator for
