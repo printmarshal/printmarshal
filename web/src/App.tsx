@@ -18,6 +18,7 @@ import Alerts from './pages/Alerts'
 import Groups from './pages/Groups'
 import Catalog from './pages/Catalog'
 import Credentials from './pages/Credentials'
+import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Profiles from './pages/Profiles'
 import ConfigApply from './pages/ConfigApply'
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="/firmware" element={<Firmware user={user} />} />
         <Route path="/firmware/campaigns/new" element={<Firmware user={user} />} />
         <Route path="/firmware/campaigns/:id" element={<FirmwareCampaign user={user} />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/settings/*" element={<Settings user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -126,6 +128,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
         <NavLink className="nav" to="/firmware" title="Firmware"><Ic.chip /><span>Firmware</span></NavLink>
         <NavLink className="nav" to="/jobs" title="Jobs"><Ic.activity /><span>Jobs</span>{counts.jobs > 0 && <span className="ct num">{counts.jobs}</span>}</NavLink>
         <NavLink className="nav" to="/discovery" title="Discovery"><Ic.radar /><span>Discovery</span></NavLink>
+        <NavLink className="nav" to="/reports" title="Reports"><Ic.chart /><span>Reports</span></NavLink>
         {canOperate && <NavLink className="nav" to="/credentials" title="Credentials"><Ic.lock /><span>Credentials</span></NavLink>}
         <div style={{ flex: '1 1 24px' }} />
         <NavLink className="nav" to="/settings" title="Settings"><Ic.settings /><span>Settings</span></NavLink>

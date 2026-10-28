@@ -121,6 +121,7 @@ type Store interface {
 	FirmwareStore
 	OutboxStore
 	CatalogStore
+	ReportStore
 
 	Close() error
 
