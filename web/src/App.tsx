@@ -18,6 +18,9 @@ import Alerts from './pages/Alerts'
 import Groups from './pages/Groups'
 import Credentials from './pages/Credentials'
 import Settings from './pages/Settings'
+import Profiles from './pages/Profiles'
+import ConfigApply from './pages/ConfigApply'
+import Drift from './pages/Drift'
 import './theme'
 
 export default function App() {
@@ -48,6 +51,9 @@ export default function App() {
         <Route path="/alerts" element={<Alerts user={user} />} />
         <Route path="/groups" element={<Groups user={user} />} />
         <Route path="/credentials" element={<Credentials user={user} />} />
+        <Route path="/profiles" element={<Profiles user={user} />} />
+        <Route path="/profiles/:id/apply" element={<ConfigApply user={user} />} />
+        <Route path="/profiles/:id/drift" element={<Drift user={user} />} />
         <Route path="/settings/*" element={<Settings user={user} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -105,7 +111,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
         <NavLink className="nav" to="/alerts" title="Alerts"><Ic.bell /><span>Alerts</span>{counts.critical > 0 ? <span className="ct c">{counts.critical}</span> : counts.warning > 0 ? <span className="ct w">{counts.warning}</span> : null}</NavLink>
         <NavLink className="nav" to="/groups" title="Groups"><Ic.layers /><span>Groups</span></NavLink>
         <div className="navsep">Manage</div>
-        <a className="nav soon" aria-disabled="true" title="Configuration — phase 3, in progress"><Ic.sliders /><span>Configuration</span><span className="ct">soon</span></a>
+        <NavLink className="nav" to="/profiles" title="Configuration"><Ic.sliders /><span>Configuration</span></NavLink>
         <a className="nav soon" aria-disabled="true" title="Security — phase 5, in progress"><Ic.shield /><span>Security</span><span className="ct">soon</span></a>
         <a className="nav soon" aria-disabled="true" title="Firmware — phase 6, in progress"><Ic.chip /><span>Firmware</span><span className="ct">soon</span></a>
         <NavLink className="nav" to="/jobs" title="Jobs"><Ic.activity /><span>Jobs</span>{counts.jobs > 0 && <span className="ct num">{counts.jobs}</span>}</NavLink>
