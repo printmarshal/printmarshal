@@ -103,7 +103,7 @@ spec:
             failureThreshold: 30          # up to 60 s for schema migrations on a large database
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
             periodSeconds: 10
             timeoutSeconds: 3

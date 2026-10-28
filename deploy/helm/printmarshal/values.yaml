@@ -170,7 +170,7 @@ startupProbe:
   periodSeconds: 2
   failureThreshold: 30
 readinessProbe:
-  httpGet: { path: /healthz, port: http }
+  httpGet: { path: /readyz, port: http }
   periodSeconds: 10
   timeoutSeconds: 3
 livenessProbe:

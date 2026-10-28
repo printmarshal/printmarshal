@@ -141,6 +141,8 @@ type harness struct {
 	mu     sync.Mutex
 	events []model.Event
 	n      int
+	// writeCred is the global write credential newHarness binds.
+	writeCred *model.Credential
 }
 
 func newHarness(t *testing.T) *harness {
@@ -169,6 +171,11 @@ func newHarness(t *testing.T) *harness {
 	h.svc = New(fleet.Deps{Store: st, Engine: eng, Jobs: h.runner, Cfg: cfg, Log: log, Events: events})
 	h.svc.Poll = h.dev.Poll
 	h.svc.VerifyTimeout, h.svc.VerifyInterval, h.svc.ControlPoll, h.svc.RetryDelay = 300*time.Millisecond, 5*time.Millisecond, 10*time.Millisecond, time.Millisecond
+	// Real deliveries need a write credential bound (audit A19).
+	h.writeCred = &model.Credential{Name: "fw write", Type: model.CredAdminPassword, Username: "admin", Purpose: model.PurposeWrite}
+	if err := st.CreateCredential(context.Background(), h.writeCred, &model.Secret{Password: "harnessWritePw"}); err != nil {
+		t.Fatal(err)
+	}
 	return h
 }
 
@@ -666,6 +673,57 @@ func TestVerificationOutcomes(t *testing.T) {
 	j, _ := h.runner.Wait(context.Background(), c.JobID)
 	if j.Status != model.JobPartial || j.Failed != 4 || j.Done != 5 {
 		t.Errorf("job %+v", j)
+	}
+	// The verification verdict uses the configuration vocabulary (audit A20):
+	// verified / diverged / unverifiable, in the row message and the job result.
+	if !strings.HasPrefix(r[slow.ID].Message, "verified:") || !strings.HasPrefix(r[never.ID].Message, "diverged:") {
+		t.Errorf("verdict prefixes: slow=%q never=%q", r[slow.ID].Message, r[never.ID].Message)
+	}
+	outcomes := map[string]any{}
+	jr, _ := h.st.ListJobResults(context.Background(), c.JobID)
+	for _, res := range jr {
+		outcomes[res.DeviceID] = res.Data["outcome"]
+	}
+	if outcomes[slow.ID] != "verified" || outcomes[never.ID] != "diverged" || outcomes[down.ID] != nil {
+		t.Errorf("job result outcomes = %v", outcomes)
+	}
+}
+
+// Audit A19: a real delivery needs a write credential bound to the device; a
+// dry run only validates and works with read credentials.
+func TestDeliveryRefusedWithoutWriteCredential(t *testing.T) {
+	h := newHarness(t)
+	if err := h.st.DeleteCredential(context.Background(), h.writeCred.ID); err != nil {
+		t.Fatal(err)
+	}
+	pkg := h.pkg("Acme", nil, "3.0", "")
+	dev := h.device("ro", "Acme", "X1", "2.0")
+	c := h.campaign(pkg, []*model.Device{dev}, func(c *model.Campaign) { c.CanaryCount = 0 })
+	h.start(c, true)
+	_, rows := h.waitFor(status(model.CampaignCompleted))
+	if r := byDevice(rows)[dev.ID]; r.Status != model.CampaignDeviceSucceeded || !strings.HasPrefix(r.Message, "dry run") {
+		t.Fatalf("dry run must work without a write credential: %+v", r)
+	}
+	c2 := h.campaign(pkg, []*model.Device{dev}, func(c *model.Campaign) { c.CanaryCount = 0 })
+	h.start(c2, false)
+	_, rows = h.waitForID(c2.ID, status(model.CampaignFailed))
+	r := byDevice(rows)[dev.ID]
+	if r.Status != model.CampaignDeviceFailed || !strings.Contains(r.Message, "no write credential bound") {
+		t.Fatalf("delivery without a write credential: %+v", r)
+	}
+	for _, call := range h.upd.Calls() {
+		if !call.DryRun {
+			t.Errorf("the driver was asked to deliver without a write credential: %+v", call)
+		}
+	}
+	var refused bool
+	for _, a := range h.audits(AuditUpdate) {
+		if a.Target == dev.ID && a.Result == "refused" {
+			refused = true
+		}
+	}
+	if !refused {
+		t.Error("refusal not audited")
 	}
 }
 

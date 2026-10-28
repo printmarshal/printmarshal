@@ -74,8 +74,13 @@ type Service struct {
 	RetryDelay time.Duration
 	// Poll re-reads a device (defaults to Fleet.PollDevice).
 	Poll Poller
-	// Creds resolves device credentials (defaults to Fleet.Creds).
+	// Creds resolves a device's read credentials, used by dry runs (defaults to Fleet.Creds).
 	Creds func(ctx context.Context, dev *model.Device) model.Creds
+	// WriteCreds resolves the write credentials a real delivery uses (audit
+	// A19); it returns store.ErrNoWriteCredential when none is bound, and the
+	// device then fails instead of being written to with a read credential
+	// (defaults to Fleet.CredsFor with PurposeWrite, else the store).
+	WriteCreds func(ctx context.Context, dev *model.Device) (model.Creds, error)
 	// DataDir holds package files under <DataDir>/firmware/<id>/ (defaults to Cfg.DataDir).
 	DataDir string
 
@@ -102,9 +107,20 @@ func New(d fleet.Deps) *Service {
 			return upd, err
 		}
 		s.Creds = d.Fleet.Creds
+		s.WriteCreds = func(ctx context.Context, dev *model.Device) (model.Creds, error) {
+			return d.Fleet.CredsFor(ctx, dev, model.PurposeWrite)
+		}
 	}
 	if s.Creds == nil {
 		s.Creds = func(context.Context, *model.Device) model.Creds { return model.Creds{} }
+	}
+	if s.WriteCreds == nil {
+		s.WriteCreds = func(ctx context.Context, dev *model.Device) (model.Creds, error) {
+			if d.Store == nil {
+				return model.Creds{}, store.ErrNoWriteCredential
+			}
+			return store.CredsFor(ctx, d.Store, dev, model.PurposeWrite)
+		}
 	}
 	if d.Jobs != nil {
 		d.Jobs.Register(JobType, s.runCampaign)

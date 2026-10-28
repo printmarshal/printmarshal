@@ -124,6 +124,7 @@ type Store interface {
 	ReportStore
 	TokenStore
 	LogStore
+	WriteCredentialStore
 
 	Close() error
 

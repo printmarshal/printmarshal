@@ -31,7 +31,7 @@ services:
       PM_TRAP_LISTEN: "0.0.0.0:1162"   # 162 needs root or a host-level port redirect (operations.md)
       PM_POLL_INTERVAL: 5m
       PM_LOG_FORMAT: json
-      # PM_ADMIN_PASSWORD: set-me-on-first-run     # else see the container log
+      # PM_ADMIN_PASSWORD: set-me-on-first-run     # else read /data/initial-admin-password once, then delete it
       # PM_SECRET_KEY: base64-32-bytes              # else generated into /data/secret.key (back it up!)
       # PM_SECURE_COOKIES: "true"                   # when a TLS reverse proxy sits in front
       # PM_CONFIG: /config/printmarshal.json

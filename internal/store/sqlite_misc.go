@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -29,27 +28,34 @@ func (s *SQLite) CreateCredential(ctx context.Context, c *model.Credential, secr
 	if err != nil {
 		return err
 	}
+	if c.Purpose == "" {
+		c.Purpose = model.PurposeRead
+	}
+	if !c.Purpose.Valid() {
+		return fmt.Errorf("credential purpose %q is not read, write or both", c.Purpose)
+	}
 	n := now()
-	_, err = s.db.ExecContext(ctx, `INSERT INTO credentials(id,name,type,scope,username,priority,secret,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)`,
-		c.ID, c.Name, string(c.Type), c.Scope, c.Username, c.Priority, enc, n, n)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO credentials(id,name,type,scope,username,priority,purpose,secret,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		c.ID, c.Name, string(c.Type), c.Scope, c.Username, c.Priority, string(c.Purpose), enc, n, n)
+	if err == nil {
+		c.CreatedAt, c.UpdatedAt = parseTime(n), parseTime(n)
+	}
 	return err
 }
 
 func (s *SQLite) ListCredentials(ctx context.Context) ([]*model.Credential, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,type,scope,username,priority,created_at,updated_at FROM credentials ORDER BY priority DESC, name`)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+credentialCols+` FROM credentials ORDER BY priority DESC, name`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []*model.Credential{}
 	for rows.Next() {
-		var c model.Credential
-		var cr, up string
-		if err := rows.Scan(&c.ID, &c.Name, &c.Type, &c.Scope, &c.Username, &c.Priority, &cr, &up); err != nil {
+		c, err := scanCredential(rows)
+		if err != nil {
 			return nil, err
 		}
-		c.CreatedAt, c.UpdatedAt = parseTime(cr), parseTime(up)
-		out = append(out, &c)
+		out = append(out, c)
 	}
 	return out, rows.Err()
 }
@@ -65,74 +71,12 @@ func (s *SQLite) DeleteCredential(ctx context.Context, id string) error {
 	return nil
 }
 
-// ResolveCreds implements Store: device-scoped first, then group-scoped, then global.
+// ResolveCreds implements Store: the read-capable credentials (purpose read or
+// both), device-scoped first, then group-scoped, then global. Write-only
+// credentials are never returned here; see ResolveWriteCreds.
 func (s *SQLite) ResolveCreds(ctx context.Context, deviceID string, groupIDs []string) (model.Creds, error) {
-	var creds model.Creds
-	if s.box == nil {
-		return creds, nil
-	}
-	scopes := []string{""}
-	for _, g := range groupIDs {
-		scopes = append(scopes, "group:"+g)
-	}
-	if deviceID != "" {
-		scopes = append(scopes, "device:"+deviceID)
-	}
-	rows, err := s.db.QueryContext(ctx, `SELECT type,scope,username,priority,secret FROM credentials WHERE scope IN (`+placeholders(len(scopes))+`)`, toAny(scopes)...)
-	if err != nil {
-		return creds, err
-	}
-	defer rows.Close()
-	type entry struct {
-		typ      model.CredentialType
-		rank     int
-		username string
-		sec      model.Secret
-	}
-	var entries []entry
-	for rows.Next() {
-		var typ, scope, user string
-		var prio int
-		var enc []byte
-		if err := rows.Scan(&typ, &scope, &user, &prio, &enc); err != nil {
-			return creds, err
-		}
-		plain, err := s.box.Open(enc)
-		if err != nil {
-			return creds, fmt.Errorf("decrypt credential: %w", err)
-		}
-		var sec model.Secret
-		if err := json.Unmarshal(plain, &sec); err != nil {
-			return creds, err
-		}
-		rank := prio
-		switch {
-		case strings.HasPrefix(scope, "device:"):
-			rank += 2000
-		case strings.HasPrefix(scope, "group:"):
-			rank += 1000
-		}
-		entries = append(entries, entry{model.CredentialType(typ), rank, user, sec})
-	}
-	sort.SliceStable(entries, func(i, j int) bool { return entries[i].rank > entries[j].rank })
-	for _, e := range entries {
-		switch e.typ {
-		case model.CredSNMPCommunity:
-			if e.sec.Community != "" {
-				creds.Communities = append(creds.Communities, e.sec.Community)
-			}
-		case model.CredSNMPv3:
-			if creds.V3 == nil {
-				creds.V3 = &model.V3Creds{Username: e.username, AuthProtocol: e.sec.AuthProtocol, AuthPassword: e.sec.AuthPassword,
-					PrivProtocol: e.sec.PrivProtocol, PrivPassword: e.sec.PrivPassword}
-			}
-		case model.CredAdminPassword:
-			if creds.AdminPass == "" {
-				creds.AdminUser, creds.AdminPass = e.username, e.sec.Password
-			}
-		}
-	}
-	return creds, rows.Err()
+	creds, _, err := s.resolveCreds(ctx, deviceID, groupIDs, model.CredentialPurpose.CanRead)
+	return creds, err
 }
 
 // --- jobs ------------------------------------------------------------------

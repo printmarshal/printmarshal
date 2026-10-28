@@ -260,8 +260,9 @@ On the very first start with an empty database the server creates the user **`ad
 
 - with the password from `PM_ADMIN_PASSWORD` if set (log: `created initial admin user
   from PM_ADMIN_PASSWORD`), or
-- with a generated 24-hex-character password printed **once** at level WARN:
-  `created initial admin user; change this password after first login username=admin password=…`.
+- with a generated 24-hex-character password written to
+  **`<data dir>/initial-admin-password`** (mode 0600, never to the log; the log line
+  names the file). Read it, sign in, change the password, then delete the file.
 
 `PM_ADMIN_PASSWORD` is ignored afterwards (it never resets an existing password) and
 can be removed from the environment. Sign in, change the password under your profile,
@@ -322,6 +323,8 @@ example file: [`deploy/printmarshal.example.json`](../deploy/printmarshal.exampl
 | --- | --- | --- | --- |
 | `trap.enabled` | `PM_TRAP_ENABLED` | `true` | Listen for SNMP traps/informs and reconcile them with a poll |
 | `trap.listen` | `PM_TRAP_LISTEN` | `0.0.0.0:1162` | UDP listen address; 162 needs root or `CAP_NET_BIND_SERVICE` |
+| `trap.allowedSources[]` | — | any | CIDRs / addresses traps are accepted from; traps are acted on only when they come from a known device's address in any case |
+| `trap.ratePerMinute` | — | `60` | Traps handled per source address per minute; excess is dropped (one log line per source per minute) |
 
 ### Alerts (`alerts`), jobs, auth, telemetry
 
@@ -332,7 +335,10 @@ example file: [`deploy/printmarshal.example.json`](../deploy/printmarshal.exampl
 | `alerts.offlineAfterFailures` | — | `2` | Consecutive failed polls before a device is marked offline |
 | `jobs.workers` | `PM_JOB_WORKERS` | `4` | Concurrent jobs (discovery runs, bulk polls, config applies, firmware campaigns) |
 | `auth.sessionTtl` | — | `720h` (30 d) | Session cookie lifetime |
-| `auth.secureCookies` | `PM_SECURE_COOKIES` | `false` | Mark the session cookie `Secure`; **set `true` behind TLS** |
+| `auth.secureCookies` | `PM_SECURE_COOKIES` | `false` | Mark the session cookie `Secure`; **set `true` behind TLS** (the server warns when listening off-loopback without it) |
+| `auth.allowedOrigins[]` | — | same-origin only | Extra `Origin` host patterns accepted on the WebSocket stream (`console.example.com`, `*.corp.example`) |
+| `auth.loginFailuresPerMinute` | — | `10` | Failed sign-ins per source address before further attempts get `429` for a minute |
+| `auth.oidc.*` | `PM_OIDC_ISSUER`, `PM_OIDC_CLIENT_ID`, `PM_OIDC_CLIENT_SECRET_ENV`, `PM_OIDC_REDIRECT_URL` | off | OpenID Connect single sign-on; see `docs/auth.md` for role mapping and provider notes |
 | `telemetry.retention` | — | `2160h` (90 d) | Telemetry samples older than this are pruned by the scheduler |
 
 ### Exports and SIEM (`export`)
@@ -355,10 +361,13 @@ Every field, the formats, the CEF mapping and the sync API are in [export.md](ex
 | `name` | all | Identifier shown in the audit log |
 | `type` | all | `webhook`, `slack`, `teams`, `discord` or `smtp` |
 | `url` | webhook types | Destination URL (incoming-webhook URL for Slack/Teams/Discord) |
-| `events` | all | Subscribed events: `alert.raised`, `alert.cleared`, `job.finished`, `device.discovered`, or `*`; empty = all alert events |
+| `events` | all | Subscribed event types from the catalogue (`GET /api/events/catalog`, `docs/events.md`), or `*` for every notifiable type; empty = all alert events. Unknown types are reported at start-up |
+| `legacy` | teams | `true` posts the retired Office 365 connector MessageCard instead of a Workflows Adaptive Card |
 | `host`, `port`, `startTls` | smtp | SMTP server and whether to upgrade with STARTTLS |
 | `from`, `to[]` | smtp | Sender and recipients |
 | `username`, `passwordEnv` | smtp | Login; the password is read from the **environment variable named** in `passwordEnv`, never from the file |
+| `authMethod` | smtp | `plain` (default), `login`, or `xoauth2` (Microsoft 365 / Google Workspace) |
+| `tokenEnv`, or `tokenUrl` + `clientId` + `clientSecretEnv` + `scope` | smtp (xoauth2) | A ready bearer token from the environment, or the OAuth 2.0 client-credentials grant (token cached until it expires) |
 
 ### Process-level environment variables (not in the JSON file)
 
@@ -532,9 +541,17 @@ visible in the UI.
 - `GET /healthz` → `200 {"ok":true,"version":"…"}` without authentication: used by the
   Docker `HEALTHCHECK`, the Kubernetes probes and any external monitor. It answers as
   soon as the HTTP server is up (the database is already open and migrated by then).
-- There is no Prometheus endpoint yet. Operational numbers (devices by state, open
-  alerts, job states) are on the dashboard and in `GET /api/dashboard`; scrape that
-  with a session cookie or a reverse-proxy sidecar if you need metrics.
+- `GET /readyz` → `200` only when the database answers; use it as the Kubernetes
+  readiness probe and keep `/healthz` for liveness.
+- `GET /metrics` (viewer role: scrape with an API token, `Authorization: Bearer pmt_…`)
+  serves Prometheus text: `printmarshal_devices_total`, `_devices_offline`,
+  `_devices_by_severity{severity}`, `_devices_by_state{state}`, `_alerts_active`,
+  `_alerts_critical`, `_supplies_low`, `_stock_low`, `_jobs_running`,
+  `_notifications_outbox{state="pending"|"dead"}`, `_http_requests_total{class}`,
+  `_http_inflight`, `_http_latency_ms_total`. Alert on `dead` outbox rows and on
+  `_devices_offline` growing.
+- Security events can be forwarded to a SIEM (syslog / file / HTTP sinks, `export.*`);
+  see `docs/export.md`.
 - Watch disk usage of the data directory (telemetry grows with device count × poll
   rate until `telemetry.retention` kicks in) and the container's memory.
 

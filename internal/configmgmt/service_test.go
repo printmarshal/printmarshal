@@ -27,6 +27,76 @@ type testEnv struct {
 	dev    *model.Device
 	events *[]model.Event
 	mu     *sync.Mutex
+	// writeCred is the global write credential bound by newTestEnv (audit A19);
+	// tests delete it to prove a real apply is refused without one.
+	writeCred string
+}
+
+// fakeConfigDriver is an in-memory read_config/write_config driver whose
+// read-back can disagree with what it accepted (audit A20): keys in stick are
+// "accepted" by the device but never change, keys in hidden are writable but
+// never reported by the reader.
+type fakeConfigDriver struct {
+	mu     sync.Mutex
+	doc    map[string]any
+	stick  map[string]bool
+	hidden map[string]bool
+	writes []model.SettingChange
+}
+
+func (f *fakeConfigDriver) Name() string { return "fake" }
+func (f *fakeConfigDriver) Capabilities() []model.Capability {
+	return []model.Capability{model.CapReadConfig, model.CapWriteConfig}
+}
+func (f *fakeConfigDriver) Supports(d *model.Device, c model.Capability) bool {
+	return engine.ProfileSupports(d, "fake", c)
+}
+func (f *fakeConfigDriver) Priority(model.Capability) int { return 10 }
+
+func (f *fakeConfigDriver) ReadConfig(_ context.Context, d *model.Device, _ model.Creds, _ model.ConfigSelector) (*model.ConfigDocument, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	doc := &model.ConfigDocument{DeviceID: d.ID, ReadAt: time.Now()}
+	for k, v := range f.doc {
+		if f.hidden[k] {
+			continue
+		}
+		def := model.CatalogByKey[k]
+		doc.Settings = append(doc.Settings, model.Setting{Key: k, Area: def.Area, Name: def.Name, Type: def.Type, Value: v, Writable: true, Source: "fake"})
+	}
+	return doc, nil
+}
+
+func (f *fakeConfigDriver) WriteConfig(_ context.Context, d *model.Device, _ model.Creds, changes []model.SettingChange, opts model.WriteOptions) (*model.WriteResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	res := &model.WriteResult{DeviceID: d.ID, DryRun: opts.DryRun, At: time.Now()}
+	for _, c := range changes {
+		r := model.SettingResult{Key: c.Key, Before: f.doc[c.Key], After: c.Value, Driver: "fake"}
+		if opts.DryRun {
+			r.Status = model.SettingWouldWrite
+		} else {
+			// The device says "ok" to everything; sticky keys silently keep their value.
+			r.Status = model.SettingWritten
+			res.Rollback = append(res.Rollback, model.SettingChange{Key: c.Key, Value: f.doc[c.Key]})
+			if !f.stick[c.Key] {
+				f.doc[c.Key] = c.Value
+			}
+			f.writes = append(f.writes, c)
+		}
+		res.Results = append(res.Results, r)
+	}
+	return res, nil
+}
+
+// bindWriteCredential stores a global write credential so real applies are allowed.
+func bindWriteCredential(t *testing.T, st store.Store) string {
+	t.Helper()
+	c := &model.Credential{Name: "snmp write", Type: model.CredSNMPCommunity, Purpose: model.PurposeWrite, Priority: 5}
+	if err := st.CreateCredential(context.Background(), c, &model.Secret{Community: "private"}); err != nil {
+		t.Fatal(err)
+	}
+	return c.ID
 }
 
 // newTestEnv wires the service over a fixture-backed SNMP dialer, like
@@ -73,7 +143,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	if dev.Capabilities[model.CapReadConfig] != "snmp" || dev.Capabilities[model.CapWriteConfig] != "snmp" {
 		t.Fatalf("capability profile = %v", dev.Capabilities)
 	}
-	return &testEnv{svc: svc, st: st, fx: fx, dev: dev, events: &events, mu: &mu}
+	return &testEnv{svc: svc, st: st, fx: fx, dev: dev, events: &events, mu: &mu, writeCred: bindWriteCredential(t, st)}
 }
 
 func (e *testEnv) wait(t *testing.T, j *model.Job) *model.Job {
@@ -215,6 +285,18 @@ func TestApplyDryRunThenRealThenRevert(t *testing.T) {
 	}
 	if real == nil || !real.Reversible() || real.Result.Rollback[0].Value != "Floor 2 east wing" || real.JobID != j.ID {
 		t.Fatalf("real record = %+v", real)
+	}
+	// The written setting was read back from the device and matches (audit A20).
+	if real.Verified != 1 || real.Diverged != 0 {
+		t.Errorf("verified/diverged = %d/%d: %+v", real.Verified, real.Diverged, real.Result.Results)
+	}
+	for _, r := range real.Result.Results {
+		if r.Status == model.SettingWritten && r.Outcome != model.OutcomeVerified {
+			t.Errorf("written setting %s outcome = %q", r.Key, r.Outcome)
+		}
+	}
+	if results, _ := env.st.ListJobResults(ctx, j.ID); len(results) != 1 || !strings.Contains(results[0].Message, "1 verified, 0 diverged") {
+		t.Errorf("job result message = %+v", results)
 	}
 
 	// Audit: one entry per apply, with before/after, actor and target.

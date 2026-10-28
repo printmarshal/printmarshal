@@ -72,6 +72,18 @@ const (
 	SettingFailed     SettingResultStatus = "failed"
 )
 
+// WriteOutcome is what a re-read after a real write established about a
+// setting (audit A20): a device *accepting* a write is not the same as the
+// desired value being *in effect*.
+type WriteOutcome string
+
+const (
+	OutcomeWritten      WriteOutcome = "written"      // accepted by the device; the read-back failed, so not verified
+	OutcomeVerified     WriteOutcome = "verified"     // read-back equals the desired value
+	OutcomeDiverged     WriteOutcome = "diverged"     // read-back differs; ReadBack holds what the device reports
+	OutcomeUnverifiable WriteOutcome = "unverifiable" // no reader reports this key (or it is a secret)
+)
+
 // SettingResult is one setting's outcome.
 type SettingResult struct {
 	Key    string              `json:"key"`
@@ -80,6 +92,10 @@ type SettingResult struct {
 	After  any                 `json:"after,omitempty"`
 	Error  string              `json:"error,omitempty"`
 	Driver string              `json:"driver,omitempty"`
+	// Outcome is set on written settings of a real apply after the re-read.
+	Outcome WriteOutcome `json:"outcome,omitempty"`
+	// ReadBack is the value the device reported when Outcome is diverged.
+	ReadBack any `json:"readBack,omitempty"`
 }
 
 // WriteResult is a per-device write outcome.
@@ -157,6 +173,9 @@ type WriteRecord struct {
 	Failed    int             `json:"failed"`
 	Skipped   int             `json:"skipped"`
 	Unchanged int             `json:"unchanged"`
+	// Verified and Diverged split Written by read-back outcome (real applies only).
+	Verified int `json:"verified"`
+	Diverged int `json:"diverged"`
 }
 
 // Reversible reports whether the record holds previous values that a revert can re-apply.
@@ -166,8 +185,14 @@ func (w *WriteRecord) Reversible() bool {
 
 // Count fills the per-status counters from the result.
 func (w *WriteRecord) Count() {
-	w.Written, w.Failed, w.Skipped, w.Unchanged = 0, 0, 0, 0
+	w.Written, w.Failed, w.Skipped, w.Unchanged, w.Verified, w.Diverged = 0, 0, 0, 0, 0, 0
 	for _, r := range w.Result.Results {
+		switch r.Outcome {
+		case OutcomeVerified:
+			w.Verified++
+		case OutcomeDiverged:
+			w.Diverged++
+		}
 		switch r.Status {
 		case SettingWritten, SettingWouldWrite:
 			w.Written++

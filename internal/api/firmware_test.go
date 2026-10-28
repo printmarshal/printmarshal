@@ -67,6 +67,10 @@ func newFirmwareServer(t *testing.T) (*httptest.Server, *Server, *apiFakeUpdater
 	s.Fleet.Engine.Registry.Register(fake)
 	s.Cfg.DataDir = t.TempDir()
 	s.Firmware = firmware.New(s.Fleet.DepsOf())
+	// Real deliveries need a write credential bound (audit A19).
+	if err := s.Store.CreateCredential(context.Background(), &model.Credential{Name: "fw write", Type: model.CredAdminPassword, Username: "admin", Purpose: model.PurposeWrite}, &model.Secret{Password: "harnessWritePw"}); err != nil {
+		t.Fatal(err)
+	}
 	// Mirror what fleet.PollDevice does: the poll result is written to the device record.
 	s.Firmware.Poll = func(ctx context.Context, d *model.Device) (*model.Device, error) {
 		cp, _ := fake.poll(ctx, d)
