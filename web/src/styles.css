@@ -210,7 +210,7 @@ textarea.fin{height:auto;padding:6px 10px;resize:vertical}
 .toast{position:fixed;right:20px;bottom:20px;background:var(--surface);color:var(--text);border:1px solid var(--border);padding:10px 14px;border-radius:8px;box-shadow:var(--shadow);max-width:380px;display:flex;gap:10px;align-items:center;z-index:50}
 
 /* Tabs, nav inside pages */
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);overflow-x:auto}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
 .tabs button{height:38px;padding:0 12px;border:0;border-bottom:2px solid transparent;background:transparent;font:inherit;font-weight:500;color:var(--text-2);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;margin-bottom:-1px;border-radius:0}
 .tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
 .cnt{font-size:11px;padding:0 6px;border-radius:999px;height:18px;display:inline-flex;align-items:center}
