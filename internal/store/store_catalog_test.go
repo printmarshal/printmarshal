@@ -8,8 +8,7 @@ import (
 	"printmarshal/internal/catalog"
 )
 
-func TestFamilyQualifications(t *testing.T) {
-	s := openTest(t)
+func testFamilyQualifications(t *testing.T, s testStore) {
 	ctx := context.Background()
 	if _, err := s.GetFamilyQualification(ctx, "HP01"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing override should be ErrNotFound, got %v", err)

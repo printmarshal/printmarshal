@@ -8,8 +8,7 @@ import (
 	"printmarshal/internal/model"
 )
 
-func TestConfigStoreRoundTrip(t *testing.T) {
-	s := openTest(t)
+func testConfigStoreRoundTrip(t *testing.T, s testStore) {
 	ctx := context.Background()
 
 	p := &model.Profile{Name: "site", Settings: []model.SettingChange{{Key: "identity.location", Value: "Lobby"}}, CreatedBy: "a"}

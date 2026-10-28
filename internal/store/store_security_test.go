@@ -9,8 +9,7 @@ import (
 	"printmarshal/internal/model"
 )
 
-func TestSecurityPoliciesCRUD(t *testing.T) {
-	s := openTest(t)
+func testSecurityPoliciesCRUD(t *testing.T, s testStore) {
 	ctx := context.Background()
 	p := &model.Policy{Name: "P1", Description: "d", CreatedBy: "u", Items: []model.PolicyItem{
 		{ID: "a", Key: "protocols.telnet.enabled", Operator: "eq", Value: false, Severity: "critical", Remediate: true, ManagementPath: ""},
@@ -45,8 +44,7 @@ func TestSecurityPoliciesCRUD(t *testing.T) {
 	}
 }
 
-func TestAssessmentsLatestAndHistory(t *testing.T) {
-	s := openTest(t)
+func testAssessmentsLatestAndHistory(t *testing.T, s testStore) {
 	ctx := context.Background()
 	base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
 	save := func(dev, pol string, at time.Time, score float64, compliant bool) {
@@ -97,8 +95,7 @@ func TestAssessmentsLatestAndHistory(t *testing.T) {
 	}
 }
 
-func TestCAProfilesAndCertificates(t *testing.T) {
-	s := openTest(t)
+func testCAProfilesAndCertificates(t *testing.T, s testStore) {
 	ctx := context.Background()
 	p := &model.CAProfile{Name: "corp", Protocol: model.EnrollEST, URL: "https://ca.example.test/.well-known/est", CAFingerprint: "ab", ValidityDays: 365, KeyType: "rsa2048", Options: map[string]string{"label": "printers"}}
 	if err := s.CreateCAProfile(ctx, p); err != nil {
@@ -125,7 +122,7 @@ func TestCAProfilesAndCertificates(t *testing.T) {
 		t.Fatal(err)
 	}
 	var raw []byte
-	if err := s.db.QueryRow(`SELECT key_enc FROM issued_certificates WHERE id=?`, ic.ID).Scan(&raw); err != nil {
+	if err := s.rawRow(`SELECT key_enc FROM issued_certificates WHERE id=?`, ic.ID).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(raw), "SECRETKEYMATERIAL") {

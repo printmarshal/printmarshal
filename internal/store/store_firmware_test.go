@@ -8,8 +8,7 @@ import (
 	"printmarshal/internal/model"
 )
 
-func TestFirmwareStoreRoundTrip(t *testing.T) {
-	s := openTest(t)
+func testFirmwareStoreRoundTrip(t *testing.T, s testStore) {
 	ctx := context.Background()
 
 	p := &model.FirmwarePackage{Vendor: "Acme", Models: []string{"4200"}, Version: "2.15.0", MinVersion: "2.10", FileName: "fw.bin", Size: 12,

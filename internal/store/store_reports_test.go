@@ -20,8 +20,7 @@ func day(t *testing.T, s string) time.Time {
 // Report aggregates against seeded telemetry: last/first sample per day, the
 // baseline before the range, offline minutes from status.online and alert
 // statistics. The counter series includes a reset on day 3.
-func TestReportAggregates(t *testing.T) {
-	s := openTest(t)
+func testReportAggregates(t *testing.T, s testStore) {
 	ctx := context.Background()
 	d1, _, _ := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.1", Serial: "A", Model: "M1", Method: "snmp"}, nil, nil)
 	d2, _, _ := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.2", Serial: "B", Model: "M1", Method: "snmp"}, nil, nil)
@@ -116,7 +115,7 @@ func TestReportAggregates(t *testing.T) {
 	a2, _, _ := s.RaiseAlert(ctx, d1.ID, "k2", "supply", model.SeverityWarning, "toner low")
 	_, _, _ = s.RaiseAlert(ctx, d2.ID, "k3", "poll", model.SeverityWarning, "old")
 	set := func(id, col, v string) {
-		if _, err := s.db.Exec(`UPDATE alerts SET `+col+`=? WHERE id=?`, v, id); err != nil {
+		if err := s.rawExec(`UPDATE alerts SET `+col+`=? WHERE id=?`, at(v), id); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -124,7 +123,9 @@ func TestReportAggregates(t *testing.T) {
 	set(a1.ID, "acked_at", "2026-10-02T10:10:00Z")
 	set(a2.ID, "raised_at", "2026-10-03T10:00:00Z")
 	set(a2.ID, "cleared_at", "2026-10-03T11:00:00Z")
-	_, _ = s.db.Exec(`UPDATE alerts SET raised_at='2026-09-01T00:00:00Z' WHERE key='k3'`)
+	if err := s.rawExec(`UPDATE alerts SET raised_at=? WHERE key='k3'`, at("2026-09-01T00:00:00Z")); err != nil {
+		t.Fatal(err)
+	}
 
 	days, err := s.AlertsByDay(ctx, r)
 	if err != nil || len(days) != 2 || days[0].Day != "2026-10-02" || days[0].Severity != "critical" || days[0].Source != "poll" || days[0].Count != 1 {
