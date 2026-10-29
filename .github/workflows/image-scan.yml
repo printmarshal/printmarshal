@@ -1,0 +1,46 @@
+# Container image scan: build the image and fail when it carries a HIGH or
+# CRITICAL vulnerability that has a fix available, so a fresh image has no
+# known fixable findings out of the box (docs/operations.md). Vulnerabilities
+# with no fix yet are not counted; they cannot be acted on and would make the
+# job fail on something nobody can change.
+#
+# It runs on the same events as CI and weekly, because new CVEs are published
+# against an unchanged image. Nothing here talks to a printer.
+name: Image scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Trivy runs from a pinned image (version and digest), not a third-party
+  # action. Bump both together: docker pull aquasec/trivy:<version> and copy
+  # the digest from `docker image inspect`.
+  TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+
+jobs:
+  scan:
+    name: Fixable HIGH/CRITICAL vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker build --build-arg VERSION=ci -t printmarshal:ci .
+      - name: Scan the image
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "$TRIVY_IMAGE" image \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --no-progress \
+            printmarshal:ci
