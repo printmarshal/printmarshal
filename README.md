@@ -154,7 +154,7 @@ What works today:
 
 ## Quick start
 
-Requirements: Go 1.22+, Node 20+ (only to build the UI), or Docker.
+Requirements: Go 1.27.3+ (matching `go.mod`), Node 20+ (only to build the UI; the Dockerfile uses `golang:1.27-alpine` and `node:22-alpine`), or Docker.
 
 ```bash
 make web        # build the SPA into internal/web/dist (once, or after UI changes)

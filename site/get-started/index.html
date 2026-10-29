@@ -1,188 +1,471 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Get started with PrintMarshal</title>
-<meta name="description" content="Install PrintMarshal with Docker, Docker Compose, Helm, or systemd. Establish read-only monitoring, access controls, and backups before device writes.">
-<link rel="canonical" href="https://printmarshal.app/get-started/">
-<link rel="icon" type="image/svg+xml" href="/assets/mark.svg">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Get started with PrintMarshal">
-<meta property="og:description" content="Install PrintMarshal with Docker, Docker Compose, Helm, or systemd. Establish read-only monitoring, access controls, and backups before device writes.">
-<meta property="og:image" content="https://printmarshal.app/assets/social-preview-1280x640.png">
-<meta property="og:url" content="https://printmarshal.app/get-started/">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Get started with PrintMarshal">
-<meta name="twitter:description" content="Install PrintMarshal with Docker, Docker Compose, Helm, or systemd. Establish read-only monitoring, access controls, and backups before device writes.">
-<meta name="twitter:image" content="https://printmarshal.app/assets/social-preview-1280x640.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Get Started — Evaluate &amp; Deploy PrintMarshal</title>
+  <meta name="description" content="Evaluate PrintMarshal in two minutes using the built-in printer simulator (pm-sim) with zero physical hardware, or deploy with Docker, Compose, Helm, or systemd.">
+  <meta name="theme-color" content="#0D1016">
+  <meta property="og:title" content="Get Started — Evaluate &amp; Deploy PrintMarshal">
+  <meta property="og:description" content="Recommended simulator evaluation path, reconciled Go 1.27.3 / Node 20+ / Docker prerequisites, copyable commands, and progressive production deployment options.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://printmarshal.app/get-started/">
+  <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <nav class="site-nav" aria-label="Main">
-      <a href="/" class="brand" aria-label="PrintMarshal home">
-        <img src="/assets/logo-horizontal-on-dark.svg" alt="PrintMarshal" width="193" height="40">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/" aria-label="PrintMarshal home">
+        <img class="brand-mark" src="/assets/mark.svg" alt="" width="32" height="32">
+        <span class="brand-name">Print<span>Marshal</span></span>
+        <span class="brand-tag">Self-Hosted · Apache-2.0</span>
       </a>
-      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigation">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-      </button>
-      <div class="nav-links" id="nav-links">
-        <a href="/">Home</a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="/">Overview</a>
         <a href="/features/">Features</a>
         <a href="/security/">Security</a>
         <a href="/get-started/" aria-current="page">Get started</a>
         <a href="/faq/">FAQ</a>
-        <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Wiki</a>
-        <a href="https://github.com/printmarshal/printmarshal" class="btn ghost">GitHub</a>
+      </nav>
+      <div class="header-actions">
+        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
+        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub ↗</a>
+        <a class="btn btn-primary btn-sm" href="#simulator-eval">Evaluate now</a>
       </div>
-    </nav>
-    <div class="page-hero">
-      <span class="eyebrow">Get started</span>
-      <h1>Get started with PrintMarshal</h1>
-      <p class="hero-sub">Install PrintMarshal with Docker, Docker Compose, Helm, or systemd. Establish read-only monitoring, access controls, and backups before device writes.</p>
     </div>
-  </div>
-</header>
+  </header>
 
-<main>
-  <section>
-    <div class="wrap layout">
-      <aside class="side">
-        <nav class="toc" aria-label="On this page">
-          <span class="toc-title">On this page</span>
-          <a href="#deploy">Deploy on your terms</a>
-          <a href="#docker">1. Docker</a>
-          <a href="#docker-compose">2. Docker Compose</a>
-          <a href="#helm">3. Helm</a>
-          <a href="#systemd">4. systemd binary</a>
-          <a href="#first-run">First run</a>
-          <a href="#preserve-state">Preserve state before upgrading</a>
-          <a href="#guides">Keep the guide close</a>
+  <main id="main-content">
+    <section class="page-hero" aria-labelledby="gs-heading">
+      <div class="container">
+        <div class="eyebrow">Evaluation &amp; Deployment Guide</div>
+        <h1 id="gs-heading">Start safely with the built-in printer simulator—then deploy to your network.</h1>
+        <p class="lead">
+          You do not need physical printers or a lab VLAN to evaluate PrintMarshal. The repository includes <span class="mono">cmd/pm-sim</span>, an SNMP + IPP/IPPS + eSCL printer simulator backed by real walk fixtures so you can test discovery, security assessments, and dry-run configuration changes on loopback first.
+        </p>
+        <nav class="page-subnav" aria-label="On this page">
+          <a href="#prerequisites">1. Prerequisites</a>
+          <a href="#simulator-eval">2. Recommended: Simulator Evaluation</a>
+          <a href="#first-outcome">3. First Successful Outcome</a>
+          <a href="#docker-quickstart">4. Docker Quick Start</a>
+          <a href="#production-options">5. Advanced Production Deployment</a>
         </nav>
-      </aside>
+      </div>
+    </section>
 
-      <div class="main-col">
-        <div id="deploy" class="prose-section">
-          <h2>Deploy on your terms</h2>
-          <p>Choose Docker, Docker Compose, Helm, or a systemd-managed binary. Each runs the same application with persistent storage. Use one active server and place it where it can reach your authorized printer networks.</p>
-          <p>The commands below are copied from the <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Installation-and-deployment.md">installation wiki</a> and run from the repository root. Obtain the source from <a href="https://github.com/printmarshal/printmarshal">GitHub</a>. These are installation instructions, not commands run by this website.</p>
-          <p>For local builds, <code>go.mod</code> requires Go 1.27.3. Building the SPA also needs Node and npm; the container build uses Node 22. Docker builds those components inside its build stages.</p>
+    <!-- 1. PREREQUISITES (RECONCILED ACROSS go.mod, README, AND Dockerfile) -->
+    <section class="section-tight section-alt" id="prerequisites" aria-labelledby="prereq-heading">
+      <div class="container">
+        <div class="section-header" style="margin-bottom: 24px;">
+          <div class="eyebrow">01 · Prerequisites &amp; Toolchain</div>
+          <h2 id="prereq-heading">Choose your build or runtime environment.</h2>
         </div>
 
-        <article id="docker" class="prose-card">
-          <h2>Docker</h2>
-          <p>Build the image locally, then keep application data in a named volume. Replace <code>change-me</code> with a strong, unique initial password before running this example. The optional version tag in the build comment is illustrative, not a claim that a matching release image is published.</p>
-<pre><code>make docker                       # printmarshal:&lt;git describe&gt; and printmarshal:latest
-# or: docker build --build-arg VERSION=v0.1.0 -t printmarshal:v0.1.0 .
+        <div class="grid-3">
+          <article class="panel-card">
+            <h3><span>Local Source Build</span><span class="status-pill status-pass">Recommended for eval</span></h3>
+            <p>
+              Builds both the server (<span class="mono">bin/printmarshal</span>) and the printer simulator (<span class="mono">bin/pm-sim</span>) with the React web console embedded inside the Go binary.
+            </p>
+            <ul class="walkthrough-points" style="font-size: 0.85rem; margin-top: auto;">
+              <li><strong>Go <span class="mono">1.27.3+</span></strong> (required by <span class="mono">go.mod</span>)</li>
+              <li><strong>Node.js <span class="mono">20+</span> &amp; npm</strong> (used only at build time by <span class="mono">make web</span>)</li>
+              <li><strong>macOS or Linux</strong> (zero runtime dependencies once built)</li>
+            </ul>
+          </article>
 
-docker run -d --name printmarshal --restart unless-stopped \
-  --network host \
-  -e PM_ADMIN_PASSWORD='change-me' \
-  -v pm-data:/data \
-  printmarshal:latest
+          <article class="panel-card">
+            <h3><span>Docker Container</span><span class="status-pill status-info">Single container</span></h3>
+            <p>
+              Multi-stage <span class="mono">Dockerfile</span> compiles the UI and Go binary inside Alpine build stages—no local Go or Node installation required.
+            </p>
+            <ul class="walkthrough-points" style="font-size: 0.85rem; margin-top: auto;">
+              <li><strong>Docker Engine</strong> with BuildKit (or Docker Desktop / OrbStack)</li>
+              <li><strong>Build stages:</strong> <span class="mono">node:22-alpine</span> (UI) + <span class="mono">golang:1.27-alpine</span> (server)</li>
+              <li><strong>Runtime image:</strong> a minimal Alpine image (the <span class="mono">RUNTIME_IMAGE</span> build argument) running as the non-root user <span class="mono">pm</span> (UID 10001)</li>
+            </ul>
+          </article>
 
-docker logs -f printmarshal       # "http listening addr=:8080"</code></pre>
-          <p>The image runs as a non-root user. Host networking exposes the application and trap listener on the host and provides access to multicast discovery. The defaults are HTTP on port 8080 and SNMP traps on UDP 1162. Plan host firewall rules and HTTPS access before exposing the service beyond an evaluation environment.</p>
-        </article>
+          <article class="panel-card">
+            <h3><span>Database &amp; Network</span><span class="status-pill status-unknown">SQLite or PostgreSQL</span></h3>
+            <p>
+              Uses embedded pure-Go <strong>SQLite (WAL mode)</strong> out of the box, or connects to external <strong>PostgreSQL 14+</strong> for production persistence.
+            </p>
+            <ul class="walkthrough-points" style="font-size: 0.85rem; margin-top: auto;">
+              <li><strong>Console/API:</strong> <span class="mono">8080/tcp</span> (configurable via <span class="mono">PM_LISTEN</span>)</li>
+              <li><strong>Simulator eval:</strong> Loopback (<span class="mono">127.0.0.1</span>) only</li>
+              <li><strong>Fleet subnets:</strong> Outbound <span class="mono">161/udp</span> (SNMP), <span class="mono">631/tcp</span> (IPP/IPPS), <span class="mono">80/443/9100/tcp</span></li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
 
-        <article id="docker-compose" class="prose-card">
-          <h2>Docker Compose</h2>
-          <p>Compose builds the image, uses host networking, and keeps <code>/data</code> in a named volume. This example creates a protected environment file with generated bootstrap and encryption secrets; keep that file out of shared source and back it up securely.</p>
-<pre><code>cp deploy/printmarshal.example.json deploy/printmarshal.json      # optional, for notifiers etc.
-printf 'PM_ADMIN_PASSWORD=%s\nPM_SECRET_KEY=%s\n' "$(openssl rand -base64 18)" "$(openssl rand -base64 32)" &gt; deploy/printmarshal.env
-chmod 600 deploy/printmarshal.env
-docker compose -f deploy/docker-compose.yml up -d --build
-docker compose -f deploy/docker-compose.yml logs -f</code></pre>
-          <p>Copying the example JSON is optional and does not mount it by itself. To use it, enable the JSON volume mount and <code>PM_CONFIG</code> setting in the Compose file as described in the wiki. Keep the encryption key with your database backups.</p>
-        </article>
+    <!-- 2. RECOMMENDED EVALUATION ROUTE: SIMULATOR PATH -->
+    <section class="section" id="simulator-eval" aria-labelledby="sim-heading">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">02 · Recommended Evaluation Route</div>
+          <h2 id="sim-heading">Evaluate on loopback with <span class="mono">pm-sim</span> in three steps.</h2>
+          <p class="lead">
+            This path starts a simulated network printer on <span class="mono">127.0.0.1</span> speaking SNMPv2c and IPP, then launches PrintMarshal pointed at those local ports. No packets leave your machine.
+          </p>
+        </div>
 
-        <article id="helm" class="prose-card">
-          <h2>Helm</h2>
-          <p>Build and publish an image to your own registry, choose an immutable tag, and label a suitable Kubernetes node for printer-network access. Replace the example registry and image version below; the selector requires the corresponding node label.</p>
-<pre><code>helm install printmarshal deploy/helm/printmarshal -n printmarshal --create-namespace \
-  --set image.repository=registry.example.com/printmarshal --set image.tag=v0.1.0 \
-  --set secrets.adminPassword="$(openssl rand -base64 18)" \
-  --set 'nodeSelector.printmarshal\.io/printer-network=true'</code></pre>
-          <p>The chart defaults to host networking, persistent storage, and a single active server. Configure ingress/TLS, storage, secrets, and node placement for your environment. The chart can retain its generated encryption secret across upgrades; do not replace that key without a recovery plan. Plain Kubernetes manifests are also included in the repository.</p>
-        </article>
+        <div class="grid-2" style="align-items: start;">
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="panel-card">
+              <div class="eyebrow" style="margin-bottom: 2px;">Step 1 · Clone &amp; Build</div>
+              <h3>Build the embedded UI, server, and simulator</h3>
+              <p style="font-size: 0.88rem;">Compiles <span class="mono">web/dist</span> and embeds it into <span class="mono">bin/printmarshal</span> alongside <span class="mono">bin/pm-sim</span>.</p>
+              <div class="code-block">
+                <div class="code-header">
+                  <span>Terminal 1 — Build</span>
+                  <button type="button" class="copy-btn" data-copy-target="cmd-step-1">Copy</button>
+                </div>
+                <pre><code id="cmd-step-1">git clone https://github.com/printmarshal/printmarshal.git
+cd printmarshal
+make web &amp;&amp; make build</code></pre>
+              </div>
+            </div>
 
-        <article id="systemd" class="prose-card">
-          <h2>systemd binary</h2>
-          <p>Build the web assets before the server so the binary embeds the full interface. The example below installs the binary and supplied unit on a Linux host; edit the environment file before starting the service.</p>
-<pre><code>make web build                                   # or download a release binary
-sudo install -m 0755 bin/printmarshal /usr/local/bin/printmarshal
-sudo useradd --system --home-dir /var/lib/printmarshal --shell /usr/sbin/nologin printmarshal
-sudo install -d -m 0750 -o root -g printmarshal /etc/printmarshal
-sudo install -m 0640 -g printmarshal deploy/systemd/printmarshal.env.example /etc/printmarshal/printmarshal.env
-sudo install -m 0644 deploy/systemd/printmarshal.service /etc/systemd/system/
-sudoedit /etc/printmarshal/printmarshal.env      # PM_ADMIN_PASSWORD, PM_TRAP_LISTEN, PM_LOG_FORMAT, ...
-sudo systemctl daemon-reload &amp;&amp; sudo systemctl enable --now printmarshal
-journalctl -u printmarshal -f</code></pre>
-          <p>The unit runs under the <code>printmarshal</code> account and uses <code>/var/lib/printmarshal</code> for persistent data. It supplies process hardening and the capability needed to bind a privileged trap port when configured. Review the environment file and network access for the host you are deploying.</p>
-        </article>
+            <div class="panel-card">
+              <div class="eyebrow" style="margin-bottom: 2px;">Step 2 · Start the Printer Simulator</div>
+              <h3>Run <span class="mono">pm-sim</span> on loopback ports</h3>
+              <p style="font-size: 0.88rem;">Replays <span class="mono">testdata/fixtures/generic-laser.snmp</span> (or choose <span class="mono">ricoh-imc3010.snmp</span>, <span class="mono">hp-m283fdw-enterprise.snmp</span>, or <span class="mono">konicaminolta-bizhub-c300i.snmp</span>) over SNMP and IPP.</p>
+              <div class="code-block">
+                <div class="code-header">
+                  <span>Terminal 1 — Start pm-sim</span>
+                  <button type="button" class="copy-btn" data-copy-target="cmd-step-2">Copy</button>
+                </div>
+                <pre><code id="cmd-step-2">./bin/pm-sim \
+  -fixture testdata/fixtures/generic-laser.snmp \
+  -snmp 127.0.0.1:10161 \
+  -ipp  127.0.0.1:10631</code></pre>
+              </div>
+            </div>
+          </div>
 
-        <article id="first-run" class="prose-card">
-          <h2>First run</h2>
-          <ol class="ordered-steps">
-            <li><strong>Open the interface.</strong> The default local address is <code>http://localhost:8080</code>. For remote access, terminate HTTPS at a reverse proxy or ingress and set <code>PM_SECURE_COOKIES=true</code>.</li>
-            <li><strong>Sign in as <code>admin</code>.</strong> Use the password supplied through <code>PM_ADMIN_PASSWORD</code>. If it was omitted, read <code>&lt;dataDir&gt;/initial-admin-password</code>; in the container that is <code>/data/initial-admin-password</code>.</li>
-            <li><strong>Change the initial password.</strong> Delete the generated password file if present. <code>PM_ADMIN_PASSWORD</code> only bootstraps an empty database; changing it later does not reset the account.</li>
-            <li><strong>Add read credentials.</strong> Use the least privilege the devices need. Keep write credentials separate and bind them only when you intend to use supported write operations.</li>
-            <li><strong>Run discovery.</strong> Choose an authorized target range or multicast discovery and inspect the resulting identity, capabilities, and poll errors. Scheduled discovery is off by default.</li>
-            <li><strong>Establish operations.</strong> Configure alerts, access roles, retention, and backups. Test writes in the simulator before expanding to authorized hardware.</li>
-          </ol>
-          <p>Multicast discovery requires suitable network access; active target scanning uses SNMP and needs matching credentials. Traps must reach the configured UDP listener with the original device source address intact. See the wiki before substituting bridge networking for the supplied host-network examples.</p>
-        </article>
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="panel-card">
+              <div class="eyebrow" style="margin-bottom: 2px;">Step 3 · Start PrintMarshal</div>
+              <h3>Launch the console pointed at the simulator</h3>
+              <p style="font-size: 0.88rem;">Creates an encrypted SQLite database in <span class="mono">./data</span>, seeds the <span class="mono">admin</span> account, and maps SNMP/IPP probes to your simulator ports.</p>
+              <div class="code-block">
+                <div class="code-header">
+                  <span>Terminal 2 — Start PrintMarshal</span>
+                  <button type="button" class="copy-btn" data-copy-target="cmd-step-3">Copy</button>
+                </div>
+                <pre><code id="cmd-step-3">export PM_SECRET_KEY="$(openssl rand -base64 32)"
+export PM_ADMIN_PASSWORD="change-me-admin-123"
 
-        <article id="preserve-state" class="prose-card">
-          <h2>Preserve state before upgrading</h2>
-          <p>Back up the database, encryption key, firmware files, configuration, and externally supplied secrets. Preserve generated SAML files separately when that provider is enabled. The supplied backup helper targets the default SQLite database and does not capture every deployment secret or custom database path.</p>
-          <p>Migrations run at startup. Ordinary interrupted jobs are marked failed and require resubmission; firmware campaigns have a separate paused recovery flow. PostgreSQL changes the storage backend, not the single-active-server model.</p>
-        </article>
+PM_LISTEN=127.0.0.1:8080 \
+PM_DATA_DIR=./data \
+PM_SNMP_PORT=10161 \
+PM_IPP_ENDPOINTS='http://%s:10631/ipp/print' \
+PM_DISCOVERY_ENABLED=false \
+PM_TRAP_ENABLED=false \
+  ./bin/printmarshal</code></pre>
+              </div>
+              <p style="font-size: 0.84rem; color: var(--text-muted);">
+                Prefer an automated CLI walkthrough? Run <span class="mono">./scripts/e2e.sh</span> to execute the full discovery, polling, and assertion sequence via the REST API.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        <article id="guides" class="prose-card">
-          <h2>Keep the guide close</h2>
-          <ul class="link-list">
-            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Administrator and developer wiki</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Installation-and-deployment.md">Installation, networking, backups, and upgrades</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Configuration-reference.md">Complete configuration reference</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Identity-and-access.md">Identity and access</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Troubleshooting-and-FAQ.md">Troubleshooting</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Vendor-plugins-and-drivers.md">Simulator and driver development</a></li>
+    <!-- 3. FIRST SUCCESSFUL OUTCOME -->
+    <section class="section section-alt" id="first-outcome" aria-labelledby="outcome-heading">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">03 · First Successful Outcome</div>
+          <h2 id="outcome-heading">What you will see in your first three minutes.</h2>
+          <p class="lead">
+            Open <span class="mono">http://127.0.0.1:8080</span> and sign in as <span class="mono">admin</span> with your <span class="mono">PM_ADMIN_PASSWORD</span>. Follow these four steps in the UI to verify every core workflow:
+          </p>
+        </div>
+
+        <div class="capability-split" style="padding-top: 0;">
+          <div class="capability-copy">
+            <ol class="walkthrough-points" style="list-style: none;">
+              <li>
+                <strong>1. Discover the simulated printer (<span class="mono">/discovery</span>):</strong>
+                Enter target <span class="mono">127.0.0.1</span>, uncheck zero-config multicast, and click <strong>Start scan</strong>. PrintMarshal discovers <span class="mono">Acme LaserPrint 4200dn</span> (serial <span class="mono">ACM4200X0917</span>) with <span class="mono">snmp</span> and <span class="mono">ipp</span> capabilities, supply levels, trays, and page counters.
+              </li>
+              <li>
+                <strong>2. Assess security posture (<span class="mono">/security</span>):</strong>
+                Under <strong>Security → Compliance</strong>, click <strong>Assess…</strong> with the built-in <span class="mono">Baseline</span> policy. You will see <span class="mono">4 / 5</span> readable items pass, <span class="mono">SNMP v1/v2c enabled</span> fail (<span class="mono">High</span> severity), and <span class="mono">9 unknown</span> items explicitly listed as not readable over standards SNMP/IPP.
+              </li>
+              <li>
+                <strong>3. Read &amp; preview configuration (<span class="mono">/profiles</span>):</strong>
+                Add a write-enabled credential (<span class="mono">Credentials → Add credential</span>, SNMP community <span class="mono">public</span>, purpose <span class="mono">both</span>). Create a profile setting <span class="mono">Organization</span> or <span class="mono">Default duplex</span>, click <strong>Apply</strong>, and run the <strong>Dry-run preview</strong>.
+              </li>
+              <li>
+                <strong>4. Confirm &amp; inspect verified write history:</strong>
+                Confirm the write. PrintMarshal writes the change to <span class="mono">pm-sim</span>, re-reads the setting back, and records <span class="status-pill status-pass" style="padding: 1px 7px; font-size: 0.7rem;">✓ verified</span> in the device's <strong>Write history</strong> card with a one-click <strong>Revert…</strong> button.
+              </li>
+            </ol>
+          </div>
+
+          <figure class="console-showcase" style="margin:0;">
+            <div class="console-bar">
+              <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+              <span class="console-url">/profiles/:id/apply — First dry-run preview outcome</span>
+              <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/config-dryrun-preview.png" data-lightbox-caption="First successful outcome: previewing a configuration profile against the simulator device in dry-run mode.">⤢ Enlarge</button>
+            </div>
+            <div class="console-media" data-lightbox-src="/assets/screens/config-dryrun-preview.png" data-lightbox-caption="First successful outcome: previewing a configuration profile against the simulator device in dry-run mode.">
+              <img class="media-desktop-full" src="/assets/screens/config-dryrun-preview.png" alt="Dry-run preview screen showing 1 device that would change and 2 setting writes." width="1440" height="920" loading="lazy">
+              <img class="media-mobile-crop" src="/assets/screens/mobile-config-dryrun.png" alt="Focused view of Changes by setting in dry-run preview." width="1168" height="294" loading="lazy">
+            </div>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. DOCKER QUICK START -->
+    <section class="section" id="docker-quickstart" aria-labelledby="docker-heading">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">04 · Container Quick Start</div>
+          <h2 id="docker-heading">Run PrintMarshal in a single Docker container.</h2>
+          <p class="lead">
+            For a persistent self-hosted instance backed by SQLite on a Docker volume, build the image from the repository and pass <span class="mono">PM_SECRET_KEY</span> and <span class="mono">PM_ADMIN_PASSWORD</span>.
+          </p>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span>Docker build &amp; run (SQLite volume at /data)</span>
+            <button type="button" class="copy-btn" data-copy-target="cmd-docker">Copy</button>
+          </div>
+          <pre><code id="cmd-docker">docker build -t printmarshal:local .
+
+docker run -d \
+  --name printmarshal \
+  -p 8080:8080 \
+  -p 1162:1162/udp \
+  -v printmarshal-data:/data \
+  -e PM_DATA_DIR=/data \
+  -e PM_SECRET_KEY="$(openssl rand -base64 32)" \
+  -e PM_ADMIN_PASSWORD="replace-with-strong-password" \
+  --restart unless-stopped \
+  printmarshal:local</code></pre>
+        </div>
+        <p style="font-size: 0.86rem; color: var(--text-muted); margin-top: 10px;">
+          Note: If you want passive mDNS/SSDP/WS-Discovery multicast listeners inside Docker on Linux, run with <span class="mono">--network host</span> on the printer VLAN or use active CIDR discovery scans across routed subnets.
+        </p>
+      </div>
+    </section>
+
+    <!-- 5. ADVANCED DEPLOYMENT OPTIONS (PROGRESSIVE DISCLOSURE) -->
+    <section class="section section-alt" id="production-options" aria-labelledby="prod-heading" style="border-bottom: 0;">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">05 · Advanced Production Deployment</div>
+          <h2 id="prod-heading">Production topologies, environment variables, and backup rules.</h2>
+          <p class="lead">
+            Expand any section below for production configurations, or consult the authoritative <a href="https://github.com/printmarshal/printmarshal/wiki/Installation-and-deployment" target="_blank" rel="noopener">Installation and Deployment Wiki</a>.
+          </p>
+        </div>
+
+        <details class="disclosure" open>
+          <summary>Docker Compose + PostgreSQL 16 (deploy/docker-compose.yml)</summary>
+          <div class="disclosure-body">
+            <p>
+              For production deployments that prefer external PostgreSQL over embedded SQLite, use <span class="mono">deploy/docker-compose.yml</span>. Remember that PrintMarshal runs in-process schedulers and job workers—always run <strong>a single active server replica</strong> (<span class="mono">replicas: 1</span>).
+            </p>
+            <div class="code-block">
+              <div class="code-header">
+                <span>Start with Docker Compose</span>
+                <button type="button" class="copy-btn" data-copy-target="cmd-compose">Copy</button>
+              </div>
+              <pre><code id="cmd-compose">export PM_ADMIN_PASSWORD="replace-with-strong-password"
+export PM_SECRET_KEY="$(openssl rand -base64 32)"
+export POSTGRES_PASSWORD="replace-with-db-password"
+
+docker compose -f deploy/docker-compose.yml up -d</code></pre>
+            </div>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>Kubernetes Helm Chart (deploy/helm/printmarshal) &amp; systemd Service</summary>
+          <div class="disclosure-body">
+            <p>
+              The repository ships both a Helm chart (<span class="mono">deploy/helm/printmarshal</span>) with liveness/readiness probes (<span class="mono">/healthz</span>, <span class="mono">/readyz</span>) and Prometheus annotations, and a hardened Linux <span class="mono">systemd</span> unit (<span class="mono">deploy/systemd/printmarshal.service</span>).
+            </p>
+            <div class="code-block">
+              <div class="code-header">
+                <span>Helm install</span>
+                <button type="button" class="copy-btn" data-copy-target="cmd-helm">Copy</button>
+              </div>
+              <pre><code id="cmd-helm">helm upgrade --install printmarshal ./deploy/helm/printmarshal \
+  --namespace printmarshal --create-namespace \
+  --set secret.adminPassword="replace-with-strong-password" \
+  --set secret.secretKey="$(openssl rand -base64 32)"</code></pre>
+            </div>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>Essential Environment Variables &amp; Backup / Restore Rules</summary>
+          <div class="disclosure-body">
+            <div class="table-wrap">
+              <table class="data-table" aria-label="Core PrintMarshal environment variables">
+                <thead>
+                  <tr>
+                    <th>Variable</th>
+                    <th>Default</th>
+                    <th>Purpose</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="mono">PM_SECRET_KEY</span></td>
+                    <td><span class="mono">&lt;data-dir&gt;/secret.key</span></td>
+                    <td>32-byte key (64 hex chars or base64) used for <span class="mono">AES-256-GCM</span> encryption of stored credentials and private keys. <strong>Back this up with your database.</strong></td>
+                  </tr>
+                  <tr>
+                    <td><span class="mono">PM_ADMIN_PASSWORD</span></td>
+                    <td>Random (logged once)</td>
+                    <td>Initial password for the seeded <span class="mono">admin</span> user when starting on an empty database.</td>
+                  </tr>
+                  <tr>
+                    <td><span class="mono">PM_LISTEN</span></td>
+                    <td><span class="mono">:8080</span></td>
+                    <td>HTTP/HTTPS listen address for the embedded web UI and REST/WebSocket API.</td>
+                  </tr>
+                  <tr>
+                    <td><span class="mono">PM_DB_DRIVER</span> / <span class="mono">PM_DB_DSN</span></td>
+                    <td><span class="mono">sqlite</span></td>
+                    <td>Set <span class="mono">PM_DB_DRIVER=postgres</span> and <span class="mono">PM_DB_DSN=postgres://…</span> to use PostgreSQL instead of SQLite.</td>
+                  </tr>
+                  <tr>
+                    <td><span class="mono">PM_TLS_CERT</span> / <span class="mono">PM_TLS_KEY</span></td>
+                    <td>unset (HTTP)</td>
+                    <td>PEM certificate and private key paths for native HTTPS termination (enables <span class="mono">Secure</span> session cookies automatically).</td>
+                  </tr>
+                  <tr>
+                    <td><span class="mono">PM_DISCOVERY_CIDRS</span></td>
+                    <td>unset</td>
+                    <td>Comma-separated CIDRs/ranges scanned on schedule when <span class="mono">PM_DISCOVERY_ENABLED=true</span>.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p style="font-size: 0.86rem;">
+              <strong>Hot SQLite Backup:</strong> Admins can download a consistent SQLite snapshot via <span class="mono">POST /api/system/backup</span> (<span class="mono">VACUUM INTO</span>). Always archive your <span class="mono">PM_SECRET_KEY</span> (or <span class="mono">secret.key</span> file) alongside database backups; without the matching key, encrypted device credentials cannot be decrypted on restore.
+            </p>
+          </div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a class="brand" href="/" style="margin-bottom: 12px;">
+            <img class="brand-mark" src="/assets/mark.svg" alt="" width="28" height="28">
+            <span class="brand-name" style="font-size: 1.1rem;">Print<span>Marshal</span></span>
+          </a>
+          <p style="font-size: 0.84rem; color: var(--text-muted); max-width: 34ch;">
+            Open source, self-hosted printer fleet discovery, security posture assessment, and configuration management.
+          </p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="/">Overview</a></li>
+            <li><a href="/features/">Features &amp; Capability Status</a></li>
+            <li><a href="/security/">Security &amp; Architecture</a></li>
+            <li><a href="/get-started/">Get Started</a></li>
+            <li><a href="/faq/">FAQ</a></li>
           </ul>
-        </article>
+        </div>
+        <div class="footer-col">
+          <h4>Documentation (Wiki)</h4>
+          <ul>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki Home</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Installation-and-deployment" target="_blank" rel="noopener">Installation &amp; Deployment</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Security &amp; Policies</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Configuration-management" target="_blank" rel="noopener">Configuration Management</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Vendor Plugins &amp; Drivers</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub Repository</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/API-reference" target="_blank" rel="noopener">REST &amp; WebSocket API</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Development" target="_blank" rel="noopener">Contributing &amp; Simulator</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0 License</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>PrintMarshal · Open source under the Apache-2.0 License.</span>
+        <span class="mono" style="font-size: 0.78rem;">Built with Go 1.27, React, SQLite/PostgreSQL · Self-hosted</span>
       </div>
     </div>
-  </section>
-</main>
+  </footer>
 
-<footer>
-  <div class="wrap footer-grid">
-    <div class="footer-copy">
-      <div class="footer-brand">
-        <img src="/assets/mark-on-dark.svg" alt="" aria-hidden="true" width="24" height="24">
-        <span>PrintMarshal. The command-and-security console for your printer fleet.</span>
-      </div>
-      <p>Self-hosted. Open source under Apache-2.0. Manage only devices you own or are authorized to manage.</p>
-      <p>Integration and manufacturer names identify interfaces or device families. They do not imply affiliation or endorsement.</p>
+  <dialog class="lightbox" id="screen-lightbox" aria-label="Enlarged product screenshot">
+    <div class="lightbox-bar">
+      <span class="lightbox-caption" id="lightbox-caption">Product screenshot</span>
+      <button type="button" class="btn btn-sm" id="lightbox-close">Close (Esc)</button>
     </div>
-    <div class="footer-links">
-      <a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE">License</a>
-      <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Wiki</a>
-      <a href="https://github.com/printmarshal/printmarshal">GitHub</a>
+    <div class="lightbox-body">
+      <img id="lightbox-img" src="/assets/screens/config-dryrun-preview.png" alt="Enlarged product screenshot">
     </div>
-  </div>
-</footer>
-<script>
-const b=document.querySelector('.nav-toggle'),n=document.querySelector('.nav-links');
-if(b&&n)b.onclick=()=>b.setAttribute('aria-expanded',n.classList.toggle('open'));
-if(window.innerWidth===500&&/HeadlessChrome/.test(navigator.userAgent))document.body.style.maxWidth='390px';
-if(location.protocol==='file:'){const r=/\/(features|security|get-started|faq)\//.test(location.pathname)?'../':'';document.querySelectorAll('[src^="/assets/"],[href^="/assets/"]').forEach(e=>{const a=e.hasAttribute('src')?'src':'href';e.setAttribute(a,r+e.getAttribute(a).slice(1))})}
-</script>
+  </dialog>
+
+  <script>
+    (function () {
+      // Copy command buttons
+      document.querySelectorAll('[data-copy-target]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-copy-target');
+          var el = document.getElementById(id);
+          if (!el || !navigator.clipboard) return;
+          navigator.clipboard.writeText(el.textContent || '').then(function () {
+            var prev = btn.textContent;
+            btn.textContent = 'Copied ✓';
+            setTimeout(function () { btn.textContent = prev; }, 1600);
+          });
+        });
+      });
+
+      // Lightbox
+      var dlg = document.getElementById('screen-lightbox');
+      var dlgImg = document.getElementById('lightbox-img');
+      var dlgCap = document.getElementById('lightbox-caption');
+      var dlgClose = document.getElementById('lightbox-close');
+      if (dlg && typeof dlg.showModal === 'function') {
+        document.querySelectorAll('[data-lightbox-src]').forEach(function (el) {
+          el.addEventListener('click', function (e) {
+            e.stopPropagation();
+            dlgImg.src = el.getAttribute('data-lightbox-src');
+            dlgImg.alt = el.getAttribute('data-lightbox-caption') || '';
+            dlgCap.textContent = el.getAttribute('data-lightbox-caption') || '';
+            dlg.showModal();
+          });
+        });
+        dlgClose.addEventListener('click', function () { dlg.close(); });
+        dlg.addEventListener('click', function (e) {
+          if (e.target === dlg) dlg.close();
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
