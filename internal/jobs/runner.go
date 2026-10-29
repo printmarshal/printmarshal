@@ -118,15 +118,19 @@ func (r *Runner) Submit(ctx context.Context, j *model.Job) (*model.Job, error) {
 		return nil, err
 	}
 	r.emit(j)
+	// The worker owns j once it is queued; callers get a copy taken before
+	// that so serialising the response cannot race with the worker marking
+	// the job running.
+	cp := *j
 	select {
 	case r.queue <- j:
 	default:
-		j.Status = model.JobFailed
-		j.Error = "job queue is full"
-		_ = r.store.UpdateJob(ctx, j)
+		cp.Status, j.Status = model.JobFailed, model.JobFailed
+		cp.Error, j.Error = "job queue is full", "job queue is full"
+		_ = r.store.UpdateJob(ctx, &cp)
 		return nil, fmt.Errorf("job queue is full")
 	}
-	return j, nil
+	return &cp, nil
 }
 
 // Wait blocks until the job finishes or ctx ends; returns the latest job state.

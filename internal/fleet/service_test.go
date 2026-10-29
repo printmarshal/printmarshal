@@ -42,8 +42,7 @@ func newTestService(t *testing.T, fixture string) (*Service, store.Store) {
 	eng := engine.New(reg, log, 4)
 	cfg := config.Default()
 	cfg.Alerts.OfflineAfterFailures = 1
-	var events []model.Event
-	runner := jobs.New(st, log, 2, func(e model.Event) { events = append(events, e) })
+	runner := jobs.New(st, log, 2, func(e model.Event) {})
 	t.Cleanup(runner.Stop)
 	svc := New(st, eng, runner, cfg, log, func(e model.Event) {}, func(ctx context.Context, a string) bool { return true })
 	return svc, st
@@ -299,9 +298,17 @@ func TestPartialPollKeepsFaults(t *testing.T) {
 	old := TrapAlertHold
 	TrapAlertHold = 0
 	defer func() { TrapAlertHold = old }()
-	time.Sleep(5 * time.Millisecond)
-	if _, _, err := svc.PollDevice(ctx, dev); err != nil {
-		t.Fatal(err)
+	// The trap queued its own reconciling poll; retry until that one is done.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		_, _, err := svc.PollDevice(ctx, dev)
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal(err)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 	if m := active(); m["trap:device-cold-start"] {
 		t.Fatalf("trap alert not reconciled after the hold: %v", m)
