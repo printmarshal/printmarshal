@@ -37,6 +37,7 @@ func runStoreTests(t *testing.T, open func(t *testing.T) testStore) {
 		{"AssessmentsLatestAndHistory", testAssessmentsLatestAndHistory},
 		{"CAProfilesAndCertificates", testCAProfilesAndCertificates},
 		{"UsersSessionsOutboxAudit", testUsersSessionsOutboxAudit},
+		{"SecretSettings", testSecretSettings},
 		{"APITokens", testAPITokens},
 		{"CredentialPurposeResolution", testCredentialPurposeResolution},
 		{"SyncDevicesWithTombstones", testSyncDevicesWithTombstones},

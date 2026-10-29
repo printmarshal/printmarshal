@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 
 	"printmarshal/internal/auth"
@@ -13,36 +12,28 @@ import (
 	"printmarshal/internal/auth/oidc"
 )
 
-// LDAP / Active Directory behind the login form (docs/auth.md).
+// LDAP / Active Directory behind the login form (docs/auth.md). The
+// effective configuration is resolved on every call from the file, the
+// environment and the settings an administrator saved (directory.go), so a
+// change in the UI is in force for the next sign-in without a restart.
 
-func (s *Server) ldapEnabled() bool { return strings.TrimSpace(s.Cfg.Auth.LDAP.URL) != "" }
+func (s *Server) ldapEnabled(ctx context.Context) bool { return s.directoryState(ctx).Settings.Enabled }
 
-func (s *Server) ldapIssuer() string { return s.ldapConfig().Issuer() }
-
-func (s *Server) ldapName() string {
-	if n := s.Cfg.Auth.LDAP.DisplayName; n != "" {
-		return n
-	}
-	return hostOf(s.Cfg.Auth.LDAP.URL)
+func (s *Server) ldapIssuer(ctx context.Context) string {
+	return s.directoryState(ctx).ldapConfig().Issuer()
 }
 
-func (s *Server) ldapConfig() ldap.Config {
-	c := s.Cfg.Auth.LDAP
-	cfg := ldap.Config{URL: strings.TrimSpace(c.URL), StartTLS: c.StartTLS, CAFile: c.CAFile, InsecureSkipVerify: c.InsecureSkipVerify,
-		BindDN: c.BindDN, UserDNTemplate: c.UserDNTemplate, BaseDN: c.BaseDN, UserFilter: c.UserFilter,
-		UsernameAttr: c.UsernameAttr, SubjectAttr: c.SubjectAttr, GroupAttr: c.GroupAttr, Timeout: c.Timeout.D()}
-	if c.BindPasswordEnv != "" {
-		cfg.BindPassword = os.Getenv(c.BindPasswordEnv)
-	}
-	return cfg
-}
+func (s *Server) ldapName(ctx context.Context) string { return s.directoryState(ctx).name() }
 
 // ldapAuthenticate binds as the user and maps groups to a role.
 func (s *Server) ldapAuthenticate(ctx context.Context, username, password string) (*externalIdentity, error) {
-	c := s.Cfg.Auth.LDAP
-	cfg := s.ldapConfig()
-	if c.BindDN != "" && c.BindPasswordEnv != "" && cfg.BindPassword == "" {
-		return nil, errors.New("ldap: the service-account password variable " + c.BindPasswordEnv + " is empty")
+	st := s.directoryState(ctx)
+	cfg := st.ldapConfig()
+	if cfg.BindDN != "" && cfg.BindPassword == "" {
+		if env := s.Cfg.Auth.LDAP.BindPasswordEnv; env != "" {
+			return nil, errors.New("ldap: the service-account password variable " + env + " is empty")
+		}
+		return nil, errors.New("ldap: a service account is configured but no password has been set")
 	}
 	id, err := ldap.Authenticate(ctx, cfg, username, password)
 	if err != nil {
@@ -51,11 +42,12 @@ func (s *Server) ldapAuthenticate(ctx context.Context, username, password string
 		}
 		return nil, err
 	}
-	if len(c.AllowedGroups) > 0 && !id.InGroup(c.AllowedGroups) {
+	e := st.Settings
+	if len(e.AllowedGroups) > 0 && !id.InGroup(e.AllowedGroups) {
 		return nil, &loginError{status: http.StatusUnauthorized, msg: "your directory account is not in a group allowed to sign in", detail: "ldap: not in an allowed group", result: "denied"}
 	}
-	role := oidc.MapRole(lowerAll(id.Candidates()), lowerKeys(c.RoleMap), c.DefaultRole)
-	return &externalIdentity{ExternalIdentity: auth.ExternalIdentity{Issuer: cfg.Issuer(), Subject: id.Subject, Username: id.Username}, Role: role, SyncRole: len(c.RoleMap) > 0}, nil
+	role := oidc.MapRole(lowerAll(id.Candidates()), lowerKeys(e.RoleMap), e.DefaultRole)
+	return &externalIdentity{ExternalIdentity: auth.ExternalIdentity{Issuer: cfg.Issuer(), Subject: id.Subject, Username: id.Username}, Role: role, SyncRole: len(e.RoleMap) > 0}, nil
 }
 
 // Directory names (DNs, CNs) compare case-insensitively, so the role map is
