@@ -3,17 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Security Assessment &amp; Platform Architecture — PrintMarshal</title>
-  <meta name="description" content="How PrintMarshal assesses printer security posture (policies, TLS probes, certificates, staged rotation) and how its own security architecture protects credentials, sessions, and network writes.">
-  <meta name="theme-color" content="#0D1016">
-  <meta property="og:title" content="Security Assessment &amp; Platform Architecture — PrintMarshal">
-  <meta property="og:description" content="Clear separation between printer security assessment (what operators investigate on devices) and platform security architecture (AES-256-GCM credentials, RBAC, dry-run gates, TOFU pinning).">
+  <title>Security Architecture &amp; Compliance Boundaries — PrintMarshal</title>
+  <meta name="description" content="How PrintMarshal audits printer security posture, separates unknown evidence from passing checks, enrolls TLS certificates, stages encrypted credentials, and verifies configuration writes.">
+  <link rel="canonical" href="https://printmarshal.app/security/">
+
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PrintMarshal">
+  <meta property="og:title" content="Security Architecture &amp; Compliance Boundaries — PrintMarshal">
+  <meta property="og:description" content="Audit printer security with explicit unknown states, AES-256-GCM encrypted credentials, dry-run previews, and read-back verification.">
   <meta property="og:url" content="https://printmarshal.app/security/">
+  <meta property="og:image" content="https://printmarshal.app/assets/og-card.png">
+  <meta name="twitter:card" content="summary_large_image">
+
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
@@ -24,290 +29,350 @@
       <a class="brand" href="/" aria-label="PrintMarshal home">
         <img class="brand-mark" src="/assets/mark.svg" alt="" width="32" height="32">
         <span class="brand-name">Print<span>Marshal</span></span>
-        <span class="brand-tag">Self-Hosted · Apache-2.0</span>
+        <span class="brand-tag">Self-Hosted · Go + SQLite/PostgreSQL</span>
       </a>
-      <nav class="site-nav" aria-label="Primary">
-        <a href="/">Overview</a>
-        <a href="/features/">Features</a>
-        <a href="/security/" aria-current="page">Security</a>
-        <a href="/get-started/">Get started</a>
-        <a href="/faq/">FAQ</a>
-      </nav>
-      <div class="header-actions">
-        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
-        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub ↗</a>
-        <a class="btn btn-primary btn-sm" href="/get-started/">Get started</a>
+
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation-menu" aria-label="Toggle navigation menu" data-nav-toggle>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+        <span>Menu</span>
+      </button>
+
+      <div class="header-menu" id="primary-navigation-menu" data-nav-menu>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a href="/">Overview</a>
+          <a href="/features/">Features</a>
+          <a href="/security/" aria-current="page">Security</a>
+          <a href="/get-started/">Get started</a>
+          <a href="/faq/">FAQ</a>
+          <a class="nav-external-mobile" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki <span aria-hidden="true">↗</span></a>
+          <a class="nav-external-mobile" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+        </nav>
+
+        <div class="header-actions">
+          <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
+          <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn btn-primary btn-sm" href="/get-started/">Get started</a>
+        </div>
       </div>
     </div>
   </header>
 
   <main id="main-content">
-    <section class="page-hero" aria-labelledby="sec-page-heading">
+    <section class="page-hero" aria-labelledby="security-heading">
       <div class="container">
-        <div class="eyebrow">Printer Assessment vs Platform Architecture</div>
-        <h1 id="sec-page-heading">Two sides of security: what you inspect on printers, and how PrintMarshal governs itself.</h1>
+        <div class="eyebrow">Printer Security &amp; Platform Hardening</div>
+        <h1 id="security-heading">Audit printer security. Protect management credentials.</h1>
         <p class="lead">
-          A tool that connects to network printers with SNMP and HTTP credentials must be explicit about both <strong>printer security assessment</strong> (evaluating fleet exposure) and its own <strong>platform security architecture</strong> (how credentials, sessions, and device writes are protected).
+          PrintMarshal is built around two security principles: never report an unreadable printer setting as passing, and never write to a device without explicit operator action and read-back verification.
         </p>
-        <nav class="page-subnav" aria-label="On this page">
-          <a href="#part-1-assessment">Part I: Printer Security Assessment</a>
-          <a href="#certificates-rotation">Certificates &amp; Credential Rotation</a>
-          <a href="#part-2-architecture">Part II: Platform Security Architecture</a>
-          <a href="#write-safety">Write Gates &amp; TOFU Pinning</a>
-          <a href="#shipped-boundaries">Shipped Boundaries &amp; Disclosures</a>
+        <nav class="page-subnav" aria-label="Security section navigation">
+          <a href="#baseline">1. Baseline Policy &amp; Unknowns</a>
+          <a href="#probes-certs">2. Port Probes &amp; Certificates</a>
+          <a href="#write-safeguards">3. Write Safeguards &amp; Rotation</a>
+          <a href="#platform">4. Encryption, RBAC &amp; Audit</a>
         </nav>
       </div>
     </section>
 
-    <!-- TWO-PILLAR OVERVIEW -->
-    <section class="section-tight section-alt" aria-label="Comparison of printer security assessment and platform security architecture">
+    <!-- ====================================================================
+         1. BASELINE POLICY & UNKNOWN EVIDENCE
+         ==================================================================== -->
+    <section id="baseline" class="section" aria-labelledby="baseline-heading">
       <div class="container">
-        <div class="grid-2">
-          <div class="panel-card">
-            <div class="eyebrow" style="margin-bottom: 4px;">Part I · Target Fleet</div>
-            <h3>Printer Security Assessment</h3>
-            <p>What operators investigate across discovered network printers:</p>
-            <ul class="walkthrough-points" style="margin-top: 6px;">
-              <li>14-item <span class="mono">Baseline</span> policy &amp; 17-item security check catalog</li>
-              <li>Live TCP port probes (<span class="mono">21, 23, 80, 443, 515, 631, 9100</span>) and TLS handshakes</li>
-              <li>Explicit <span class="mono">pass</span>, <span class="mono">fail</span>, and <span class="mono">unknown</span> scoring without false greens</li>
-              <li>Certificate expiry tracking &amp; SCEP / EST / ACME DNS-01 enrollment</li>
-              <li>Management-path lockout protection &amp; 4-stage credential rotation</li>
-            </ul>
-          </div>
-          <div class="panel-card">
-            <div class="eyebrow" style="margin-bottom: 4px;">Part II · Self-Hosted Server</div>
-            <h3>Platform Security Architecture</h3>
-            <p>How PrintMarshal protects credentials, access, transport, and device writes:</p>
-            <ul class="walkthrough-points" style="margin-top: 6px;">
-              <li>Read-only default discovery/polling &amp; purpose-bound credentials (<span class="mono">read / write / both</span>)</li>
-              <li><span class="mono">AES-256-GCM</span> encryption at rest (<span class="mono">PM_SECRET_KEY</span>) &amp; write-only secret APIs</li>
-              <li>RBAC (<span class="mono">admin / operator / viewer</span>), OIDC + PKCE, LDAP, and CSRF enforcement</li>
-              <li>Dry-run default on writes, &gt;10-device confirmation, and read-back verification</li>
-              <li>IPP TLS Trust-on-First-Use (TOFU) pinning &amp; RFC 5424 Syslog/CEF audit stream</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- PART I: PRINTER SECURITY ASSESSMENT -->
-    <section class="section" id="part-1-assessment" aria-labelledby="part1-heading">
-      <div class="container">
-        <div class="section-header">
-          <div class="eyebrow">Part I · Printer Security Assessment</div>
-          <h2 id="part1-heading">How PrintMarshal evaluates printer security posture.</h2>
-          <p class="lead">
-            Assessments combine driver-reported configuration settings with active TCP and TLS network probes (`internal/security/`), producing a transparent per-device and fleet-wide compliance record.
-          </p>
-        </div>
-
-        <div class="capability-split" style="padding-top: 0;">
+        <div class="capability-split">
           <div class="capability-copy">
             <div class="capability-meta">
-              <span class="cap-badge cap-implemented">✓ Assessment Engine Implemented</span>
-              <span class="cap-badge cap-implemented">✓ Port &amp; TLS Probes Implemented</span>
+              <span class="cap-badge cap-implemented">● Implemented</span>
+              <span class="mono" style="font-size: 0.76rem; color: var(--text-muted);">14 Baseline Rules · 43 Security Keys · 8 Operators</span>
             </div>
-            <h3>1. Policy evaluation &amp; the unknown-evidence rule</h3>
+            <h2 id="baseline-heading" style="font-size: 1.75rem;">1. The 14-item Baseline policy and unknown-state scoring</h2>
             <p>
-              PrintMarshal seeds a built-in 14-item <strong>Baseline</strong> policy on first startup and provides a visual policy editor covering 17 security keys across protocols, TLS, certificates, and credentials.
+              PrintMarshal's canonical settings catalog defines 84 setting keys across 10 areas (<code>internal/model/settings_catalog.go</code>), of which 43 are tagged <code>Security: true</code>. The built-in Baseline policy evaluates 14 high-impact controls out of the box.
             </p>
-            <ul class="walkthrough-points">
-              <li><strong>Three distinct item outcomes:</strong> Each rule evaluates to <span class="mono">pass</span>, <span class="mono">fail</span>, or <span class="mono">unknown</span>.</li>
-              <li><strong>Why unknown is never scored as a pass:</strong> Standard Printer-MIB and IPP attributes do not expose every security setting (for example, whether an admin password is set or whether WSD/SLP/LLMNR are enabled). PrintMarshal records those items as <span class="mono">unknown</span> and excludes them from the weighted score denominator:
-                <div class="code-block" style="margin: 8px 0 0;">
-                  <pre><code>score = 100 × sum(weight of passed items) / sum(weight of passed + failed items)</code></pre>
-                </div>
-              </li>
-              <li><strong>Management-path lockout guard:</strong> Policy rules that disable <span class="mono">SNMPv1/v2c</span> (<span class="mono">managementPath: "snmp"</span>) or plain HTTP (<span class="mono">managementPath: "http"</span>) are flagged in the UI. During remediation, the engine refuses to disable a protocol if it is the last verified management path to the printer.</li>
-            </ul>
+            <p>
+              Standard SNMP (RFC 3805) and IPP do not expose every vendor-specific toggle (such as whether an administrator password is set or HTTP-to-HTTPS redirect is active). When no driver reports a key, PrintMarshal records <code>status: "unknown"</code> and excludes its weight from the compliance score denominator (<code>internal/security/policy.go</code>).
+            </p>
+            <div class="callout unk">
+              <strong>Why unknown is never counted as pass</strong>
+              <p>On a standard SNMP/IPP printer where 5 of 14 Baseline rules are observable (Telnet disabled, FTP disabled, IPPS enabled, HTTPS enabled, SNMPv1/v2c enabled), the device scores 4 of 5 passing (<code>81.8</code> weighted score) with <code>9 unknown</code> items explicitly listed for review.</p>
+            </div>
           </div>
 
-          <figure class="console-showcase" style="margin:0;">
+          <div class="console-showcase" data-lightbox-src="/assets/screens/device-security-detail.png" data-lightbox-caption="Device security assessment: 4/5 readable items passing, 1 failing (SNMPv1/v2c), and 9 unknown items listed.">
             <div class="console-bar">
               <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-              <span class="console-url">/security?tab=compliance — Policy item evaluation &amp; lockout tags</span>
-              <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/security-compliance.png" data-lightbox-caption="Security Compliance console showing 60.0% compliant devices, failing SNMP v1/v2c checks with management-path tags, and unknown counts.">⤢ Enlarge</button>
+              <div class="console-url">Device assessment · Failed and unknown checks</div>
+              <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge device security assessment screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
             </div>
-            <div class="console-media" data-lightbox-src="/assets/screens/security-compliance.png" data-lightbox-caption="Security Compliance console showing 60.0% compliant devices, failing SNMP v1/v2c checks with management-path tags, and unknown counts.">
-              <img class="media-desktop-full" src="/assets/screens/security-compliance.png" alt="Security Compliance view showing fleet summary, management-path warning banner, and By policy item table." width="1440" height="960" loading="lazy">
-              <img class="media-mobile-crop" src="/assets/screens/mobile-security-compliance.png" alt="Focused view of the By policy item table." width="728" height="887" loading="lazy">
+            <div class="console-media">
+              <img class="media-desktop-full" src="/assets/screens/crop-device-security.png" alt="Focused view of Device Security tab showing Compliance Baseline card with 4/5 passing, Fail on SNMP v1/v2c enabled, and 9 Unknown items." width="1184" height="520" loading="lazy">
+              <img class="media-mobile-crop" src="/assets/screens/mobile-device-security.png" alt="Mobile view of Device Security assessment card." width="1152" height="602" loading="lazy">
             </div>
-          </figure>
-        </div>
-
-        <!-- Certificates & Credential Rotation -->
-        <div id="certificates-rotation" style="padding-top: 40px;">
-          <div class="grid-2">
-            <article class="panel-card">
-              <div class="capability-meta">
-                <span class="cap-badge cap-implemented">✓ Probe &amp; CA Enrollment Implemented</span>
-                <span class="cap-badge cap-driver">⬚ Device Install requires CertManager</span>
+            <div class="console-annotations">
+              <div class="annotation-item">
+                <strong><span class="annotation-num">1</span> Transparent denominator</strong>
+                <p>Displays <code>4 / 5 items passing · score 81.8 · 9 unknown</code> and lists every unreadable rule by name.</p>
               </div>
-              <h3>2. Certificate inventory &amp; CA enrollment</h3>
-              <p>
-                During assessments, PrintMarshal probes TLS on ports <span class="mono">443</span> and <span class="mono">631</span>, recording negotiated TLS versions, cipher suites, and leaf certificate metadata (subject, issuer, SANs, key type, self-signed status, SHA-256 fingerprint, and <span class="mono">notAfter</span> expiry).
-              </p>
-              <ul class="walkthrough-points">
-                <li><strong>Expiry alerts:</strong> Automatically raises alerts at <span class="mono">30</span>, <span class="mono">14</span>, and <span class="mono">7</span> days before expiry (and critical alerts on expired certificates).</li>
-                <li><strong>CA enrollment protocols:</strong> Generates an RSA-2048 or ECDSA-P256 keypair and CSR inside PrintMarshal and enrolls against configured CA profiles using <strong>SCEP</strong>, <strong>EST</strong> (<span class="mono">/.well-known/est/simpleenroll</span>), or <strong>ACME DNS-01</strong> (two-step manual DNS TXT record creation).</li>
-                <li><strong>Private key protection:</strong> Issued private keys are encrypted at rest with <span class="mono">AES-256-GCM</span> and are never downloadable through the API.</li>
-              </ul>
-              <div class="callout warn" style="margin-top: auto;">
-                <strong>Enrollment vs Installation boundary:</strong> Enrolling a certificate stores the issued certificate and encrypted key in PrintMarshal. Installing that certificate onto a printer requires a driver implementing <span class="mono">CertManager</span> (<span class="mono">CapInstallCert</span>). No shipped real-vendor driver implements <span class="mono">CertManager</span> today, and automatic renewal is not implemented.
-              </div>
-            </article>
-
-            <article class="panel-card">
-              <div class="capability-meta">
-                <span class="cap-badge cap-implemented">✓ 4-Stage State Machine Implemented</span>
-                <span class="cap-badge cap-driver">⬚ Device Write requires SecurityWriter</span>
-              </div>
-              <h3>3. Staged credential rotation</h3>
-              <p>
-                Rotating a printer's admin password, SNMPv2c write community, or SNMPv3 passphrase risks stranding the device if the server and printer fall out of sync. PrintMarshal uses a 4-stage rotation state machine (<span class="mono">internal/security/rotation.go</span>):
-              </p>
-              <ol class="walkthrough-points" style="list-style: none;">
-                <li><strong>1. <span class="mono">staged</span>:</strong> Encrypts and stores the pending credential alongside the current active credential in PrintMarshal.</li>
-                <li><strong>2. <span class="mono">device_written</span>:</strong> Writes the new secret to the printer via the device's <span class="mono">SecurityWriter</span> driver.</li>
-                <li><strong>3. <span class="mono">verified</span>:</strong> Performs a live read-back using the newly written credential to prove the printer accepted it.</li>
-                <li><strong>4. <span class="mono">committed</span> (or <span class="mono">rolled_back</span>):</strong> Promotes the pending credential only after verification succeeds; if verification fails, the stored credential rolls back automatically.</li>
-              </ol>
-              <div class="callout warn" style="margin-top: auto;">
-                <strong>Driver boundary:</strong> Executing step 2 against a printer requires a driver with <span class="mono">SecurityWriter</span> (<span class="mono">CapWriteSecurity</span>). No shipped real-vendor driver implements <span class="mono">SecurityWriter</span> today.
-              </div>
-            </article>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- PART II: PLATFORM SECURITY ARCHITECTURE -->
-    <section class="section section-alt" id="part-2-architecture" aria-labelledby="part2-heading">
-      <div class="container">
-        <div class="section-header">
-          <div class="eyebrow">Part II · Platform Security Architecture</div>
-          <h2 id="part2-heading">How PrintMarshal secures credentials, sessions, and network operations.</h2>
-          <p class="lead">
-            PrintMarshal is designed to run inside your management network as a single self-hosted binary with zero external cloud dependencies.
-          </p>
-        </div>
-
-        <div class="grid-3" style="margin-bottom: 28px;">
-          <article class="panel-card">
-            <h3><span>Credential vault &amp; purpose binding</span><span class="status-pill status-pass">AES-256-GCM</span></h3>
-            <p>
-              All stored device credentials (SNMPv1/v2c communities, SNMPv3 auth/priv keys, HTTP Basic/Bearer secrets, CA profile secrets, and issued certificate private keys) are encrypted at rest using <span class="mono">AES-256-GCM</span> with a 32-byte key (<span class="mono">PM_SECRET_KEY</span>).
-            </p>
-            <ul class="walkthrough-points" style="font-size: 0.85rem;">
-              <li><strong>Purpose enforcement:</strong> Credentials declare <span class="mono">read</span>, <span class="mono">write</span>, or <span class="mono">both</span>. Read-only credentials cannot be used for configuration writes, remediation, or rotation.</li>
-              <li><strong>Write-only API:</strong> Secret material is never returned by <span class="mono">GET /api/credentials</span> or written to logs/audit payloads.</li>
-            </ul>
-          </article>
-
-          <article class="panel-card">
-            <h3><span>Authentication &amp; RBAC</span><span class="status-pill status-info">OIDC / LDAP / Local</span></h3>
-            <p>
-              Operators sign in via local <span class="mono">bcrypt</span> accounts, <strong>OIDC</strong> (Authorization Code with PKCE and state validation), or <strong>LDAP</strong> bind authentication. Automation uses SHA-256 hashed <span class="mono">pmk_…</span> bearer tokens.
-            </p>
-            <ul class="walkthrough-points" style="font-size: 0.85rem;">
-              <li><strong><span class="mono">viewer</span>:</strong> Read-only access to dashboards, devices, snapshots, and compliance results (secrets masked).</li>
-              <li><strong><span class="mono">operator</span>:</strong> Can run discovery, polls, assessments, dry-run previews, and configuration/security jobs.</li>
-              <li><strong><span class="mono">admin</span>:</strong> Full system control including users, credentials, CA profiles, auth providers, and system settings.</li>
-            </ul>
-          </article>
-
-          <article class="panel-card">
-            <h3><span>Session &amp; CSRF hardening</span><span class="status-pill status-pass">Same-Origin</span></h3>
-            <p>
-              Browser sessions use a random 256-bit token stored in the <span class="mono">pm_session</span> cookie (<span class="mono">HttpOnly</span>, <span class="mono">SameSite=Lax</span>, and <span class="mono">Secure</span> when TLS is active or <span class="mono">PM_COOKIE_SECURE=true</span>).
-            </p>
-            <ul class="walkthrough-points" style="font-size: 0.85rem;">
-              <li><strong>CSRF protection:</strong> Every cookie-authenticated state-changing request (<span class="mono">POST</span>, <span class="mono">PUT</span>, <span class="mono">PATCH</span>, <span class="mono">DELETE</span>) validates <span class="mono">Sec-Fetch-Site</span> (<span class="mono">same-origin</span> / <span class="mono">none</span>) and checks the <span class="mono">Origin</span> header against the request <span class="mono">Host</span>.</li>
-              <li><strong>Login rate limiting:</strong> <span class="mono">/api/auth/login</span> and <span class="mono">/api/auth/ldap/login</span> enforce per-IP token-bucket rate limits.</li>
-            </ul>
-          </article>
-        </div>
-
-        <div id="write-safety" class="grid-2">
-          <article class="panel-card">
-            <h3><span>Write gates, dry-run default &amp; read-back verification</span></h3>
-            <p>
-              PrintMarshal separates observation from modification at the API and job-engine level:
-            </p>
-            <ul class="walkthrough-points">
-              <li><strong>Dry-run by default:</strong> Configuration profile apply (<span class="mono">POST /api/profiles/{id}/apply</span>), ad-hoc writes, revert, policy remediation (<span class="mono">POST /api/policies/{id}/remediate</span>), and credential rotation default to <span class="mono">dryRun: true</span> unless <span class="mono">dryRun: false</span> is explicitly sent.</li>
-              <li><strong>Two explicit exceptions without a preview flag:</strong> Certificate installation (<span class="mono">POST /api/devices/{id}/certificates/{certId}/install</span>) and print-provider queue deletion (<span class="mono">DELETE /api/print/providers/{id}/queue/{jobId}</span>) execute immediately when called.</li>
-              <li><strong>Read-back verification:</strong> After a configuration write, PrintMarshal re-reads the modified settings and records <span class="mono">verified</span>, <span class="mono">diverged</span>, or <span class="mono">unverifiable</span>.</li>
-            </ul>
-          </article>
-
-          <article class="panel-card">
-            <h3><span>IPP TLS TOFU pinning &amp; immutable audit trail</span></h3>
-            <p>
-              Transport and audit controls protect communications between PrintMarshal, printers, and your SIEM:
-            </p>
-            <ul class="walkthrough-points">
-              <li><strong>IPP TLS Trust-on-First-Use (TOFU):</strong> Because printers frequently use self-signed certificates on port <span class="mono">631</span>, PrintMarshal pins the SHA-256 fingerprint of a device's IPPS leaf certificate on first connection (<span class="mono">tls_pins</span>). If a subsequent connection presents a different certificate, the connection is aborted and a <span class="mono">tls_pin_mismatch</span> alert is raised.</li>
-              <li><strong>Audit log &amp; SIEM export:</strong> Every state-changing action records actor, role, source IP, action, target, and diff details in the <span class="mono">audit_log</span> table and optionally forwards RFC 5424 Syslog or ArcSight CEF events.</li>
-            </ul>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- SHIPPED BOUNDARIES & DISCLOSURES -->
-    <section class="section" id="shipped-boundaries" aria-labelledby="boundaries-heading" style="border-bottom: 0;">
-      <div class="container">
-        <div class="section-header">
-          <div class="eyebrow">Shipped Boundaries &amp; Operational Disclosures</div>
-          <h2 id="boundaries-heading">What operators should verify before production deployment.</h2>
-          <p class="lead">
-            In keeping with source-of-truth accuracy across the codebase and <a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Security Wiki</a>, keep these architectural boundaries in mind:
-          </p>
-        </div>
-
-        <div class="table-wrap">
-          <table class="data-table" aria-label="Security boundaries and operational disclosures">
+        <div class="table-wrap" style="margin-top: 28px;">
+          <table class="data-table" aria-label="14-item Baseline security policy rules">
             <thead>
               <tr>
-                <th>Area</th>
-                <th>Shipped Behavior</th>
-                <th>Operational Boundary</th>
+                <th scope="col">Setting key</th>
+                <th scope="col">Expected rule</th>
+                <th scope="col">Severity (Weight)</th>
+                <th scope="col">How PrintMarshal observes it today</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><strong>Real-vendor security, certificate &amp; firmware writers</strong></td>
-                <td>Policy remediation, credential rotation, certificate install, and firmware campaign engines are implemented.</td>
-                <td>No shipped real-vendor driver implements <span class="mono">SecurityWriter</span>, <span class="mono">CertManager</span>, or <span class="mono">FirmwareUpdater</span> today. Firmware delivery (<span class="mono">fwsim</span>) is simulator-only.</td>
+                <td><code>protocols.telnet.enabled</code></td>
+                <td><code>eq false</code></td>
+                <td><span class="status-pill status-fail">Critical (3.0)</span></td>
+                <td>Active TCP port probe (<code>23/tcp</code>) during security assessment.</td>
               </tr>
               <tr>
-                <td><strong>API token group scoping (<span class="mono">groupIds</span>)</strong></td>
-                <td>API tokens can be restricted to specific device group IDs for device/group mutations.</td>
-                <td>Group scope is an operational guardrail, <strong>not a multi-tenant isolation boundary</strong> (summary endpoints and rule-group evaluations are not tenant-partitioned).</td>
+                <td><code>protocols.ftp.enabled</code></td>
+                <td><code>eq false</code></td>
+                <td><span class="status-pill status-warn">High (2.0)</span></td>
+                <td>Active TCP port probe (<code>21/tcp</code>) during security assessment.</td>
               </tr>
               <tr>
-                <td><strong>Single active server topology</strong></td>
-                <td>Supports embedded SQLite (WAL) or external PostgreSQL.</td>
-                <td>Run a <strong>single active PrintMarshal process</strong> per database. In-process schedulers and job workers do not use distributed cluster leases.</td>
+                <td><code>protocols.snmp.v1v2cEnabled</code></td>
+                <td><code>eq false</code></td>
+                <td><span class="status-pill status-warn">High (2.0)</span></td>
+                <td>Observed via SNMPv1/v2c poll response (<code>driver:snmp</code>).</td>
               </tr>
               <tr>
-                <td><strong>SNMP trap listener authentication</strong></td>
-                <td>Receives <span class="mono">SNMPv1/v2c</span> traps on UDP <span class="mono">:1162</span> with optional <span class="mono">PM_TRAP_COMMUNITIES</span> allowlist.</td>
-                <td>SNMPv1/v2c traps are cleartext UDP packets; restrict UDP <span class="mono">:1162</span> to printer VLANs and treat traps as a trigger for authenticated polling.</td>
+                <td><code>protocols.snmp.v3Enabled</code></td>
+                <td><code>eq true</code></td>
+                <td><span class="status-pill status-warn">High (2.0)</span></td>
+                <td>Observed when SNMPv3 poll succeeds; otherwise <code>unknown</code> without vendor MIB.</td>
               </tr>
               <tr>
-                <td><strong>Certificate auto-renewal</strong></td>
-                <td>Tracks expiry (<span class="mono">30 / 14 / 7</span> days) and supports operator-initiated SCEP, EST, and ACME DNS-01 enrollment.</td>
-                <td>Background automatic certificate renewal is not implemented; operators trigger renewal from the Security or Device page.</td>
+                <td><code>protocols.https.enabled</code></td>
+                <td><code>eq true</code></td>
+                <td><span class="status-pill status-warn">High (2.0)</span></td>
+                <td>Active TCP/TLS probe on <code>443/tcp</code> (<code>security/tlsprobe</code>).</td>
+              </tr>
+              <tr>
+                <td><code>protocols.https.redirectFromHttp</code></td>
+                <td><code>eq true</code></td>
+                <td><span class="status-pill status-info">Medium (1.0)</span></td>
+                <td>Requires vendor driver (<code>unknown</code> on standard SNMP/IPP).</td>
+              </tr>
+              <tr>
+                <td><code>protocols.ipp.tlsEnabled</code></td>
+                <td><code>eq true</code></td>
+                <td><span class="status-pill status-info">Medium (1.0)</span></td>
+                <td>Observed via IPP <code>uri-security-supported</code> (<code>tls</code>) or TLS probe on <code>631/tcp</code>.</td>
+              </tr>
+              <tr>
+                <td><code>security.tlsMinVersion</code></td>
+                <td><code>in ["1.2", "1.3"]</code></td>
+                <td><span class="status-pill status-warn">High (2.0)</span></td>
+                <td>Observed when negotiated by TLS probe or reported by driver; otherwise <code>unknown</code>.</td>
+              </tr>
+              <tr>
+                <td><code>security.adminPasswordSet</code></td>
+                <td><code>eq true</code></td>
+                <td><span class="status-pill status-fail">Critical (3.0)</span></td>
+                <td>Requires vendor driver (<code>unknown</code> on standard SNMP/IPP).</td>
+              </tr>
+              <tr>
+                <td><code>security.certPresent</code> &amp; <code>security.certDaysRemaining</code></td>
+                <td><code>eq true</code> / <code>gte 30</code></td>
+                <td><span class="status-pill status-info">Medium (1.0)</span> / <span class="status-pill status-warn">High (2.0)</span></td>
+                <td>Observed when TLS probe inspects leaf certificate on <code>443</code> or <code>631</code>.</td>
+              </tr>
+              <tr>
+                <td><code>protocols.wsd.enabled</code>, <code>slp.enabled</code>, <code>llmnr.enabled</code></td>
+                <td><code>eq false</code></td>
+                <td><span class="status-pill status-info">Low (0.5)</span> / <span class="status-pill status-info">Medium (1.0)</span></td>
+                <td>Requires vendor driver (<code>unknown</code> on standard SNMP/IPP).</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
     </section>
+
+    <!-- ====================================================================
+         2. PORT PROBES, TLS INSPECTION & CERTIFICATES
+         ==================================================================== -->
+    <section id="probes-certs" class="section section-alt" aria-labelledby="certs-heading">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">Active Probes &amp; PKI Lifecycle</div>
+          <h2 id="certs-heading">Port probes, TLS inspection, and certificate enrollment.</h2>
+          <p class="lead">
+            During an assessment, PrintMarshal inspects open TCP ports and TLS certificates directly on the device, and provides built-in PKI enrollment workflows.
+          </p>
+        </div>
+
+        <div class="grid-3">
+          <div class="panel-card">
+            <h3>1. Port &amp; TLS Probes <span class="cap-badge cap-implemented">● Implemented</span></h3>
+            <p>
+              <code>security/portprobe</code> checks TCP ports <code>21</code> (FTP), <code>23</code> (Telnet), <code>80</code> (HTTP), <code>443</code> (HTTPS), <code>515</code> (LPD), <code>631</code> (IPP), and <code>9100</code> (RAW). <code>security/tlsprobe</code> connects to <code>443</code> and <code>631</code> to record negotiated TLS version, cipher suite, leaf subject/issuer, SANs, self-signed status, and SHA-256 fingerprint.
+            </p>
+          </div>
+
+          <div class="panel-card">
+            <h3>2. CSR &amp; Enrollment <span class="cap-badge cap-implemented">● Implemented</span></h3>
+            <p>
+              Generate RSA-2048 CSRs (<code>POST /api/devices/{id}/csr</code>) and enroll certificates via the built-in encrypted root CA, EST (<code>/.well-known/est/simpleenroll</code>), or SCEP (<code>POST /api/devices/{id}/certificates/enroll</code>). Certificate checks (<code>internal/security/certs.go</code>) raise a <code>warning</code> alert at <code>≤ 30</code> days remaining and a <code>critical</code> alert at <code>≤ 7</code> days or expired.
+            </p>
+          </div>
+
+          <div class="panel-card">
+            <h3>3. Physical Installation <span class="cap-badge cap-driver">◌ Requires Driver</span></h3>
+            <p>
+              Enrollment and installation are distinct steps. PrintMarshal stores the issued certificate and encrypted private key (<code>POST /api/devices/{id}/certificates/{issuedId}/install</code>), but pushing the certificate onto a physical printer requires a vendor driver implementing <code>driver.CertificateInstaller</code> or manual upload in the printer's web UI.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         3. WRITE SAFEGUARDS, TLS PINNING & CREDENTIAL ROTATION
+         ==================================================================== -->
+    <section id="write-safeguards" class="section" aria-labelledby="writes-heading">
+      <div class="container">
+        <div class="capability-split reverse">
+          <div class="console-showcase" data-lightbox-src="/assets/screens/config-dryrun-preview.png" data-lightbox-caption="Dry-run preview: reads live values from target devices and displays the setting diff before writing.">
+            <div class="console-bar">
+              <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+              <div class="console-url">Configuration dry-run preview · Simulator data</div>
+              <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge configuration dry-run screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
+            </div>
+            <div class="console-media">
+              <img class="media-desktop-full" src="/assets/screens/crop-config-dryrun.png" alt="Focused view of Configuration dry-run preview showing live diff before writing." width="1184" height="830" loading="lazy">
+              <img class="media-mobile-crop" src="/assets/screens/mobile-config-dryrun.png" alt="Mobile view of dry-run setting diff." width="2336" height="588" loading="lazy">
+            </div>
+            <div class="console-annotations">
+              <div class="annotation-item">
+                <strong><span class="annotation-num">2</span> Dry-run before apply</strong>
+                <p>Profile applies, security remediations, and local CUPS syncs support non-destructive dry-run previews.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="capability-copy">
+            <div class="capability-meta">
+              <span class="cap-badge cap-implemented">● Implemented Safeguards</span>
+              <span class="cap-badge cap-device">◐ Device-Dependent Writes</span>
+            </div>
+            <h2 id="writes-heading" style="font-size: 1.75rem;">3. Preview every change and verify writes</h2>
+            <p>
+              Configuration profile applies (<code>POST /api/config/profiles/{id}/apply</code>), ad-hoc writes (<code>POST /api/devices/{id}/config/apply</code>), policy remediations (<code>POST /api/devices/{id}/security/remediate</code>), and local CUPS queue syncs (<code>POST /api/print-provider/sync</code>) all support <code>dryRun</code> preview mode.
+            </p>
+            <dl class="spec-dl">
+              <dt>Accepted vs verified</dt>
+              <dd>After writing (<code>internal/configmgmt/service.go</code>), PrintMarshal re-reads the changed keys. Only keys whose read-back value matches the desired value are marked <code>verified</code>; write-only or unreadable keys are recorded as <code>accepted</code> (<code>verified: false</code>).</dd>
+              <dt>IPP TLS pinning</dt>
+              <dd>For authenticated IPP writes (<code>Set-Printer-Attributes</code> in <code>internal/driver/ipp/</code>), PrintMarshal prefers TLS endpoints, pins the printer's leaf certificate SHA-256 fingerprint (<code>sha256:…</code>) on first TLS contact, and aborts subsequent writes with <code>ErrPinMismatch</code> if the certificate changes.</dd>
+              <dt>Credential rotation</dt>
+              <dd><code>POST /api/security/rotate</code> (<code>internal/security/rotate.go</code>) rotates <code>snmpCommunity</code> and <code>adminPassword</code>. It stages the new encrypted credential in the store *before* writing to the printer, deletes the staged credential if the printer cleanly refuses, keeps the staged credential with a warning on ambiguous network failures (timeout/EOF) so credentials are never lost, and verifies <code>snmpCommunity</code> with a read poll.</dd>
+              <dt>Direct actions</dt>
+              <dd>Two write actions execute directly without a dry-run preview: <code>POST /api/devices/{id}/certificates/{issuedId}/install</code> (pushing an issued cert via <code>CertificateInstaller</code>) and <code>DELETE /api/print-provider/queues/{deviceId}</code> (removing one managed local CUPS queue).</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         4. PLATFORM SECURITY: ENCRYPTION, RBAC & AUDIT LOG
+         ==================================================================== -->
+    <section id="platform" class="section section-alt" aria-labelledby="plat-sec-heading">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">Control Plane Hardening</div>
+          <h2 id="plat-sec-heading">Credential encryption, RBAC, and SIEM export.</h2>
+          <p class="lead">
+            PrintMarshal protects stored device credentials, enforces role-based access across web and API routes, and streams audit events to your SIEM.
+          </p>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel-card">
+            <h3>AES-256-GCM Secret Box (<code>PM_SECRET_KEY</code>) <span class="cap-badge cap-implemented">● Implemented</span></h3>
+            <p>
+              All SNMP community strings, SNMPv3 auth/privacy passphrases, IPP credentials, internal CA private keys, device CSR private keys, and SCEP/EST secrets are encrypted at rest using AES-256-GCM with random 12-byte nonces (<code>internal/secrets/secrets.go</code>).
+            </p>
+            <p style="font-size: 0.85rem;">
+              Secret values are never returned in API responses (<code>secretRedacted = "••••••••"</code>), and <code>WriteOnly</code> catalog keys (<code>security.adminPassword</code>, <code>protocols.snmp.readCommunity</code>, <code>protocols.snmp.writeCommunity</code>) are redacted from configuration snapshots and diffs.
+            </p>
+          </div>
+
+          <div class="panel-card">
+            <h3>Enterprise Authentication &amp; Scoped Tokens <span class="cap-badge cap-implemented">● Implemented</span></h3>
+            <p>
+              Authenticate operators via local <code>bcrypt</code> accounts, OIDC (Authorization Code + PKCE), SAML 2.0, LDAP / Active Directory bind, or RADIUS PAP (<code>internal/auth/</code>).
+            </p>
+            <p style="font-size: 0.85rem;">
+              Three built-in roles (<code>admin</code>, <code>operator</code>, <code>viewer</code>) govern access. Automation clients use bearer API tokens (<code>pm_&lt;random&gt;</code>, stored as SHA-256 hashes) that can be restricted to specific device <code>groupIds</code> and expiration timestamps.
+            </p>
+          </div>
+
+          <div class="panel-card">
+            <h3>Append-Only Audit Log &amp; SIEM Forwarding <span class="cap-badge cap-implemented">● Implemented</span></h3>
+            <p>
+              Every login, configuration write, dry run, certificate enrollment, credential rotation, and RBAC change is recorded in the <code>audit_log</code> table with actor, IP, action, target, and timestamp. PrintMarshal exposes no API to edit or delete audit rows.
+            </p>
+            <p style="font-size: 0.85rem;">
+              For tamper-evident retention outside the host database, enable real-time SIEM forwarding (<code>internal/siem/</code>) over RFC 5424 syslog (<code>udp</code>, <code>tcp</code>, or <code>tls</code> in structured-data, <code>cef</code>, or <code>json</code> format), rotating JSON-lines files, or HTTP collectors.
+            </p>
+          </div>
+
+          <div class="panel-card">
+            <h3>Network Isolation &amp; Container Hardening <span class="cap-badge cap-implemented">● Implemented</span></h3>
+            <p>
+              PrintMarshal makes zero outbound cloud calls. All web fonts and assets in the application console are bundled locally.
+            </p>
+            <p style="font-size: 0.85rem;">
+              The official <code>Dockerfile</code> builds a static Go binary (<code>CGO_ENABLED=0</code>) on <code>golang:1.27-alpine</code> and runs on <code>alpine:3.23</code> as unprivileged user <code>pm</code> (<code>UID 10001</code>). See <a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Wiki: Security ↗</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-tight" aria-labelledby="sec-cta-heading">
+      <div class="container">
+        <div class="closing-cta">
+          <div style="max-width: 620px;">
+            <div class="eyebrow">Safe Local Evaluation</div>
+            <h2 id="sec-cta-heading" style="margin-bottom: 10px;">Evaluate locally with the built-in simulator.</h2>
+            <p>Test Baseline security assessments, certificate enrollment, and configuration dry runs on loopback with <code>pm-sim</code> before scanning a lab VLAN.</p>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+            <a class="btn btn-primary" href="/get-started/">Get started with the simulator</a>
+            <a class="btn" href="/faq/">Read technical FAQ</a>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <dialog class="lightbox" id="screenshot-lightbox" aria-label="Enlarged product screenshot">
+    <div class="lightbox-bar">
+      <div class="lightbox-caption" id="lightbox-caption">PrintMarshal product capture</div>
+      <button class="btn btn-sm" type="button" id="lightbox-close">Close (Esc)</button>
+    </div>
+    <div class="lightbox-body">
+      <img id="lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="">
+    </div>
+  </dialog>
 
   <footer class="site-footer">
     <div class="container">
@@ -315,19 +380,19 @@
         <div class="footer-col">
           <a class="brand" href="/" style="margin-bottom: 12px;">
             <img class="brand-mark" src="/assets/mark.svg" alt="" width="28" height="28">
-            <span class="brand-name" style="font-size: 1.1rem;">Print<span>Marshal</span></span>
+            <span class="brand-name">Print<span>Marshal</span></span>
           </a>
-          <p style="font-size: 0.84rem; color: var(--text-muted); max-width: 34ch;">
-            Open source, self-hosted printer fleet discovery, security posture assessment, and configuration management.
+          <p style="max-width: 36ch; font-size: 0.84rem; color: var(--text-muted);">
+            Self-hosted network printer security, compliance, and fleet configuration console. Open-source Go + React single-binary deployment.
           </p>
         </div>
         <div class="footer-col">
           <h4>Product</h4>
           <ul>
             <li><a href="/">Overview</a></li>
-            <li><a href="/features/">Features &amp; Capability Status</a></li>
-            <li><a href="/security/">Security &amp; Architecture</a></li>
-            <li><a href="/get-started/">Get Started</a></li>
+            <li><a href="/features/">Features &amp; Capability Matrix</a></li>
+            <li><a href="/security/">Security &amp; Boundaries</a></li>
+            <li><a href="/get-started/">Get Started &amp; Simulator</a></li>
             <li><a href="/faq/">FAQ</a></li>
           </ul>
         </div>
@@ -336,57 +401,82 @@
           <ul>
             <li><a href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki Home</a></li>
             <li><a href="https://github.com/printmarshal/printmarshal/wiki/Installation-and-deployment" target="_blank" rel="noopener">Installation &amp; Deployment</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Security &amp; Policies</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Security &amp; Compliance</a></li>
             <li><a href="https://github.com/printmarshal/printmarshal/wiki/Configuration-management" target="_blank" rel="noopener">Configuration Management</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Vendor Plugins &amp; Drivers</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/API-reference" target="_blank" rel="noopener">REST API Reference</a></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h4>Project</h4>
+          <h4>Operations &amp; Source</h4>
           <ul>
             <li><a href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub Repository</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/API-reference" target="_blank" rel="noopener">REST &amp; WebSocket API</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Development" target="_blank" rel="noopener">Contributing &amp; Simulator</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0 License</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Identity-and-access" target="_blank" rel="noopener">Identity &amp; Access</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Vendor Plugins &amp; Drivers</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Print-provider" target="_blank" rel="noopener">Local CUPS Print Provider</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Troubleshooting-and-FAQ" target="_blank" rel="noopener">Troubleshooting</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
-        <span>PrintMarshal · Open source under the Apache-2.0 License.</span>
-        <span class="mono" style="font-size: 0.78rem;">Built with Go 1.27, React, SQLite/PostgreSQL · Self-hosted</span>
+        <span>© PrintMarshal Contributors. Released under open-source license.</span>
+        <span class="mono" style="font-size: 0.76rem;">No external analytics · Zero telemetry · Simulator-verified captures</span>
       </div>
     </div>
   </footer>
 
-  <dialog class="lightbox" id="screen-lightbox" aria-label="Enlarged product screenshot">
-    <div class="lightbox-bar">
-      <span class="lightbox-caption" id="lightbox-caption">Product screenshot</span>
-      <button type="button" class="btn btn-sm" id="lightbox-close">Close (Esc)</button>
-    </div>
-    <div class="lightbox-body">
-      <img id="lightbox-img" src="/assets/screens/security-compliance.png" alt="Enlarged product screenshot">
-    </div>
-  </dialog>
-
   <script>
     (function () {
-      var dlg = document.getElementById('screen-lightbox');
-      var dlgImg = document.getElementById('lightbox-img');
-      var dlgCap = document.getElementById('lightbox-caption');
-      var dlgClose = document.getElementById('lightbox-close');
-      if (dlg && typeof dlg.showModal === 'function') {
-        document.querySelectorAll('[data-lightbox-src]').forEach(function (el) {
-          el.addEventListener('click', function (e) {
-            e.stopPropagation();
-            dlgImg.src = el.getAttribute('data-lightbox-src');
-            dlgImg.alt = el.getAttribute('data-lightbox-caption') || '';
-            dlgCap.textContent = el.getAttribute('data-lightbox-caption') || '';
-            dlg.showModal();
-          });
+      var navToggle = document.querySelector('[data-nav-toggle]');
+      var navMenu = document.querySelector('[data-nav-menu]');
+      if (navToggle && navMenu) {
+        function closeMenu(returnFocus) {
+          navToggle.setAttribute('aria-expanded', 'false');
+          navMenu.classList.remove('is-open');
+          if (returnFocus) navToggle.focus();
+        }
+        navToggle.addEventListener('click', function () {
+          var expanded = navToggle.getAttribute('aria-expanded') === 'true';
+          if (expanded) closeMenu(false);
+          else {
+            navToggle.setAttribute('aria-expanded', 'true');
+            navMenu.classList.add('is-open');
+          }
         });
-        dlgClose.addEventListener('click', function () { dlg.close(); });
-        dlg.addEventListener('click', function (e) {
-          if (e.target === dlg) dlg.close();
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && navToggle.getAttribute('aria-expanded') === 'true') closeMenu(true);
+        });
+        document.addEventListener('click', function (e) {
+          if (navToggle.getAttribute('aria-expanded') === 'true' && !navMenu.contains(e.target) && !navToggle.contains(e.target)) closeMenu(false);
+        });
+      }
+
+      var dialog = document.getElementById('screenshot-lightbox');
+      var dialogImg = document.getElementById('lightbox-img');
+      var dialogCap = document.getElementById('lightbox-caption');
+      var closeBtn = document.getElementById('lightbox-close');
+      var lastTrigger = null;
+      if (dialog && typeof dialog.showModal === 'function') {
+        document.querySelectorAll('.console-showcase[data-lightbox-src]').forEach(function (card) {
+          var src = card.getAttribute('data-lightbox-src');
+          var cap = card.getAttribute('data-lightbox-caption') || '';
+          var media = card.querySelector('.console-media');
+          var btn = card.querySelector('[data-zoom-trigger]');
+          var img = card.querySelector('img');
+          function open(triggerEl) {
+            lastTrigger = triggerEl || btn || card;
+            dialogImg.src = src;
+            dialogImg.alt = img ? img.alt : cap;
+            dialogCap.textContent = cap;
+            dialog.showModal();
+            if (closeBtn) closeBtn.focus();
+          }
+          if (btn) btn.addEventListener('click', function () { open(btn); });
+          if (media) media.addEventListener('click', function () { open(btn || media); });
+        });
+        if (closeBtn) closeBtn.addEventListener('click', function () { dialog.close(); });
+        dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
+        dialog.addEventListener('close', function () {
+          if (lastTrigger && typeof lastTrigger.focus === 'function') lastTrigger.focus();
         });
       }
     })();
