@@ -107,7 +107,7 @@ function DeviceDetailBody({ id, user }: { id: string; user: User }) {
           <div className="row" role="toolbar" aria-label="Device actions">
             <Btn sm onClick={poll} disabled={busy || !shownId}><Ic.refresh />{busy ? 'Polling…' : 'Poll now'}</Btn>
             <a className="btn sm" href="#identity"><Ic.pencil />Edit</a>
-            {d.adminUrl && <a className="btn sm" href={d.adminUrl} target="_blank" rel="noreferrer"><Ic.external />Device web page</a>}
+            {d.webUrl && <a className="btn sm" href={d.webUrl} target="_blank" rel="noopener noreferrer"><Ic.external />Device web page</a>}
             <span className="vsep" />
             <label className="chip"><select aria-label="Change lifecycle state" value="" disabled={!shownId} onChange={(e) => e.target.value && setState(e.target.value)}><option value="">Change state…</option>{(transitions[d.state] || []).map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select></label>
           </div>
@@ -289,12 +289,12 @@ function SuppliesCard({ d, canOperate, hist }: { d: Device; canOperate: boolean;
 }
 
 function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; onSaved: (d: Device) => void }) {
-  const [form, setForm] = useState({ displayName: d.displayName, location: d.location, assetTag: d.assetTag, notes: d.notes })
+  const [form, setForm] = useState({ displayName: d.displayName, location: d.location, assetTag: d.assetTag, notes: d.notes, webUrl: d.webUrlOverride || '' })
   const [msg, setMsg] = useState('')
   const [groups, setGroups] = useState<{ id: string; name: string }[]>([])
-  useEffect(() => setForm({ displayName: d.displayName, location: d.location, assetTag: d.assetTag, notes: d.notes }), [d.id, d.displayName, d.location, d.assetTag, d.notes])
+  useEffect(() => setForm({ displayName: d.displayName, location: d.location, assetTag: d.assetTag, notes: d.notes, webUrl: d.webUrlOverride || '' }), [d.id, d.displayName, d.location, d.assetTag, d.notes, d.webUrlOverride])
   useEffect(() => { api.get<{ id: string; name: string; memberIds: string[] }[]>('/api/groups').then((gs) => setGroups(gs.filter((g) => g.memberIds.includes(d.id)))).catch(() => {}) }, [d.id])
-  const dirty = form.displayName !== d.displayName || form.location !== d.location || form.assetTag !== d.assetTag || form.notes !== d.notes
+  const dirty = form.displayName !== d.displayName || form.location !== d.location || form.assetTag !== d.assetTag || form.notes !== d.notes || form.webUrl !== (d.webUrlOverride || '')
   const save = async (e: React.FormEvent) => { e.preventDefault(); try { onSaved(await api.patch<Device>(`/api/devices/${d.id}`, form)); setMsg('Saved.') } catch (err) { setMsg((err as Error).message) } }
   const Row = ({ label, children, op }: { label: string; children: React.ReactNode; op?: boolean }) => <div className="frow"><span className="cap">{label}</span><span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{children}</span>{op === undefined ? <span /> : <Mk op={op} />}</div>
   return (
@@ -306,6 +306,7 @@ function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; on
       <div style={{ padding: '6px 0' }}>
         <div className="frow"><label className="cap" htmlFor="f-name">Display name</label><input className="fin" id="f-name" value={form.displayName} disabled={!canEdit} placeholder={d.sysName || d.hostname || d.model} onChange={(e) => setForm({ ...form, displayName: e.target.value })} /><Mk op /></div>
         <div className="frow"><label className="cap" htmlFor="f-loc">Location</label><input className="fin" id="f-loc" value={form.location} disabled={!canEdit} onChange={(e) => setForm({ ...form, location: e.target.value })} /><Mk op /></div>
+        <div className="frow"><label className="cap" htmlFor="f-web">Web page</label><input className="fin mono" id="f-web" type="url" value={form.webUrl} disabled={!canEdit} placeholder={d.webUrl ? `${d.webUrl} (detected)` : 'https://… (none detected)'} onChange={(e) => setForm({ ...form, webUrl: e.target.value })} /><Mk op /></div>
         <div className="frow"><label className="cap" htmlFor="f-tag">Asset tag</label><input className="fin mono" id="f-tag" value={form.assetTag} disabled={!canEdit} onChange={(e) => setForm({ ...form, assetTag: e.target.value })} /><Mk op /></div>
         <div className="frow" style={{ alignItems: 'start' }}><label className="cap" htmlFor="f-notes" style={{ paddingTop: 6 }}>Notes</label><textarea className="fin" id="f-notes" rows={2} value={form.notes} disabled={!canEdit} onChange={(e) => setForm({ ...form, notes: e.target.value })} /><Mk op /></div>
         {msg && <div className="cap" style={{ margin: '0 16px 4px 146px' }}>{msg}</div>}

@@ -16,6 +16,7 @@ export interface Counters { total: number; mono?: number; color?: number; duplex
 export interface Device {
   id: string; address: string; hostname?: string; mac?: string; serial?: string; uuid?: string; make?: string; model?: string
   deviceType?: string; firmware?: string; sysDescr?: string; sysName?: string; enterpriseId?: number; adminUrl?: string
+  webUrl?: string; webUrlProbed?: string; webUrlOverride?: string
   capabilities: Record<string, string>; discoveryMethods: string[]; identifyMethods: string[]
   displayName: string; location: string; assetTag: string; notes: string; state: string
   status?: Status; supplies: Supply[]; trays: Tray[]; counters?: Counters

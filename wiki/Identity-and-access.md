@@ -242,6 +242,22 @@ Users type their directory credentials into the ordinary login form; the
 server binds to the directory on their behalf. Implemented with
 `github.com/go-ldap/ldap/v3`.
 
+### Settings page
+
+Administrators can configure the directory at runtime under **Settings →
+Sign-in & directory** (`GET`/`PUT /api/settings/directory`, admin only; `POST
+/api/settings/directory/test` runs **Test connection** and **Test sign-in**).
+The page holds every field in the configuration below, a role-mapping editor
+and an allowed-groups list, and its changes are in force for the next sign-in
+without a restart; each save is audited as `settings.directory.update`.
+
+Values set in the configuration file or by `PM_LDAP_*` variables win over the
+page and are shown there read-only with their source (`file` or `env`); a
+save that tries to change one is refused. The service-account password is
+stored encrypted with the master key (`secret.key` / `PM_SECRET_KEY`), is
+write-only (the API only reports whether one is set), and is overridden by a
+non-empty `bindPasswordEnv` variable when the file names one.
+
 ### Configuration
 
 ```json

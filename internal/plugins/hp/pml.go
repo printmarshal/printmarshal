@@ -52,8 +52,9 @@ const (
 	oidJDMDNSHostname  = ".1.3.6.1.4.1.11.2.4.3.5.46.0" // "NPI0A1B2C.local."
 )
 
-// pmlString strips the 2-byte PML type header (0x01 0x15 = string) HP agents
-// prefix octet-string objects with, then trims NULs and padding.
+// pmlString strips the 2-byte PML type header HP agents prefix octet-string
+// objects with (0x01 0x15 = string; newer firmware sends 0xFD 0xE8), then
+// trims NULs and padding.
 func pmlString(p snmp.PDU) string {
 	b, ok := p.Value.([]byte)
 	if !ok {
@@ -66,7 +67,7 @@ func pmlString(p snmp.PDU) string {
 	if len(b) >= 2 && b[0] == 0x01 && b[1] == 0x15 {
 		b = b[2:]
 	}
-	return strings.TrimSpace(strings.TrimRight(string(b), "\x00"))
+	return model.CleanText(string(b))
 }
 
 func pmlGet(ctx context.Context, p *vendorkit.Probe, oid string) string {

@@ -115,6 +115,17 @@ func (s *SQLite) migrate() error {
 	if err := s.migrateFixedWidthTimestamps(); err != nil {
 		return fmt.Errorf("migrate timestamps: %w", err)
 	}
+	// Migration 7: the device web page (issue #7): what a probe found and an
+	// operator's override. (6 is the reverse-DNS hostname source; the two
+	// landed from separate branches and each guards only its own columns.)
+	for _, col := range []string{"web_url_probed", "web_url_override"} {
+		if err := s.addColumn("devices", col, col+" TEXT NOT NULL DEFAULT ''"); err != nil {
+			return fmt.Errorf("migrate devices.%s: %w", col, err)
+		}
+	}
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (7, ?)`, now()); err != nil {
+		return err
+	}
 	return nil
 }
 

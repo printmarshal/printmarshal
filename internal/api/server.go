@@ -140,6 +140,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/settings", s.require(model.RoleViewer, s.getSettings))
 	mux.Handle("PATCH /api/settings", s.require(model.RoleAdmin, s.patchSettings))
 	mux.Handle("DELETE /api/settings", s.require(model.RoleAdmin, s.resetSettings))
+	mux.Handle("GET /api/settings/directory", s.require(model.RoleAdmin, s.getDirectorySettings))
+	mux.Handle("PUT /api/settings/directory", s.require(model.RoleAdmin, s.putDirectorySettings))
+	mux.Handle("POST /api/settings/directory/test", s.require(model.RoleAdmin, s.testDirectory))
 	mux.Handle("GET /api/drivers", s.require(model.RoleViewer, s.listDrivers))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -477,10 +480,17 @@ func (s *Server) patchDevice(w http.ResponseWriter, r *http.Request) {
 		Location    *string `json:"location"`
 		AssetTag    *string `json:"assetTag"`
 		Notes       *string `json:"notes"`
+		WebURL      *string `json:"webUrl"` // operator override of the device web page; "" clears it
 	}
 	if err := readJSON(r, &body); err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	if body.WebURL != nil {
+		if err := model.ValidWebURL(*body.WebURL); err != nil {
+			writeErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 	id := r.PathValue("id")
 	before, err := s.Store.GetDevice(r.Context(), id)
@@ -488,7 +498,7 @@ func (s *Server) patchDevice(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	d, err := s.Store.PatchDevice(r.Context(), id, store.DevicePatch{DisplayName: body.DisplayName, Location: body.Location, AssetTag: body.AssetTag, Notes: body.Notes})
+	d, err := s.Store.PatchDevice(r.Context(), id, store.DevicePatch{DisplayName: body.DisplayName, Location: body.Location, AssetTag: body.AssetTag, Notes: body.Notes, WebURLOverride: body.WebURL})
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -499,7 +509,7 @@ func (s *Server) patchDevice(w http.ResponseWriter, r *http.Request) {
 }
 
 func operatorFields(d *model.Device) map[string]any {
-	return map[string]any{"displayName": d.DisplayName, "location": d.Location, "assetTag": d.AssetTag, "notes": d.Notes, "state": d.State}
+	return map[string]any{"displayName": d.DisplayName, "location": d.Location, "assetTag": d.AssetTag, "notes": d.Notes, "webUrl": d.WebURLOverride, "state": d.State}
 }
 
 func (s *Server) deleteDevice(w http.ResponseWriter, r *http.Request) {
