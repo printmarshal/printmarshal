@@ -19,7 +19,8 @@ import (
 // OIDC sign-in (docs/auth.md): /start redirects the browser to the identity
 // provider with PKCE + state + nonce held in a short-lived cookie; /callback
 // redeems the code, verifies the ID token, provisions the local user and
-// issues an ordinary session. /providers tells the login page what to show.
+// issues an ordinary session. /providers (providers.go) tells the login
+// page what to show; the SAML, LDAP and RADIUS methods live beside it.
 
 const oidcCookie = "pm_oidc"
 
@@ -39,6 +40,7 @@ func (s *Server) oidcRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/auth/providers", s.authProviders)
 	mux.HandleFunc("GET /api/auth/oidc/start", s.oidcStart)
 	mux.HandleFunc("GET /api/auth/oidc/callback", s.oidcCallback)
+	s.samlRoutes(mux)
 }
 
 func (s *Server) oidcEnabled() bool {
@@ -82,14 +84,6 @@ func (s *Server) oidcProvider(ctx context.Context) (*oidc.Provider, error) {
 	}
 	s.oidc.p, s.oidc.when = p, time.Now()
 	return p, nil
-}
-
-func (s *Server) authProviders(w http.ResponseWriter, r *http.Request) {
-	out := map[string]any{"local": true, "oidc": map[string]any{"enabled": s.oidcEnabled()}}
-	if s.oidcEnabled() {
-		out["oidc"] = map[string]any{"enabled": true, "name": s.oidcName(), "start": "/api/auth/oidc/start"}
-	}
-	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) oidcStart(w http.ResponseWriter, r *http.Request) {

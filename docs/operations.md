@@ -386,6 +386,9 @@ PM_ADMIN_PASSWORD=change-me ./bin/printmarshal
 | `auth.allowedOrigins[]` | — | same-origin only | Extra `Origin` host patterns accepted on the WebSocket stream (`console.example.com`, `*.corp.example`) |
 | `auth.loginFailuresPerMinute` | — | `10` | Failed sign-ins per source address before further attempts get `429` for a minute |
 | `auth.oidc.*` | `PM_OIDC_ISSUER`, `PM_OIDC_CLIENT_ID`, `PM_OIDC_CLIENT_SECRET_ENV`, `PM_OIDC_REDIRECT_URL` | off | OpenID Connect single sign-on; see `docs/auth.md` for role mapping and provider notes |
+| `auth.ldap.*` | `PM_LDAP_URL`, `PM_LDAP_START_TLS`, `PM_LDAP_CA_FILE`, `PM_LDAP_BIND_DN`, `PM_LDAP_BIND_PASSWORD_ENV`, `PM_LDAP_USER_DN_TEMPLATE`, `PM_LDAP_BASE_DN`, `PM_LDAP_USER_FILTER` | off | LDAP / Active Directory behind the login form (service-account search + user bind, or direct bind via a DN/UPN template); groups → roles; `docs/auth.md` |
+| `auth.radius.*` | `PM_RADIUS_SERVERS` (comma separated), `PM_RADIUS_SECRET_ENV`, `PM_RADIUS_NAS_IDENTIFIER` | off | RADIUS PAP behind the login form; `Filter-Id` / `Class` → roles; `docs/auth.md` |
+| `auth.saml.*` | `PM_SAML_IDP_METADATA_URL`, `PM_SAML_IDP_METADATA_FILE`, `PM_SAML_BASE_URL`, `PM_SAML_ENTITY_ID`, `PM_SAML_ACS_URL`, `PM_SAML_SP_CERT_FILE`, `PM_SAML_SP_KEY_FILE` | off | SAML 2.0 service provider (`/api/auth/saml/{metadata,start,acs}`); the SP signing pair is generated under `dataDir` when not configured; `docs/auth.md` |
 | `telemetry.retention` | — | `2160h` (90 d) | Telemetry samples older than this are pruned by the scheduler |
 
 ### Exports and SIEM (`export`)
@@ -459,6 +462,7 @@ unless the proxy is transparent.
 <dataDir>/                     default ./data, /data in containers, /var/lib/printmarshal with systemd
 ├── printmarshal.db            SQLite, WAL mode (printmarshal.db-wal / -shm appear while running)
 ├── secret.key                 base64 32-byte key, mode 0600 — only when PM_SECRET_KEY is not set
+├── saml-sp.crt / saml-sp.key  SAML service-provider signing pair, generated on first use when auth.saml is on without spCertFile/spKeyFile
 └── firmware/<package id>/…    uploaded firmware images (verified by SHA-256 on every use)
 ```
 

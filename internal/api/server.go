@@ -17,6 +17,7 @@ import (
 
 	"printmarshal/internal/alerts"
 	"printmarshal/internal/auth"
+	"printmarshal/internal/auth/saml"
 	"printmarshal/internal/config"
 	"printmarshal/internal/configmgmt"
 	"printmarshal/internal/events"
@@ -46,6 +47,9 @@ type Server struct {
 	logins *loginLimiter
 	http   *httpStats
 	oidc   *oidcState // lazily discovered OIDC provider (oidc.go)
+	saml   *samlState // lazily built SAML service provider (saml.go)
+	// samlReplay remembers assertion IDs until they expire (saml.go).
+	samlReplay saml.ReplayCache
 }
 
 // Handler builds the router.
@@ -299,16 +303,32 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusTooManyRequests, "too many failed sign-ins; try again in a minute")
 		return
 	}
+	// The local account first; LDAP / RADIUS only for names no local account
+	// owns or accounts already bound to that provider (providers.go).
 	token, u, err := s.Auth.Login(r.Context(), body.Username, body.Password)
+	via := ""
+	if err != nil {
+		token, u, via, err = s.externalLogin(r, body.Username, body.Password)
+	}
 	if err != nil {
 		s.logins.Fail(ip)
+		var le *loginError
+		if errors.As(err, &le) {
+			s.security(r.Context(), r, "auth.failed", body.Username, le.detail, le.result)
+			writeErr(w, le.status, le.msg)
+			return
+		}
 		s.security(r.Context(), r, "auth.failed", body.Username, "invalid credentials", "denied")
 		time.Sleep(300 * time.Millisecond)
 		writeErr(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
 	s.logins.Reset(ip)
-	s.security(r.Context(), r, "auth.login", u.Username, "signed in", "ok")
+	detail := "signed in"
+	if via != "" {
+		detail = "signed in via " + via
+	}
+	s.security(r.Context(), r, "auth.login", u.Username, detail, "ok")
 	s.Auth.SetCookie(w, token)
 	writeJSON(w, http.StatusOK, map[string]any{"user": u, "token": token})
 }
