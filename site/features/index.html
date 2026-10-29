@@ -1,178 +1,429 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PrintMarshal features</title>
-<meta name="description" content="Discovery, monitoring, stock, configuration, security assessment, firmware planning, and identity controls for a self-hosted printer fleet.">
-<link rel="canonical" href="https://printmarshal.app/features/">
-<link rel="icon" type="image/svg+xml" href="/assets/mark.svg">
-<meta property="og:type" content="website">
-<meta property="og:title" content="PrintMarshal features">
-<meta property="og:description" content="Discovery, monitoring, stock, configuration, security assessment, firmware planning, and identity controls for a self-hosted printer fleet.">
-<meta property="og:image" content="https://printmarshal.app/assets/social-preview-1280x640.png">
-<meta property="og:url" content="https://printmarshal.app/features/">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="PrintMarshal features">
-<meta name="twitter:description" content="Discovery, monitoring, stock, configuration, security assessment, firmware planning, and identity controls for a self-hosted printer fleet.">
-<meta name="twitter:image" content="https://printmarshal.app/assets/social-preview-1280x640.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="/assets/site.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Features &amp; Capability Status — PrintMarshal</title>
+  <meta name="description" content="Outcome-oriented guide to PrintMarshal's capabilities: security policy assessment, certificate enrollment, fleet discovery, dry-run configuration management, and explicit driver boundaries.">
+  <meta name="theme-color" content="#0D1016">
+  <meta property="og:title" content="Features &amp; Capability Status — PrintMarshal">
+  <meta property="og:description" content="See what works out of the box over standards SNMP, IPP, and TLS probes, what depends on device support, and what requires a vendor driver.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://printmarshal.app/features/">
+  <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <nav class="site-nav" aria-label="Main">
-      <a href="/" class="brand" aria-label="PrintMarshal home">
-        <img src="/assets/logo-horizontal-on-dark.svg" alt="PrintMarshal" width="193" height="40">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/" aria-label="PrintMarshal home">
+        <img class="brand-mark" src="/assets/mark.svg" alt="" width="32" height="32">
+        <span class="brand-name">Print<span>Marshal</span></span>
+        <span class="brand-tag">Self-Hosted · Apache-2.0</span>
       </a>
-      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigation">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-      </button>
-      <div class="nav-links" id="nav-links">
-        <a href="/">Home</a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="/">Overview</a>
         <a href="/features/" aria-current="page">Features</a>
         <a href="/security/">Security</a>
         <a href="/get-started/">Get started</a>
         <a href="/faq/">FAQ</a>
-        <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Wiki</a>
-        <a href="https://github.com/printmarshal/printmarshal" class="btn ghost">GitHub</a>
+      </nav>
+      <div class="header-actions">
+        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
+        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub ↗</a>
+        <a class="btn btn-primary btn-sm" href="/get-started/">Get started</a>
       </div>
-    </nav>
-    <div class="page-hero">
-      <span class="eyebrow">Capabilities &amp; scope</span>
-      <h1>PrintMarshal features</h1>
-      <p class="hero-sub">Discovery, monitoring, stock, configuration, security assessment, firmware planning, and identity controls for a self-hosted printer fleet.</p>
     </div>
-  </div>
-</header>
+  </header>
 
-<main>
-  <section>
-    <div class="wrap layout">
-      <aside class="side">
-        <nav class="toc" aria-label="On this page">
-          <span class="toc-title">On this page</span>
-          <a href="#discovery">Discovery and inventory</a>
-          <a href="#monitoring">Monitoring and alerts</a>
-          <a href="#stock">Consumables and stock</a>
-          <a href="#configuration">Configuration management</a>
-          <a href="#security">Security and certificates</a>
-          <a href="#firmware">Firmware campaigns</a>
-          <a href="#identity">Identity and access</a>
-          <a href="#events">Events and integrations</a>
-          <a href="#reports">Reports and evidence</a>
-          <a href="#print-provider">Optional print provider</a>
-          <a href="#deployment">Deployment and development</a>
+  <main id="main-content">
+    <section class="page-hero" aria-labelledby="page-heading">
+      <div class="container">
+        <div class="eyebrow">Capabilities &amp; Implementation Status</div>
+        <h1 id="page-heading">Outcome-oriented capabilities with explicit driver boundaries.</h1>
+        <p class="lead">
+          Every feature below pairs real captures of the shipped PrintMarshal web console with verified implementation status labels—distinguishing what runs today over standards SNMP, IPP, and TLS probes from operations that require a vendor driver.
+        </p>
+        <nav class="page-subnav" aria-label="On this page">
+          <a href="#security-assessment">1. Security Assessment &amp; Certificates</a>
+          <a href="#discovery-monitoring">2. Discovery &amp; Live Monitoring</a>
+          <a href="#configuration">3. Configuration &amp; Dry-Run Writes</a>
+          <a href="#catalog-drivers">4. Device Catalogue &amp; Drivers</a>
+          <a href="#firmware-print-ops">5. Firmware, Print Release &amp; SIEM</a>
         </nav>
-      </aside>
+      </div>
+    </section>
 
-      <div class="main-col">
-        <article id="discovery" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19.1 4.9a10 10 0 0 1 0 14.2M4.9 19.1a10 10 0 0 1 0-14.2"/></svg>
-          <h2>Discovery and inventory</h2>
-          <p>Find candidate devices through mDNS/DNS-SD, WS-Discovery, or active scans of addresses, ranges, and IPv4 CIDRs. Active scanning uses SNMP liveness probes and caps large expansions unless an operator explicitly allows them. Multicast discovery needs suitable network access.</p>
-          <p>Identification combines standards and vendor observations into a device record with a capability profile. Reconciliation checks serial, UUID, MAC, then address; conflicting stable identity prevents an address-only merge. Organize devices with static or rule groups, lifecycle states, asset tags, and notes. Automated scans preserve operator-owned fields. <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Discovery-and-inventory.md">Discovery guide</a>.</p>
-        </article>
+    <!-- LEGEND BAR -->
+    <section class="section-tight section-alt" aria-label="Capability status label definitions">
+      <div class="container">
+        <div class="grid-4">
+          <div class="panel-card" style="padding: 16px;">
+            <div><span class="cap-badge cap-implemented">✓ Implemented</span></div>
+            <p style="font-size: 0.84rem;">Ships end-to-end in the binary and works against supported protocols or standard endpoints today.</p>
+          </div>
+          <div class="panel-card" style="padding: 16px;">
+            <div><span class="cap-badge cap-device">◐ Device-dependent</span></div>
+            <p style="font-size: 0.84rem;">Implemented in PrintMarshal; depth or writability depends on what the target printer exposes via SNMP/IPP/eSCL.</p>
+          </div>
+          <div class="panel-card" style="padding: 16px;">
+            <div><span class="cap-badge cap-driver">⬚ Requires additional driver</span></div>
+            <p style="font-size: 0.84rem;">Workflow, UI, and job engine ship today, but device execution requires a vendor driver interface not yet shipped.</p>
+          </div>
+          <div class="panel-card" style="padding: 16px;">
+            <div><span class="cap-badge cap-sim">◈ Simulator-only</span></div>
+            <p style="font-size: 0.84rem;">End-to-end execution is restricted to opt-in simulator targets (<span class="mono">pm-sim</span> / <span class="mono">fwsim</span>) for safe workflow evaluation.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        <article id="monitoring" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-          <h2>Monitoring and alerts</h2>
-          <p>Schedule polls or request a fresh read of status, supplies, trays, counters, and firmware. Device capabilities determine what can be read. Partial failures remain visible: a successful counter read does not prove that status or supplies were refreshed.</p>
-          <p>Alerts cover unreachable devices, measured supply thresholds, device-reported faults, paper availability, and spare-stock levels. SNMP traps can trigger alerts and follow-up polls. Noise rules account for alternative trays and measured supply levels; acknowledgments and clear events keep the alert history explicit. <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Monitoring-and-alerts.md">Monitoring guide</a>.</p>
-        </article>
+    <!-- 1. SECURITY POSTURE ASSESSMENT & CERTIFICATES -->
+    <section class="section" id="security-assessment" aria-labelledby="sec-feat-heading">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">01 · Security Posture &amp; Certificates</div>
+          <h2 id="sec-feat-heading">Assess protocol, TLS, and certificate exposure across the fleet.</h2>
+          <p class="lead">
+            Evaluate printers against the built-in 14-item <span class="mono">Baseline</span> policy or custom policies, inspect TLS handshakes on ports <span class="mono">443</span> and <span class="mono">631</span>, and manage CA certificate enrollment.
+          </p>
+        </div>
 
-        <article id="stock" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12"/></svg>
-          <h2>Consumables and stock</h2>
-          <p>Track spare toner, ink, drums, fusers, maintenance kits, waste containers, and staples. Link stock items to installed supplies through automatic matching or a manual choice. Record deliveries and adjustments with stock history, and exchange inventory through CSV.</p>
-          <p>Replacement detection can log a change, request confirmation, or decrement stock automatically; confirmation is the default. Forecasts use observed consumption and return an unknown result until enough history exists. Cost and reorder fields are references, not purchasing or billing features. <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Consumables-and-stock.md">Stock guide</a>.</p>
-        </article>
+        <div class="capability-split" style="padding-top: 0;">
+          <div class="capability-copy">
+            <div class="capability-meta">
+              <span class="cap-badge cap-implemented">✓ Policy Assessment Implemented</span>
+              <span class="cap-badge cap-implemented">✓ SCEP / EST / ACME Enrollment</span>
+              <span class="cap-badge cap-driver">⬚ Remediation &amp; Cert Install require driver</span>
+            </div>
+            <h3>What you can investigate and operate</h3>
+            <ul class="walkthrough-points">
+              <li><strong>17-item security catalog &amp; 14-item Baseline policy:</strong> Evaluates <span class="mono">SNMPv1/v2c</span>, <span class="mono">SNMPv3</span>, <span class="mono">Telnet (:23)</span>, <span class="mono">FTP (:21)</span>, <span class="mono">HTTPS (:443)</span>, HTTP-to-HTTPS redirect, minimum TLS version, admin password set, identity certificate presence/expiry/self-signed status, <span class="mono">Raw 9100</span>, <span class="mono">WS-Discovery</span>, <span class="mono">SLP</span>, and <span class="mono">LLMNR</span>.</li>
+              <li><strong>Weighted scoring that preserves unknowns:</strong> Items evaluate to <span class="mono">pass</span>, <span class="mono">fail</span>, or <span class="mono">unknown</span> (severity weights: Critical <span class="mono">4</span>, High <span class="mono">3</span>, Medium <span class="mono">2</span>, Low <span class="mono">1</span>). Unknown items are excluded from the score denominator and listed explicitly.</li>
+              <li><strong>Management-path lockout protection:</strong> Remediation checks whether disabling SNMPv1/v2c or plain HTTP would sever the only reachable management path to the device.</li>
+              <li><strong>Certificate inventory &amp; CA enrollment:</strong> Tracks installed, TLS-observed, and PrintMarshal-issued certificates with <span class="mono">30 / 14 / 7</span> day expiry alerts. Enrolls certificates via <span class="mono">SCEP</span>, <span class="mono">EST</span>, or <span class="mono">ACME DNS-01</span> (with manual DNS TXT creation).</li>
+            </ul>
+            <div class="callout warn">
+              <strong>Necessary boundary:</strong> Security assessment is not automatic remediation, and certificate enrollment is not certificate installation. Applying security remediations or staged credential rotations to a printer requires a driver with <span class="mono">SecurityWriter</span> (<span class="mono">CapWriteSecurity</span>), and installing an issued certificate onto a printer requires a <span class="mono">CertManager</span> driver. No real-vendor <span class="mono">SecurityWriter</span> or <span class="mono">CertManager</span> ships today.
+            </div>
+            <div>
+              <a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Read the Security &amp; Certificate Wiki Guide →</a>
+            </div>
+          </div>
 
-        <article id="configuration" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
-          <h2>Configuration management</h2>
-          <p>Read a normalized settings document assembled from applicable drivers. Keep snapshots, compare devices, define desired profiles, and inspect drift. The interface distinguishes writable settings from observations that a driver can only read.</p>
-          <p>Apply and revert run as jobs and default to dry run. Real changes require write-purpose credentials and an implemented write capability. Standards SNMP and IPP support a limited setting set; results distinguish accepted changes from verified, diverged, or unverifiable outcomes. Revert uses recorded prior values where available. <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Configuration-management.md">Configuration guide</a>.</p>
-        </article>
+          <figure class="console-showcase" style="margin:0;">
+            <div class="console-bar">
+              <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+              <span class="console-url">/devices/c50ea9fb… (Security tab) — Per-device policy &amp; certificate state</span>
+              <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/device-security-detail.png" data-lightbox-caption="Device Security tab showing 4/5 items passing, failing SNMP v1/v2c enabled, and 9 unknown items explicitly listed.">⤢ Enlarge</button>
+            </div>
+            <div class="console-media" data-lightbox-src="/assets/screens/device-security-detail.png" data-lightbox-caption="Device Security tab showing 4/5 items passing, failing SNMP v1/v2c enabled, and 9 unknown items explicitly listed.">
+              <img class="media-desktop-full" src="/assets/screens/device-security-detail.png" alt="Device Security tab showing 4/5 items passing, Non-compliant status, failing SNMP v1/v2c, and 9 unknown items." width="1440" height="900" loading="lazy">
+              <img class="media-mobile-crop" src="/assets/screens/mobile-device-security.png" alt="Focused mobile view of the Compliance · Baseline card." width="576" height="301" loading="lazy">
+            </div>
+          </figure>
+        </div>
+      </div>
+    </section>
 
-        <article id="security" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
-          <h2>Security and certificates</h2>
-          <p>Assess desired security settings against driver observations, TLS handshakes, and port probes. Missing evidence stays unknown. Policies produce severity-weighted scores and critical-failure alerts; assessments and history are available separately from the placeholder compliance report.</p>
-          <p>Enroll certificates through SCEP or EST, retain encrypted private keys, and monitor observed certificate expiry. ACME is also implemented for DNS-01 with manual DNS publication. Enrollment is separate from installation: no shipped real-vendor certificate installer or security writer exists, and automatic certificate renewal is not implemented. <a href="/security/">Security model</a>.</p>
-        </article>
+    <!-- 2. FLEET DISCOVERY & LIVE MONITORING -->
+    <section class="section section-alt" id="discovery-monitoring" aria-labelledby="disc-feat-heading">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">02 · Fleet Discovery &amp; Monitoring</div>
+          <h2 id="disc-feat-heading">Multi-method discovery, deterministic deduplication, and consumable forecasting.</h2>
+          <p class="lead">
+            Build an accurate inventory across office subnets without duplicate device records or overwritten operator notes.
+          </p>
+        </div>
 
-        <article id="firmware" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/></svg>
-          <h2>Firmware campaigns</h2>
-          <p>Inventory installed versions and compare them with compatible registered packages. Campaigns provide canary waves, confirmation gates, maintenance windows, concurrency limits, failure-threshold pauses, dry runs, and post-delivery version checks. Package hashes are checked when images are used.</p>
-          <p>The shipped delivery driver targets the simulator or its explicit allow-list; real printers need an additional vendor driver. Interrupted campaigns recover to a reviewable paused state, with interrupted device attempts marked failed. This is a single-active-process workflow, not distributed firmware execution. <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Firmware.md">Firmware guide</a>.</p>
-        </article>
+        <div class="capability-split" style="padding-top: 0;">
+          <figure class="console-showcase" style="margin:0;">
+            <div class="console-bar">
+              <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+              <span class="console-url">/devices — Reconciled fleet inventory &amp; supply levels</span>
+              <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/fleet-discovery.png" data-lightbox-caption="Fleet inventory (/devices) showing 5 printers reconciled across SNMP and IPP with live CMYK/mono supply bars.">⤢ Enlarge</button>
+            </div>
+            <div class="console-media" data-lightbox-src="/assets/screens/fleet-discovery.png" data-lightbox-caption="Fleet inventory (/devices) showing 5 printers reconciled across SNMP and IPP with live CMYK/mono supply bars.">
+              <img class="media-desktop-full" src="/assets/screens/fleet-discovery.png" alt="Devices inventory table showing 5 discovered printers with status pills, supply bars, and page counts." width="1440" height="900" loading="lazy">
+              <img class="media-mobile-crop" src="/assets/screens/mobile-fleet-cards.png" alt="Mobile cards view of discovered printers." width="645" height="1170" loading="lazy">
+            </div>
+          </figure>
 
-        <article id="identity" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M1 21a8 8 0 0 1 16 0M17 4a4 4 0 0 1 0 8M23 21a8 8 0 0 0-5-7.4"/></svg>
-          <h2>Identity and access</h2>
-          <p>Use local accounts or configure OIDC, SAML, LDAP/Active Directory, and RADIUS PAP. External identities bind by issuer and subject rather than matching an existing username. Viewer, operator, and admin roles separate observation, daily operations, and administration.</p>
-          <p>Issue revocable API tokens with a role, optional expiry, and optional group scope. Scope checks cover device-targeted routes and related resources, but several collections, reports, metrics, jobs, and live events remain fleet-wide. Group scope is not a tenant-isolation boundary. <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Identity-and-access.md">Identity guide</a>.</p>
-        </article>
+          <div class="capability-copy">
+            <div class="capability-meta">
+              <span class="cap-badge cap-implemented">✓ Discovery &amp; Traps Implemented</span>
+              <span class="cap-badge cap-device">◐ Telemetry depth is Device-dependent</span>
+            </div>
+            <h3>How discovery and monitoring work</h3>
+            <ul class="walkthrough-points">
+              <li><strong>Active + passive discovery:</strong> Scan CIDR blocks, IP ranges, or individual hosts via <span class="mono">SNMPv1/v2c/v3</span>, <span class="mono">IPP/IPPS</span>, <span class="mono">eSCL</span>, and TCP port probes (<span class="mono">9100, 515, 631, 80, 443</span>), or enable passive <span class="mono">mDNS</span>, <span class="mono">WS-Discovery</span>, and <span class="mono">SSDP</span> listeners.</li>
+              <li><strong>Identity reconciliation hierarchy:</strong> Matches records by <span class="mono">serial → UUID → MAC → IP address</span>. Operator-edited fields (<span class="mono">displayName</span>, <span class="mono">location</span>, <span class="mono">assetTag</span>, <span class="mono">notes</span>) are protected from poll overwrites.</li>
+              <li><strong>Consumables, burn rates &amp; stock rooms:</strong> Computes 14-day linear regression burn rates from supply history, estimates days remaining, and tracks spare cartridge inventory across stock rooms.</li>
+              <li><strong>Static &amp; dynamic rule groups:</strong> Organize printers into static lists or dynamic rule groups (<span class="mono">AND/OR</span> predicates on make, model, firmware, location, state, or subnet).</li>
+            </ul>
+            <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+              <a href="https://github.com/printmarshal/printmarshal/wiki/Discovery-and-inventory" target="_blank" rel="noopener">Wiki: Discovery &amp; Inventory →</a>
+              <a href="https://github.com/printmarshal/printmarshal/wiki/Monitoring-and-alerts" target="_blank" rel="noopener">Wiki: Monitoring &amp; Consumables →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        <article id="events" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <h2>Events and integrations</h2>
-          <p>Route notifications to Slack, Teams, Discord, generic webhooks, or SMTP. Enqueued notifications survive restarts, retry delivery, and expose dead letters for inspection and requeue. The event bus also feeds the live interface and security-event export.</p>
-          <p>Export eligible security events, alerts, and dead notifications to syslog, JSON-lines files, or an HTTP collector. Receive printer syslog, synchronize current records through cursor-based APIs, and scrape authenticated Prometheus metrics. SIEM export uses a bounded in-memory queue and can drop under overload; it does not share the notification outbox's durability. <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Events-notifications-and-integrations.md">Integration guide</a>.</p>
-        </article>
+    <!-- 3. CONFIGURATION MANAGEMENT & DRY-RUN WRITES -->
+    <section class="section" id="configuration" aria-labelledby="cfg-feat-heading">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">03 · Configuration Management</div>
+          <h2 id="cfg-feat-heading">Snapshots, drift detection, dry-run previews, and read-back verification.</h2>
+          <p class="lead">
+            Inspect normalized printer settings across 7 areas, compare devices, preview profile changes without network writes, and verify every applied setting by reading the device back.
+          </p>
+        </div>
 
-        <article id="reports" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-          <h2>Reports and evidence</h2>
-          <p>Review utilization, fleet health, supply consumption, alert activity, and firmware distribution over selected ranges. Filter reports by group or device and export tables as CSV. The dedicated compliance report remains a placeholder; security assessment summaries and history are implemented separately.</p>
-          <p>The research catalog keeps documented management routes, observed driver capabilities, and unknowns distinct. Operators can record lab or production qualification without turning research coverage into an automatic support claim. A catalog match does not enable a device writer. <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Vendor-plugins-and-drivers.md">Driver and catalog guide</a>.</p>
-        </article>
+        <div class="capability-split" style="padding-top: 0;">
+          <div class="capability-copy">
+            <div class="capability-meta">
+              <span class="cap-badge cap-implemented">✓ Snapshots, Diff &amp; Dry-Run Implemented</span>
+              <span class="cap-badge cap-device">◐ Standards SNMP/IPP writable keys</span>
+            </div>
+            <h3>Controlled configuration lifecycle</h3>
+            <ul class="walkthrough-points">
+              <li><strong>35-key canonical catalog across 7 areas:</strong> Normalizes settings across <span class="mono">identity</span>, <span class="mono">network</span>, <span class="mono">protocols</span>, <span class="mono">security</span>, <span class="mono">trays</span>, <span class="mono">power</span>, and <span class="mono">print</span>. Secret-typed values are masked and never returned in plaintext.</li>
+              <li><strong>Mandatory dry-run preview:</strong> Profile apply (<span class="mono">POST /api/profiles/{id}/apply</span>) defaults to <span class="mono">dryRun: true</span>, reading live device values and reporting <span class="mono">would_write</span>, <span class="mono">unchanged</span>, or <span class="mono">unsupported</span> per setting. Batches over 10 devices require typed confirmation.</li>
+              <li><strong>Read-back verification:</strong> After writing, PrintMarshal re-reads each changed key and records <span class="mono">verified</span> (matches target), <span class="mono">diverged</span> (device accepted write but reports a different value), or <span class="mono">unverifiable</span>.</li>
+              <li><strong>Stored rollback history:</strong> Every real write saves prior values so operators can preview and revert changes from the device's Write history card.</li>
+            </ul>
+            <div class="callout">
+              <strong>Writable keys over standards drivers:</strong> Standards <span class="mono">snmp</span> writes <span class="mono">identity.hostname</span> (<span class="mono">sysName</span>), <span class="mono">identity.location</span> (<span class="mono">sysLocation</span>), <span class="mono">identity.contact</span> (<span class="mono">sysContact</span>), <span class="mono">identity.printerName</span> (<span class="mono">prtGeneralPrinterName</span>), <span class="mono">trays.defaultInputIndex</span>, and <span class="mono">print.defaultMarkerIndex</span>. Standards <span class="mono">ipp</span> writes <span class="mono">printer-location</span>, <span class="mono">printer-info</span>, <span class="mono">printer-organization</span>, <span class="mono">printer-organizational-unit</span>, and <span class="mono">*-default</span> print/media attributes when the printer advertises <span class="mono">Set-Printer-Attributes</span>. No vendor-private <span class="mono">ConfigWriter</span> ships today.
+            </div>
+            <div>
+              <a href="https://github.com/printmarshal/printmarshal/wiki/Configuration-management" target="_blank" rel="noopener">Read the Configuration Management Wiki Guide →</a>
+            </div>
+          </div>
 
-        <article id="print-provider" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          <h2>Optional print provider</h2>
-          <p>The optional add-on manages local CUPS queues on a Linux host. Preview a queue plan, run an audited sync job, or remove a managed queue. It is disabled by default and configures the host's CUPS service rather than changing printer settings.</p>
-          <p>This is a queue-provisioning convenience. Print accounting, quotas, cost allocation, secure release, and pull printing remain outside the core product. <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Print-provider.md">Print-provider guide</a>.</p>
-        </article>
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <figure class="console-showcase" style="margin:0;">
+              <div class="console-bar">
+                <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <span class="console-url">/profiles/:id/apply — Dry-run preview before confirmation</span>
+                <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/config-dryrun-preview.png" data-lightbox-caption="Profile Apply dry-run preview showing per-setting and per-device diffs before any write occurs.">⤢ Enlarge</button>
+              </div>
+              <div class="console-media" data-lightbox-src="/assets/screens/config-dryrun-preview.png" data-lightbox-caption="Profile Apply dry-run preview showing per-setting and per-device diffs before any write occurs.">
+                <img class="media-desktop-full" src="/assets/screens/config-dryrun-preview.png" alt="Dry-run preview screen showing 1 device that would change and 2 setting writes." width="1440" height="920" loading="lazy">
+                <img class="media-mobile-crop" src="/assets/screens/mobile-config-dryrun.png" alt="Focused view of Changes by setting in dry-run preview." width="1168" height="294" loading="lazy">
+              </div>
+            </figure>
 
-        <article id="deployment" class="prose-card">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>
-          <h2>Deployment and development</h2>
-          <p>Run the embedded web interface, API, engine, scheduler, and workers in one server process. Choose SQLite for the default local store or PostgreSQL for external persistence. Docker, Compose, Kubernetes, Helm, and systemd packaging are included; one active server is the supported model.</p>
-          <p>Extend the capability interfaces with compiled-in drivers or implement the full store contract for a new backend. The simulator and sanitized protocol fixtures let developers exercise supported flows without relying on printer hardware. <a href="/get-started/">Get started</a> or <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Development.md">read the development guide</a>.</p>
-        </article>
+            <figure class="console-showcase" style="margin:0;">
+              <div class="console-bar">
+                <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <span class="console-url">/devices/c50ea9fb… — Configuration snapshots &amp; verified write history</span>
+                <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/config-write-history.png" data-lightbox-caption="Device Configuration tab showing driver sources (snmp, ipp), Snapshot history, and Write history with 1 verified write.">⤢ Enlarge</button>
+              </div>
+              <div class="console-media" data-lightbox-src="/assets/screens/config-write-history.png" data-lightbox-caption="Device Configuration tab showing driver sources (snmp, ipp), Snapshot history, and Write history with 1 verified write.">
+                <img class="media-desktop-full" src="/assets/screens/config-write-history.png" alt="Device Configuration tab showing Snapshot history and Write history with 1 verified write and Revert button." width="1440" height="940" loading="lazy">
+                <img class="media-mobile-crop" src="/assets/screens/mobile-write-history.png" alt="Focused view of the Write history card." width="576" height="350" loading="lazy">
+              </div>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. DEVICE MODEL CATALOGUE & VENDOR DRIVERS -->
+    <section class="section section-alt" id="catalog-drivers" aria-labelledby="cat-feat-heading">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">04 · Device Model Catalogue &amp; Drivers</div>
+          <h2 id="cat-feat-heading">126 researched enterprise families—with strict separation between documentation and live observation.</h2>
+          <p class="lead">
+            The embedded catalog (<span class="mono">internal/catalog/enterprise_printers.json</span>) indexes 495 base model identifiers across 15 brands while keeping unvalidated research distinct from observed driver capabilities.
+          </p>
+        </div>
+
+        <div class="capability-split" style="padding-top: 0;">
+          <figure class="console-showcase" style="margin:0;">
+            <div class="console-bar">
+              <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+              <span class="console-url">/catalog — Enterprise printer research catalogue</span>
+              <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/catalog-evidence.png" data-lightbox-caption="Device model catalogue (/catalog) showing 126 families, 495 base model identifiers, and explicit Documented vs Observed vs Unknown legend.">⤢ Enlarge</button>
+            </div>
+            <div class="console-media" data-lightbox-src="/assets/screens/catalog-evidence.png" data-lightbox-caption="Device model catalogue (/catalog) showing 126 families, 495 base model identifiers, and explicit Documented vs Observed vs Unknown legend.">
+              <img class="media-desktop-full" src="/assets/screens/catalog-evidence.png" alt="Device model catalogue showing 126 families across 15 brands and 0 physically validated badge." width="1440" height="900" loading="lazy">
+              <img class="media-mobile-crop" src="/assets/screens/mobile-support-evidence.png" alt="Support &amp; evidence card for Ricoh RI02." width="404" height="523" loading="lazy">
+            </div>
+          </figure>
+
+          <div class="capability-copy">
+            <div class="capability-meta">
+              <span class="cap-badge cap-implemented">✓ 3 Standards Drivers</span>
+              <span class="cap-badge cap-device">◐ 13 Vendor Plugins (Read/Identify)</span>
+            </div>
+            <h3>How drivers and catalog evidence combine</h3>
+            <ul class="walkthrough-points">
+              <li><strong>Three standards drivers (<span class="mono">snmp</span>, <span class="mono">ipp</span>, <span class="mono">escl</span>):</strong> Provide the baseline for identity, status, supplies, trays, counters, alerts, configuration read/write, and scanner status.</li>
+              <li><strong>Thirteen compiled-in vendor plugins:</strong>
+                <ul style="margin-top: 6px; padding-left: 18px; color: var(--text-secondary);">
+                  <li><strong>HP (<span class="mono">hp</span>, IANA 11):</strong> Identity + read-only PML total impressions and LEDM XML status/consumables/counters.</li>
+                  <li><strong>Ricoh (<span class="mono">ricoh</span>, IANA 367) &amp; Canon (<span class="mono">canon</span>, IANA 1602):</strong> Identity + probe-gated private MIB total impression counters.</li>
+                  <li><strong>Brother, Lexmark, Xerox, Epson, Kyocera, Konica Minolta, Sharp, Toshiba, OKI, Fujifilm:</strong> Brand/model/serial normalisation (<span class="mono">CapIdentify</span>); operational reads and writes fall back to standards drivers.</li>
+                </ul>
+              </li>
+              <li><strong>Lab qualification overrides:</strong> Every catalog family ships as <span class="mono">research_candidate_unvalidated</span> (<span class="mono">0</span> physically validated in the shipped catalog). Operators can record <span class="mono">Lab-validated in your fleet</span> or <span class="mono">Blocked in your fleet</span> per family.</li>
+            </ul>
+            <div>
+              <a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Read the Vendor Plugins &amp; Drivers Wiki Guide →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. FIRMWARE CAMPAIGNS, PRINT RELEASE & OBSERVABILITY -->
+    <section class="section" id="firmware-print-ops" aria-labelledby="fw-feat-heading" style="border-bottom: 0;">
+      <div class="container">
+        <div class="section-header">
+          <div class="eyebrow">05 · Firmware, Print Release &amp; Observability</div>
+          <h2 id="fw-feat-heading">Campaign orchestration, pull-print release, and SIEM/Prometheus telemetry.</h2>
+        </div>
+
+        <div class="grid-3">
+          <article class="panel-card">
+            <div class="capability-meta">
+              <span class="cap-badge cap-implemented">✓ Artifact &amp; Campaign Engine</span>
+              <span class="cap-badge cap-sim">◈ Delivery is Simulator-only</span>
+            </div>
+            <h3>Firmware repository &amp; campaigns</h3>
+            <p>
+              Upload firmware images with verified <span class="mono">SHA-256</span> digests, record signature metadata (<span class="mono">verified / unsigned / unverified</span>), and orchestrate canary → staged wave campaigns with automatic failure halts.
+            </p>
+            <div class="callout unk" style="margin-top: auto; font-size: 0.82rem;">
+              <strong>Simulator-only delivery:</strong> Only the built-in <span class="mono">fwsim</span> driver implements <span class="mono">FirmwareUpdater</span> today, gated by <span class="mono">PM_FIRMWARE_SIM_TARGETS</span>. Physical printer firmware upload requires a vendor driver.
+            </div>
+            <a href="https://github.com/printmarshal/printmarshal/wiki/Firmware" target="_blank" rel="noopener" style="font-size: 0.86rem;">Wiki: Firmware Management →</a>
+          </article>
+
+          <article class="panel-card">
+            <div class="capability-meta">
+              <span class="cap-badge cap-device">◐ IPP Hold/Release Device-dependent</span>
+              <span class="cap-badge cap-implemented">✓ Accounting Import</span>
+            </div>
+            <h3>Print management &amp; badge release</h3>
+            <p>
+              Upload PDF/PostScript/PWG-Raster jobs into a hold queue, release via the console or <span class="mono">POST /api/print/release/card</span> badge reader webhook, and import PaperCut or uniFLOW CSV/JSON accounting logs.
+            </p>
+            <div class="callout unk" style="margin-top: auto; font-size: 0.82rem;">
+              <strong>Boundary:</strong> PrintMarshal is not a virtual print queue or print driver server. Native IPP hold/release requires printer support for RFC 3998 (<span class="mono">Hold-New-Jobs</span> / <span class="mono">Release-Job</span>).
+            </div>
+            <a href="https://github.com/printmarshal/printmarshal/wiki/Print-provider" target="_blank" rel="noopener" style="font-size: 0.86rem;">Wiki: Print Management →</a>
+          </article>
+
+          <article class="panel-card">
+            <div class="capability-meta">
+              <span class="cap-badge cap-implemented">✓ Implemented</span>
+            </div>
+            <h3>Prometheus metrics, notifications &amp; SIEM</h3>
+            <p>
+              Expose fleet, alert, supply, and job metrics on <span class="mono">GET /metrics</span>, dispatch alerts via Email (SMTP), Slack, or HMAC-SHA256 webhooks with quiet hours and escalations, and stream audit events over RFC 5424 Syslog / CEF.
+            </p>
+            <div class="callout unk" style="margin-top: auto; font-size: 0.82rem;">
+              <strong>Note on reports:</strong> <span class="mono">GET /api/reports/utilization</span>, <span class="mono">cost</span>, and <span class="mono">supplies-forecast</span> are implemented; <span class="mono">GET /api/reports/compliance</span> is a placeholder (use <span class="mono">/api/compliance</span> for live assessments).
+            </div>
+            <a href="https://github.com/printmarshal/printmarshal/wiki/API-reference" target="_blank" rel="noopener" style="font-size: 0.86rem;">Wiki: API &amp; Metrics Reference →</a>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a class="brand" href="/" style="margin-bottom: 12px;">
+            <img class="brand-mark" src="/assets/mark.svg" alt="" width="28" height="28">
+            <span class="brand-name" style="font-size: 1.1rem;">Print<span>Marshal</span></span>
+          </a>
+          <p style="font-size: 0.84rem; color: var(--text-muted); max-width: 34ch;">
+            Open source, self-hosted printer fleet discovery, security posture assessment, and configuration management.
+          </p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="/">Overview</a></li>
+            <li><a href="/features/">Features &amp; Capability Status</a></li>
+            <li><a href="/security/">Security &amp; Architecture</a></li>
+            <li><a href="/get-started/">Get Started</a></li>
+            <li><a href="/faq/">FAQ</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Documentation (Wiki)</h4>
+          <ul>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki Home</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Installation-and-deployment" target="_blank" rel="noopener">Installation &amp; Deployment</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Security &amp; Policies</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Configuration-management" target="_blank" rel="noopener">Configuration Management</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Vendor Plugins &amp; Drivers</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Project</h4>
+          <ul>
+            <li><a href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub Repository</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/API-reference" target="_blank" rel="noopener">REST &amp; WebSocket API</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Development" target="_blank" rel="noopener">Contributing &amp; Simulator</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0 License</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>PrintMarshal · Open source under the Apache-2.0 License.</span>
+        <span class="mono" style="font-size: 0.78rem;">Built with Go 1.27, React, SQLite/PostgreSQL · Self-hosted</span>
       </div>
     </div>
-  </section>
-</main>
+  </footer>
 
-<footer>
-  <div class="wrap footer-grid">
-    <div class="footer-copy">
-      <div class="footer-brand">
-        <img src="/assets/mark-on-dark.svg" alt="" aria-hidden="true" width="24" height="24">
-        <span>PrintMarshal. The command-and-security console for your printer fleet.</span>
-      </div>
-      <p>Self-hosted. Open source under Apache-2.0. Manage only devices you own or are authorized to manage.</p>
-      <p>Integration and manufacturer names identify interfaces or device families. They do not imply affiliation or endorsement.</p>
+  <dialog class="lightbox" id="screen-lightbox" aria-label="Enlarged product screenshot">
+    <div class="lightbox-bar">
+      <span class="lightbox-caption" id="lightbox-caption">Product screenshot</span>
+      <button type="button" class="btn btn-sm" id="lightbox-close">Close (Esc)</button>
     </div>
-    <div class="footer-links">
-      <a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE">License</a>
-      <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Wiki</a>
-      <a href="https://github.com/printmarshal/printmarshal">GitHub</a>
+    <div class="lightbox-body">
+      <img id="lightbox-img" src="/assets/screens/security-compliance.png" alt="Enlarged product screenshot">
     </div>
-  </div>
-</footer>
-<script>
-const b=document.querySelector('.nav-toggle'),n=document.querySelector('.nav-links');
-if(b&&n)b.onclick=()=>b.setAttribute('aria-expanded',n.classList.toggle('open'));
-if(window.innerWidth===500&&/HeadlessChrome/.test(navigator.userAgent))document.body.style.maxWidth='390px';
-if(location.protocol==='file:'){const r=/\/(features|security|get-started|faq)\//.test(location.pathname)?'../':'';document.querySelectorAll('[src^="/assets/"],[href^="/assets/"]').forEach(e=>{const a=e.hasAttribute('src')?'src':'href';e.setAttribute(a,r+e.getAttribute(a).slice(1))})}
-</script>
+  </dialog>
+
+  <script>
+    (function () {
+      var dlg = document.getElementById('screen-lightbox');
+      var dlgImg = document.getElementById('lightbox-img');
+      var dlgCap = document.getElementById('lightbox-caption');
+      var dlgClose = document.getElementById('lightbox-close');
+      if (dlg && typeof dlg.showModal === 'function') {
+        document.querySelectorAll('[data-lightbox-src]').forEach(function (el) {
+          el.addEventListener('click', function (e) {
+            e.stopPropagation();
+            dlgImg.src = el.getAttribute('data-lightbox-src');
+            dlgImg.alt = el.getAttribute('data-lightbox-caption') || '';
+            dlgCap.textContent = el.getAttribute('data-lightbox-caption') || '';
+            dlg.showModal();
+          });
+        });
+        dlgClose.addEventListener('click', function () { dlg.close(); });
+        dlg.addEventListener('click', function (e) {
+          if (e.target === dlg) dlg.close();
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
