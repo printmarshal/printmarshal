@@ -47,6 +47,35 @@ Rediscovery fills/refreshed automatic fields without replacing operator display 
 
 Sources: `internal/store/{sqlite,postgres}_devices.go`, `internal/fleet/service.go`, `internal/engine/engine.go`.
 
+## The device web page
+
+Every device record carries a `webUrl`, the link to the printer's own
+administration page, shown as an icon beside the address in the device list
+and as the **Device web page** button on the detail page. It is resolved from
+three sources, in order:
+
+1. An operator override, set in the **Web page** field of the identity card
+   (`PATCH /api/devices/{id}` with `webUrl`; an empty value clears it). The
+   URL must be `http` or `https` with a host and must not carry credentials.
+2. The URL the device advertises (IPP `printer-more-info`, eSCL `AdminURI`,
+   or a DNS-SD `adminurl` record), when it looks like a web page rather than
+   a protocol endpoint: URLs on ports 631, 515 or 9100, or under `/ipp` or
+   `/eSCL`, are ignored, because they answer with a status page, not the
+   administration UI.
+3. A probe. After identification, and on a poll while nothing is known yet,
+   PrintMarshal requests `https://<host>/` and then `http://<host>/` with a
+   3-second limit each and keeps the first that answers with any HTTP
+   response. The host is the device's hostname when one is known, else its
+   address. The probe is a plain GET of the root page and changes nothing on
+   the device; certificates are not verified (printers ship self-signed
+   ones), and the operator's browser shows its own warning when the link is
+   opened. A probe that finds nothing is remembered (`webUrlProbed` =
+   `none`) and repeated only when the device is identified again, so polls
+   do not knock on closed ports forever.
+
+Links open in a new tab with `rel="noopener noreferrer"`. Credentials are
+never placed in the URL.
+
 ## Lifecycle
 
 Lifecycle is operator-controlled and separate from online/offline status. A poll can show a discovered device online or an active device offline; it does not automatically enact lifecycle transitions.

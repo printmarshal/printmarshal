@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get started with PrintMarshal</title>
+<meta name="description" content="Install PrintMarshal with Docker, Docker Compose, Helm, or systemd. Establish read-only monitoring, access controls, and backups before device writes.">
+<link rel="canonical" href="https://printmarshal.app/get-started/">
+<link rel="icon" type="image/svg+xml" href="/assets/mark.svg">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Get started with PrintMarshal">
+<meta property="og:description" content="Install PrintMarshal with Docker, Docker Compose, Helm, or systemd. Establish read-only monitoring, access controls, and backups before device writes.">
+<meta property="og:image" content="https://printmarshal.app/assets/social-preview-1280x640.png">
+<meta property="og:url" content="https://printmarshal.app/get-started/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Get started with PrintMarshal">
+<meta name="twitter:description" content="Install PrintMarshal with Docker, Docker Compose, Helm, or systemd. Establish read-only monitoring, access controls, and backups before device writes.">
+<meta name="twitter:image" content="https://printmarshal.app/assets/social-preview-1280x640.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <nav class="site-nav" aria-label="Main">
+      <a href="/" class="brand" aria-label="PrintMarshal home">
+        <img src="/assets/logo-horizontal-on-dark.svg" alt="PrintMarshal" width="193" height="40">
+      </a>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigation">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="/">Home</a>
+        <a href="/features/">Features</a>
+        <a href="/security/">Security</a>
+        <a href="/get-started/" aria-current="page">Get started</a>
+        <a href="/faq/">FAQ</a>
+        <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Wiki</a>
+        <a href="https://github.com/printmarshal/printmarshal" class="btn ghost">GitHub</a>
+      </div>
+    </nav>
+    <div class="page-hero">
+      <span class="eyebrow">Get started</span>
+      <h1>Get started with PrintMarshal</h1>
+      <p class="hero-sub">Install PrintMarshal with Docker, Docker Compose, Helm, or systemd. Establish read-only monitoring, access controls, and backups before device writes.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="wrap layout">
+      <aside class="side">
+        <nav class="toc" aria-label="On this page">
+          <span class="toc-title">On this page</span>
+          <a href="#deploy">Deploy on your terms</a>
+          <a href="#docker">1. Docker</a>
+          <a href="#docker-compose">2. Docker Compose</a>
+          <a href="#helm">3. Helm</a>
+          <a href="#systemd">4. systemd binary</a>
+          <a href="#first-run">First run</a>
+          <a href="#preserve-state">Preserve state before upgrading</a>
+          <a href="#guides">Keep the guide close</a>
+        </nav>
+      </aside>
+
+      <div class="main-col">
+        <div id="deploy" class="prose-section">
+          <h2>Deploy on your terms</h2>
+          <p>Choose Docker, Docker Compose, Helm, or a systemd-managed binary. Each runs the same application with persistent storage. Use one active server and place it where it can reach your authorized printer networks.</p>
+          <p>The commands below are copied from the <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Installation-and-deployment.md">installation wiki</a> and run from the repository root. Obtain the source from <a href="https://github.com/printmarshal/printmarshal">GitHub</a>. These are installation instructions, not commands run by this website.</p>
+          <p>For local builds, <code>go.mod</code> requires Go 1.27.3. Building the SPA also needs Node and npm; the container build uses Node 22. Docker builds those components inside its build stages.</p>
+        </div>
+
+        <article id="docker" class="prose-card">
+          <h2>Docker</h2>
+          <p>Build the image locally, then keep application data in a named volume. Replace <code>change-me</code> with a strong, unique initial password before running this example. The optional version tag in the build comment is illustrative, not a claim that a matching release image is published.</p>
+<pre><code>make docker                       # printmarshal:&lt;git describe&gt; and printmarshal:latest
+# or: docker build --build-arg VERSION=v0.1.0 -t printmarshal:v0.1.0 .
+
+docker run -d --name printmarshal --restart unless-stopped \
+  --network host \
+  -e PM_ADMIN_PASSWORD='change-me' \
+  -v pm-data:/data \
+  printmarshal:latest
+
+docker logs -f printmarshal       # "http listening addr=:8080"</code></pre>
+          <p>The image runs as a non-root user. Host networking exposes the application and trap listener on the host and provides access to multicast discovery. The defaults are HTTP on port 8080 and SNMP traps on UDP 1162. Plan host firewall rules and HTTPS access before exposing the service beyond an evaluation environment.</p>
+        </article>
+
+        <article id="docker-compose" class="prose-card">
+          <h2>Docker Compose</h2>
+          <p>Compose builds the image, uses host networking, and keeps <code>/data</code> in a named volume. This example creates a protected environment file with generated bootstrap and encryption secrets; keep that file out of shared source and back it up securely.</p>
+<pre><code>cp deploy/printmarshal.example.json deploy/printmarshal.json      # optional, for notifiers etc.
+printf 'PM_ADMIN_PASSWORD=%s\nPM_SECRET_KEY=%s\n' "$(openssl rand -base64 18)" "$(openssl rand -base64 32)" &gt; deploy/printmarshal.env
+chmod 600 deploy/printmarshal.env
+docker compose -f deploy/docker-compose.yml up -d --build
+docker compose -f deploy/docker-compose.yml logs -f</code></pre>
+          <p>Copying the example JSON is optional and does not mount it by itself. To use it, enable the JSON volume mount and <code>PM_CONFIG</code> setting in the Compose file as described in the wiki. Keep the encryption key with your database backups.</p>
+        </article>
+
+        <article id="helm" class="prose-card">
+          <h2>Helm</h2>
+          <p>Build and publish an image to your own registry, choose an immutable tag, and label a suitable Kubernetes node for printer-network access. Replace the example registry and image version below; the selector requires the corresponding node label.</p>
+<pre><code>helm install printmarshal deploy/helm/printmarshal -n printmarshal --create-namespace \
+  --set image.repository=registry.example.com/printmarshal --set image.tag=v0.1.0 \
+  --set secrets.adminPassword="$(openssl rand -base64 18)" \
+  --set 'nodeSelector.printmarshal\.io/printer-network=true'</code></pre>
+          <p>The chart defaults to host networking, persistent storage, and a single active server. Configure ingress/TLS, storage, secrets, and node placement for your environment. The chart can retain its generated encryption secret across upgrades; do not replace that key without a recovery plan. Plain Kubernetes manifests are also included in the repository.</p>
+        </article>
+
+        <article id="systemd" class="prose-card">
+          <h2>systemd binary</h2>
+          <p>Build the web assets before the server so the binary embeds the full interface. The example below installs the binary and supplied unit on a Linux host; edit the environment file before starting the service.</p>
+<pre><code>make web build                                   # or download a release binary
+sudo install -m 0755 bin/printmarshal /usr/local/bin/printmarshal
+sudo useradd --system --home-dir /var/lib/printmarshal --shell /usr/sbin/nologin printmarshal
+sudo install -d -m 0750 -o root -g printmarshal /etc/printmarshal
+sudo install -m 0640 -g printmarshal deploy/systemd/printmarshal.env.example /etc/printmarshal/printmarshal.env
+sudo install -m 0644 deploy/systemd/printmarshal.service /etc/systemd/system/
+sudoedit /etc/printmarshal/printmarshal.env      # PM_ADMIN_PASSWORD, PM_TRAP_LISTEN, PM_LOG_FORMAT, ...
+sudo systemctl daemon-reload &amp;&amp; sudo systemctl enable --now printmarshal
+journalctl -u printmarshal -f</code></pre>
+          <p>The unit runs under the <code>printmarshal</code> account and uses <code>/var/lib/printmarshal</code> for persistent data. It supplies process hardening and the capability needed to bind a privileged trap port when configured. Review the environment file and network access for the host you are deploying.</p>
+        </article>
+
+        <article id="first-run" class="prose-card">
+          <h2>First run</h2>
+          <ol class="ordered-steps">
+            <li><strong>Open the interface.</strong> The default local address is <code>http://localhost:8080</code>. For remote access, terminate HTTPS at a reverse proxy or ingress and set <code>PM_SECURE_COOKIES=true</code>.</li>
+            <li><strong>Sign in as <code>admin</code>.</strong> Use the password supplied through <code>PM_ADMIN_PASSWORD</code>. If it was omitted, read <code>&lt;dataDir&gt;/initial-admin-password</code>; in the container that is <code>/data/initial-admin-password</code>.</li>
+            <li><strong>Change the initial password.</strong> Delete the generated password file if present. <code>PM_ADMIN_PASSWORD</code> only bootstraps an empty database; changing it later does not reset the account.</li>
+            <li><strong>Add read credentials.</strong> Use the least privilege the devices need. Keep write credentials separate and bind them only when you intend to use supported write operations.</li>
+            <li><strong>Run discovery.</strong> Choose an authorized target range or multicast discovery and inspect the resulting identity, capabilities, and poll errors. Scheduled discovery is off by default.</li>
+            <li><strong>Establish operations.</strong> Configure alerts, access roles, retention, and backups. Test writes in the simulator before expanding to authorized hardware.</li>
+          </ol>
+          <p>Multicast discovery requires suitable network access; active target scanning uses SNMP and needs matching credentials. Traps must reach the configured UDP listener with the original device source address intact. See the wiki before substituting bridge networking for the supplied host-network examples.</p>
+        </article>
+
+        <article id="preserve-state" class="prose-card">
+          <h2>Preserve state before upgrading</h2>
+          <p>Back up the database, encryption key, firmware files, configuration, and externally supplied secrets. Preserve generated SAML files separately when that provider is enabled. The supplied backup helper targets the default SQLite database and does not capture every deployment secret or custom database path.</p>
+          <p>Migrations run at startup. Ordinary interrupted jobs are marked failed and require resubmission; firmware campaigns have a separate paused recovery flow. PostgreSQL changes the storage backend, not the single-active-server model.</p>
+        </article>
+
+        <article id="guides" class="prose-card">
+          <h2>Keep the guide close</h2>
+          <ul class="link-list">
+            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Administrator and developer wiki</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Installation-and-deployment.md">Installation, networking, backups, and upgrades</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Configuration-reference.md">Complete configuration reference</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Identity-and-access.md">Identity and access</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Troubleshooting-and-FAQ.md">Troubleshooting</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Vendor-plugins-and-drivers.md">Simulator and driver development</a></li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap footer-grid">
+    <div class="footer-copy">
+      <div class="footer-brand">
+        <img src="/assets/mark-on-dark.svg" alt="" aria-hidden="true" width="24" height="24">
+        <span>PrintMarshal. The command-and-security console for your printer fleet.</span>
+      </div>
+      <p>Self-hosted. Open source under Apache-2.0. Manage only devices you own or are authorized to manage.</p>
+      <p>Integration and manufacturer names identify interfaces or device families. They do not imply affiliation or endorsement.</p>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE">License</a>
+      <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Wiki</a>
+      <a href="https://github.com/printmarshal/printmarshal">GitHub</a>
+    </div>
+  </div>
+</footer>
+<script>
+const b=document.querySelector('.nav-toggle'),n=document.querySelector('.nav-links');
+if(b&&n)b.onclick=()=>b.setAttribute('aria-expanded',n.classList.toggle('open'));
+if(window.innerWidth===500&&/HeadlessChrome/.test(navigator.userAgent))document.body.style.maxWidth='390px';
+if(location.protocol==='file:'){const r=/\/(features|security|get-started|faq)\//.test(location.pathname)?'../':'';document.querySelectorAll('[src^="/assets/"],[href^="/assets/"]').forEach(e=>{const a=e.hasAttribute('src')?'src':'href';e.setAttribute(a,r+e.getAttribute(a).slice(1))})}
+</script>
+</body>
+</html>

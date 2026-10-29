@@ -8,9 +8,10 @@ import { Ic } from '../components/icons'
 import { Av, Banner, Btn, Card, EmptyState, Pill, Seg, Tag } from '../components/ui'
 import PrintProviderSection from '../components/printprovider/PrintProviderSection'
 import TokensSection from '../components/auth/TokensSection'
+import DirectorySection from '../components/auth/DirectorySection'
 import ExportSection from '../components/export/ExportSection'
 
-type Section = 'users' | 'tokens' | 'notifications' | 'system' | 'printprovider' | 'export' | 'appearance' | 'audit' | 'account'
+type Section = 'users' | 'signin' | 'tokens' | 'notifications' | 'system' | 'printprovider' | 'export' | 'appearance' | 'audit' | 'account'
 
 export default function Settings({ user }: { user: User }) {
   const location = useLocation()
@@ -20,6 +21,7 @@ export default function Settings({ user }: { user: User }) {
   const canOperate = user.role !== 'viewer'
   const sections = ([
     { v: 'users', label: 'Users & roles', icon: <Ic.users />, show: isAdmin },
+    { v: 'signin', label: 'Sign-in & directory', icon: <Ic.shield />, show: isAdmin },
     { v: 'tokens', label: 'API tokens', icon: <Ic.key />, show: isAdmin },
     { v: 'notifications', label: 'Notifications', icon: <Ic.bell />, show: true },
     { v: 'system', label: 'System & consumables', icon: <Ic.server />, show: true },
@@ -41,6 +43,7 @@ export default function Settings({ user }: { user: User }) {
         </nav>
         <div className="stack" style={{ flex: '4 1 600px' }}>
           {current === 'users' && <Users me={user} />}
+          {current === 'signin' && <DirectorySection />}
           {current === 'tokens' && <TokensSection />}
           {current === 'notifications' && <Notifications isAdmin={isAdmin} />}
           {current === 'system' && <System isAdmin={isAdmin} />}

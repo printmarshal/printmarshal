@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -94,7 +95,17 @@ func newTestService(t *testing.T, fixture string) (*Service, store.Store) {
 	t.Cleanup(runner.Stop)
 	svc := New(st, eng, runner, cfg, log, func(e model.Event) {}, func(ctx context.Context, a string) bool { return true })
 	svc.Resolver = &fakeResolver{}
+	// The web-page probe (weburl.go) would otherwise try the fixture's
+	// unroutable address for 2 x 3 s on every identification; tests of the
+	// probe itself use httptest servers in weburl_test.go.
+	svc.WebClient = &http.Client{Transport: noWebProbe{}}
 	return svc, st
+}
+
+type noWebProbe struct{}
+
+func (noWebProbe) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("web probe disabled in fleet tests")
 }
 
 // Integration: identify + poll a fixture-backed device end to end, read-only.

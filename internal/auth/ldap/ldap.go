@@ -101,30 +101,12 @@ func Authenticate(ctx context.Context, cfg Config, username, password string) (*
 	if cfg.BindDN == "" && cfg.UserDNTemplate == "" {
 		return nil, errors.New("ldap: either bindDN or userDNTemplate must be configured")
 	}
-	timeout := cfg.Timeout
-	if timeout <= 0 {
-		timeout = DefaultTimeout
-	}
-	if dl, ok := ctx.Deadline(); ok {
-		if rem := time.Until(dl); rem < timeout {
-			timeout = rem
-		}
-	}
-	tlsCfg, err := tlsConfig(cfg)
+	timeout := effectiveTimeout(ctx, cfg)
+	conn, err := connect(cfg, timeout)
 	if err != nil {
 		return nil, err
 	}
-	conn, err := goldap.DialURL(cfg.URL, goldap.DialWithDialer(&net.Dialer{Timeout: timeout}), goldap.DialWithTLSConfig(tlsCfg))
-	if err != nil {
-		return nil, fmt.Errorf("ldap: connect: %w", err)
-	}
 	defer conn.Close()
-	conn.SetTimeout(timeout)
-	if cfg.StartTLS && !strings.HasPrefix(strings.ToLower(cfg.URL), "ldaps://") {
-		if err := conn.StartTLS(tlsCfg); err != nil {
-			return nil, fmt.Errorf("ldap: starttls: %w", err)
-		}
-	}
 
 	filter := expandFilter(cfg.UserFilter, username)
 	attrs := requestAttrs(cfg)
@@ -171,6 +153,61 @@ func Authenticate(ctx context.Context, cfg Config, username, password string) (*
 		return nil, errors.New("ldap: the entry has no usable username or subject attribute")
 	}
 	return id, nil
+}
+
+// effectiveTimeout is the configured (or default) timeout, shortened to the
+// context's deadline when that is nearer.
+func effectiveTimeout(ctx context.Context, cfg Config) time.Duration {
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
+	if dl, ok := ctx.Deadline(); ok {
+		if rem := time.Until(dl); rem < timeout {
+			timeout = rem
+		}
+	}
+	return timeout
+}
+
+// connect dials the directory and upgrades to TLS when configured.
+func connect(cfg Config, timeout time.Duration) (*goldap.Conn, error) {
+	tlsCfg, err := tlsConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := goldap.DialURL(cfg.URL, goldap.DialWithDialer(&net.Dialer{Timeout: timeout}), goldap.DialWithTLSConfig(tlsCfg))
+	if err != nil {
+		return nil, fmt.Errorf("ldap: connect: %w", err)
+	}
+	conn.SetTimeout(timeout)
+	if cfg.StartTLS && !strings.HasPrefix(strings.ToLower(cfg.URL), "ldaps://") {
+		if err := conn.StartTLS(tlsCfg); err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("ldap: starttls: %w", err)
+		}
+	}
+	return conn, nil
+}
+
+// TestConnection connects (with StartTLS when configured) and, when a
+// service account is configured, binds as it. It is what the settings
+// page's "Test connection" runs: no user is involved and nothing is read.
+func TestConnection(ctx context.Context, cfg Config) error {
+	if strings.TrimSpace(cfg.URL) == "" {
+		return errors.New("ldap: no server URL")
+	}
+	conn, err := connect(cfg, effectiveTimeout(ctx, cfg))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if cfg.BindDN != "" {
+		if err := conn.Bind(cfg.BindDN, cfg.BindPassword); err != nil {
+			return fmt.Errorf("ldap: service account bind: %w", err)
+		}
+	}
+	return nil
 }
 
 func tlsConfig(cfg Config) (*tls.Config, error) {
