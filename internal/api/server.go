@@ -85,7 +85,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/devices/{id}", s.require(model.RoleViewer, s.getDevice))
 	mux.Handle("PATCH /api/devices/{id}", s.require(model.RoleOperator, s.patchDevice))
 	mux.Handle("DELETE /api/devices/{id}", s.require(model.RoleAdmin, s.deleteDevice))
+	mux.Handle("POST /api/devices/rename", s.require(model.RoleOperator, s.renameDevices))
 	mux.Handle("POST /api/devices/{id}/poll", s.require(model.RoleOperator, s.pollDevice))
+	mux.Handle("POST /api/devices/{id}/refresh-hostname", s.require(model.RoleOperator, s.refreshDeviceHostname))
 	mux.Handle("POST /api/devices/{id}/state", s.require(model.RoleOperator, s.setDeviceState))
 	mux.Handle("GET /api/devices/{id}/alerts", s.require(model.RoleViewer, s.deviceAlerts))
 	mux.Handle("GET /api/devices/{id}/telemetry", s.require(model.RoleViewer, s.deviceTelemetry))
@@ -477,6 +479,7 @@ func (s *Server) getDevice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) patchDevice(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		DisplayName *string `json:"displayName"`
+		DNSSync     *bool   `json:"dnsSync"`
 		Location    *string `json:"location"`
 		AssetTag    *string `json:"assetTag"`
 		Notes       *string `json:"notes"`
@@ -498,7 +501,7 @@ func (s *Server) patchDevice(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	d, err := s.Store.PatchDevice(r.Context(), id, store.DevicePatch{DisplayName: body.DisplayName, Location: body.Location, AssetTag: body.AssetTag, Notes: body.Notes, WebURLOverride: body.WebURL})
+	d, err := s.Store.PatchDevice(r.Context(), id, store.DevicePatch{DisplayName: body.DisplayName, DNSSync: body.DNSSync, Location: body.Location, AssetTag: body.AssetTag, Notes: body.Notes, WebURLOverride: body.WebURL})
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -509,7 +512,7 @@ func (s *Server) patchDevice(w http.ResponseWriter, r *http.Request) {
 }
 
 func operatorFields(d *model.Device) map[string]any {
-	return map[string]any{"displayName": d.DisplayName, "location": d.Location, "assetTag": d.AssetTag, "notes": d.Notes, "webUrl": d.WebURLOverride, "state": d.State}
+	return map[string]any{"displayName": d.DisplayName, "displayNameSource": d.DisplayNameSource, "dnsSync": d.DNSSync, "location": d.Location, "assetTag": d.AssetTag, "notes": d.Notes, "webUrl": d.WebURLOverride, "state": d.State}
 }
 
 func (s *Server) deleteDevice(w http.ResponseWriter, r *http.Request) {
@@ -571,6 +574,181 @@ func (s *Server) pollDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"device": upd, "servedBy": res.ServedBy, "errors": res.Errors, "reachable": res.Reachable})
+}
+
+func (s *Server) refreshDeviceHostname(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	before, err := s.Store.GetDevice(r.Context(), id)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	d, err := s.Fleet.RefreshHostname(r.Context(), before)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.audit(r.Context(), r, "device.refresh_hostname", id,
+		map[string]any{"dnsName": before.DNSName, "dnsNameSuspect": before.DNSNameSuspect},
+		map[string]any{"dnsName": d.DNSName, "dnsNameSuspect": d.DNSNameSuspect}, "ok")
+	s.publish(r, model.Event{Type: "device.updated", Data: d})
+	writeJSON(w, http.StatusOK, d)
+}
+
+type renameResult struct {
+	ID      string `json:"id"`
+	From    string `json:"from"`
+	To      string `json:"to"`
+	Skipped bool   `json:"skipped"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+func expandRenamePattern(pattern string, d *model.Device) string {
+	dns := d.DNSName
+	if d.DNSNameSuspect {
+		dns = ""
+	}
+	r := strings.NewReplacer(
+		"{serial}", d.Serial,
+		"{model}", d.Model,
+		"{make}", d.Make,
+		"{address}", d.Address,
+		"{hostname}", d.Hostname,
+		"{dnsName}", dns,
+		"{sysName}", d.SysName,
+		"{location}", d.Location,
+		"{assetTag}", d.AssetTag,
+	)
+	return strings.TrimSpace(r.Replace(pattern))
+}
+
+func (s *Server) renameDevices(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		DeviceIDs []string `json:"deviceIds"`
+		Source    string   `json:"source"`
+		Pattern   string   `json:"pattern"`
+		DryRun    *bool    `json:"dryRun"`
+	}
+	if err := readJSON(r, &body); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if len(body.DeviceIDs) == 0 {
+		writeErr(w, http.StatusBadRequest, "deviceIds is required")
+		return
+	}
+	switch body.Source {
+	case "dns", "hostname", "sysName":
+	case "pattern":
+		if strings.TrimSpace(body.Pattern) == "" {
+			writeErr(w, http.StatusBadRequest, "pattern is required when source is pattern")
+			return
+		}
+	default:
+		writeErr(w, http.StatusBadRequest, `source must be "dns", "hostname", "sysName" or "pattern"`)
+		return
+	}
+	if !s.allowedAll(w, r, body.DeviceIDs) {
+		return
+	}
+	dryRun := body.DryRun == nil || *body.DryRun
+	results := make([]renameResult, 0, len(body.DeviceIDs))
+	updated := 0
+	skipped := 0
+	for _, id := range body.DeviceIDs {
+		d, err := s.Store.GetDevice(r.Context(), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		current := d.Name()
+		res := renameResult{ID: d.ID, From: current}
+		switch body.Source {
+		case "dns":
+			switch {
+			case strings.TrimSpace(d.DNSName) == "":
+				res.Skipped = true
+				res.Reason = "DNS name is empty"
+			case d.DNSNameSuspect:
+				res.Skipped = true
+				res.Reason = "DNS name is suspect"
+			default:
+				res.To = strings.TrimSpace(d.DNSName)
+			}
+		case "hostname":
+			if strings.TrimSpace(d.Hostname) == "" {
+				res.Skipped = true
+				res.Reason = "hostname is empty"
+			} else {
+				res.To = strings.TrimSpace(d.Hostname)
+			}
+		case "sysName":
+			if strings.TrimSpace(d.SysName) == "" {
+				res.Skipped = true
+				res.Reason = "sysName is empty"
+			} else {
+				res.To = strings.TrimSpace(d.SysName)
+			}
+		case "pattern":
+			if strings.Contains(body.Pattern, "{dnsName}") && d.DNSNameSuspect {
+				res.Skipped = true
+				res.Reason = "DNS name is suspect"
+			} else if strings.Contains(body.Pattern, "{dnsName}") && strings.TrimSpace(d.DNSName) == "" {
+				res.Skipped = true
+				res.Reason = "DNS name is empty"
+			} else {
+				to := expandRenamePattern(body.Pattern, d)
+				if to == "" {
+					res.Skipped = true
+					res.Reason = "expanded pattern is empty"
+				} else {
+					res.To = to
+				}
+			}
+		}
+		if !res.Skipped && res.To == current {
+			res.Skipped = true
+			res.Reason = "unchanged"
+		}
+		if res.Skipped {
+			skipped++
+			results = append(results, res)
+			continue
+		}
+		if !dryRun {
+			to := res.To
+			src := body.Source
+			upd, err := s.Store.PatchDevice(r.Context(), d.ID, store.DevicePatch{
+				DisplayName:       &to,
+				DisplayNameSource: &src,
+			})
+			if err != nil {
+				s.fail(w, err)
+				return
+			}
+			s.audit(r.Context(), r, "device.patch", d.ID, operatorFields(d), operatorFields(upd), "ok")
+			s.publish(r, model.Event{Type: "device.updated", Data: upd})
+		}
+		updated++
+		results = append(results, res)
+	}
+	if !dryRun {
+		s.audit(r.Context(), r, "devices.rename", fmt.Sprintf("%d devices", len(body.DeviceIDs)), nil, map[string]any{
+			"source":  body.Source,
+			"pattern": body.Pattern,
+			"updated": updated,
+			"skipped": skipped,
+			"results": results,
+		}, "ok")
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"dryRun":  dryRun,
+		"source":  body.Source,
+		"pattern": body.Pattern,
+		"updated": updated,
+		"skipped": skipped,
+		"results": results,
+	})
 }
 
 func (s *Server) pollAll(w http.ResponseWriter, r *http.Request) {
@@ -1111,6 +1289,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		"trap":      map[string]any{"enabled": s.Cfg.Trap.Enabled, "listen": s.Cfg.Trap.Listen},
 		"alerts":    map[string]any{"supplyWarningPercent": eff.SupplyWarningPercent, "supplyCriticalPercent": eff.SupplyCriticalPercent, "offlineAfterFailures": eff.OfflineAfterFailures},
 		"telemetry": map[string]any{"retention": eff.TelemetryRetention},
+		"names":     eff.Names,
 		"runtime":   eff,
 		"defaults":  s.Fleet.Defaults(),
 		"notifiers": notifiers,

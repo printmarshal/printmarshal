@@ -34,13 +34,14 @@ type Config struct {
 	} `json:"poll"`
 
 	Discovery struct {
-		Enabled      bool     `json:"enabled"` // run zero-config discovery on a schedule
-		Interval     Duration `json:"interval"`
-		MDNSWait     Duration `json:"mdnsWait"`
-		WSDWait      Duration `json:"wsdWait"`
-		ScanWorkers  int      `json:"scanWorkers"`
-		MaxAddresses int      `json:"maxAddresses"` // cap for active scans unless allowLarge
-		Targets      []string `json:"targets"`      // default active-scan targets
+		Enabled      bool       `json:"enabled"` // run zero-config discovery on a schedule
+		Interval     Duration   `json:"interval"`
+		MDNSWait     Duration   `json:"mdnsWait"`
+		WSDWait      Duration   `json:"wsdWait"`
+		ScanWorkers  int        `json:"scanWorkers"`
+		MaxAddresses int        `json:"maxAddresses"` // cap for active scans unless allowLarge
+		Targets      []string   `json:"targets"`      // default active-scan targets
+		ReverseDNS   ReverseDNS `json:"reverseDns"`
 	} `json:"discovery"`
 
 	Trap struct {
@@ -95,6 +96,16 @@ type Config struct {
 
 	// Export is the SIEM / log export and the printer syslog receiver (docs/export.md).
 	Export Export `json:"export"`
+}
+
+// ReverseDNS configures optional PTR lookups that fill Device.DNSName.
+type ReverseDNS struct {
+	Enabled         bool     `json:"enabled"`
+	Server          string   `json:"server"`
+	ShortNames      bool     `json:"shortNames"`
+	Timeout         Duration `json:"timeout"`
+	RefreshInterval Duration `json:"refreshInterval"`
+	ForwardConfirm  bool     `json:"forwardConfirm"`
 }
 
 // Export configures the security-event export sinks and the printer syslog
@@ -312,6 +323,14 @@ func Default() *Config {
 	c.Discovery.WSDWait = Duration(3 * time.Second)
 	c.Discovery.ScanWorkers = 64
 	c.Discovery.MaxAddresses = 4096
+	c.Discovery.ReverseDNS = ReverseDNS{
+		Enabled:         false,
+		Server:          "",
+		ShortNames:      true,
+		Timeout:         Duration(1 * time.Second),
+		RefreshInterval: Duration(24 * time.Hour),
+		ForwardConfirm:  true,
+	}
 	c.Trap.Enabled = true
 	c.Trap.Listen = "0.0.0.0:1162"
 	c.Alerts.SupplyWarningPercent = 15
@@ -385,6 +404,12 @@ func Load(path string) (*Config, error) {
 	if v := os.Getenv("PM_DISCOVERY_TARGETS"); v != "" {
 		c.Discovery.Targets = strings.Split(v, ",")
 	}
+	envBool("PM_REVERSE_DNS_ENABLED", &c.Discovery.ReverseDNS.Enabled)
+	envStr("PM_REVERSE_DNS_SERVER", &c.Discovery.ReverseDNS.Server)
+	envBool("PM_REVERSE_DNS_SHORT_NAMES", &c.Discovery.ReverseDNS.ShortNames)
+	envDur("PM_REVERSE_DNS_TIMEOUT", &c.Discovery.ReverseDNS.Timeout)
+	envDur("PM_REVERSE_DNS_REFRESH_INTERVAL", &c.Discovery.ReverseDNS.RefreshInterval)
+	envBool("PM_REVERSE_DNS_FORWARD_CONFIRM", &c.Discovery.ReverseDNS.ForwardConfirm)
 	envBool("PM_TRAP_ENABLED", &c.Trap.Enabled)
 	envStr("PM_TRAP_LISTEN", &c.Trap.Listen)
 	envInt("PM_JOB_WORKERS", &c.Jobs.Workers)

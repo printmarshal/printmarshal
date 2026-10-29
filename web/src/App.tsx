@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { api } from './api'
 import type { Alert, Dashboard as DashboardData, User } from './types'
+import { setNameSource } from './types'
 import { disconnectEvents, useEvents } from './ws'
 import { Ic, Mark, Wordmark } from './components/icons'
 import { Av, Btn } from './components/ui'
@@ -34,6 +35,12 @@ export default function App() {
   const navigate = useNavigate()
   const refresh = useCallback(() => { api.me().then(setUser).catch(() => setUser(null)) }, [])
   useEffect(() => { refresh() }, [refresh])
+  useEffect(() => {
+    if (!user) return
+    api.get<{ runtime?: { names?: { source?: string } }; names?: { source?: string } }>('/api/settings')
+      .then((s) => setNameSource(s.runtime?.names?.source || s.names?.source))
+      .catch(() => {})
+  }, [user])
   useEffect(() => {
     const onUnauthorized = () => { setUser(null); disconnectEvents() }
     window.addEventListener('pm:unauthorized', onUnauthorized)

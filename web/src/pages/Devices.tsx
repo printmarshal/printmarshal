@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, ago } from '../api'
-import type { Device, Group, Job, User } from '../types'
+import type { Device, Group, Job, RenameResponse, RenameRow, User } from '../types'
 import { deviceName } from '../types'
 import { useEvents } from '../ws'
 import { useDensity } from '../theme'
 import { Ic } from '../components/icons'
-import { Bar, Btn, Card, ChipSelect, DevicePill, EmptyState, Msb, SearchBox, Seg, Tag, fmtInt, remaining, supplyColor } from '../components/ui'
+import { Bar, Btn, Card, ChipSelect, DevicePill, Dialog, EmptyState, Msb, Pill, SearchBox, Seg, Tag, fmtInt, remaining, supplyColor } from '../components/ui'
 
 export default function Devices({ user }: { user: User }) {
   const [params, setParams] = useSearchParams()
@@ -18,6 +18,7 @@ export default function Devices({ user }: { user: User }) {
   const [density, setDensity] = useDensity()
   const [sel, setSel] = useState<Record<string, boolean>>({})
   const [msg, setMsg] = useState('')
+  const [renaming, setRenaming] = useState(false)
   const navigate = useNavigate()
   const q = params.get('q') || ''
   const qs = params.toString()
@@ -46,6 +47,12 @@ export default function Devices({ user }: { user: User }) {
     const g = groups.find((x) => x.id === gid)
     if (!g) return
     try { await api.put(`/api/groups/${gid}/members`, { deviceIds: Array.from(new Set([...g.memberIds, ...selected])) }); setMsg(`Added ${selected.length} to ${g.name}.`); setSel({}) } catch (e) { setMsg((e as Error).message) }
+  }
+  const useDNSName = async (deviceId: string) => {
+    try {
+      await api.post<RenameResponse>('/api/devices/rename', { deviceIds: [deviceId], source: 'dns', dryRun: false })
+      load()
+    } catch (e) { setMsg((e as Error).message) }
   }
   const counts = useMemo(() => ({ sites: new Set(devices.map((d) => d.location.split('·')[0].trim()).filter(Boolean)).size, models: models.length }), [devices, models])
   const setView2 = (v: 'table' | 'cards') => { setView(v); try { localStorage.setItem('pm.devices.view', v) } catch { /* ignore */ } }
@@ -92,6 +99,7 @@ export default function Devices({ user }: { user: User }) {
             <Btn sm variant="ghost" style={{ color: 'var(--accent)' }} onClick={toggleAll}>{selected.length === devices.length ? 'Clear' : `Select all ${devices.length}`}</Btn>
             <span className="vsep" />
             <Btn sm onClick={pollSelected}><Ic.refresh />Poll now</Btn>
+            <Btn sm onClick={() => setRenaming(true)}><Ic.pencil />Rename…</Btn>
             <label className="chip"><Ic.layers />Add to group<select aria-label="Add to group" value="" onChange={(e) => addToGroup(e.target.value)}><option value="">choose…</option>{groups.filter((g) => g.kind === 'static').map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
             <a className="btn sm" href={`/api/devices.csv?${qs}`}><Ic.download />Export</a>
             <Btn sm variant="ghost" ic style={{ marginLeft: 'auto' }} aria-label="Clear selection" onClick={() => setSel({})}><Ic.x /></Btn>
@@ -111,9 +119,26 @@ export default function Devices({ user }: { user: User }) {
                     <tr key={d.id} className={`clickable${sel[d.id] ? ' sel' : ''}`} onClick={() => navigate(`/devices/${d.id}`)}>
                       {canOperate && <td onClick={(e) => e.stopPropagation()}><input className="cbx" type="checkbox" aria-label={`Select ${deviceName(d)}`} checked={!!sel[d.id]} onChange={() => toggle(d.id)} /></td>}
                       <td><DevicePill d={d} /></td>
-                      <td><Link to={`/devices/${d.id}`} style={{ fontWeight: 500 }} onClick={(e) => e.stopPropagation()}>{deviceName(d)}</Link>{d.serial && <div className="cap mono" style={{ fontSize: 11 }}>{d.serial}</div>}</td>
+                      <td>
+                        <Link to={`/devices/${d.id}`} style={{ fontWeight: 500 }} onClick={(e) => e.stopPropagation()}>{deviceName(d)}</Link>
+                        {d.serial && <div className="cap mono" style={{ fontSize: 11 }}>{d.serial}</div>}
+                        {d.dnsNameChanged && (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 2 }} onClick={(e) => e.stopPropagation()}>
+                            <Pill tone="warn" xs>DNS name changed</Pill>
+                            {canOperate && !d.dnsNameSuspect && <Btn sm variant="ghost" style={{ height: 20, padding: '0 6px', fontSize: 11 }} onClick={() => useDNSName(d.id)}>Use DNS name</Btn>}
+                          </div>
+                        )}
+                      </td>
                       <td className="mono">{d.model}</td>
-                      <td><div className="mono" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{d.address}{d.webUrl && <a href={d.webUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open the web page of ${deviceName(d)}`} title="Open the device web page" onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}><Ic.external size={14} /></a>}</div>{d.hostname && <div className="cap" style={{ fontSize: 11 }}>{d.hostname}</div>}</td>
+                      <td>
+                        <div className="mono" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{d.address}{d.webUrl && <a href={d.webUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open the web page of ${deviceName(d)}`} title="Open the device web page" onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}><Ic.external size={14} /></a>}</div>
+                        {(d.dnsName || d.hostname) && (
+                          <div className="cap" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            {d.dnsName || d.hostname}
+                            {d.dnsName && d.dnsNameSuspect && <Pill tone="warn" xs title="Suspect DNS name">suspect</Pill>}
+                          </div>
+                        )}
+                      </td>
                       <td className="cap" style={{ color: 'var(--text-2)' }}>{d.location || '—'}</td>
                       <td><Msb supplies={d.supplies} /></td>
                       <td className="num r">{d.counters ? fmtInt(d.counters.total) : <span className="cap">—</span>}</td>
@@ -133,7 +158,16 @@ export default function Devices({ user }: { user: User }) {
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>{canOperate && <input className="cbx" type="checkbox" aria-label={`Select ${deviceName(d)}`} checked={!!sel[d.id]} onChange={() => toggle(d.id)} />}<Link to={`/devices/${d.id}`} style={{ fontWeight: 600, color: 'var(--text)' }}>{deviceName(d)}</Link></label>
                     <DevicePill d={d} />
                   </div>
-                  <div><div className="mono" style={{ color: 'var(--text-2)' }}>{d.model} · {d.address}</div><div className="cap">{d.location || d.serial}</div></div>
+                  <div>
+                    <div className="mono" style={{ color: 'var(--text-2)' }}>{d.model} · {d.address}</div>
+                    <div className="cap">{d.location || d.serial}</div>
+                    {d.dnsNameChanged && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                        <Pill tone="warn" xs>DNS name changed</Pill>
+                        {canOperate && !d.dnsNameSuspect && <Btn sm variant="ghost" style={{ height: 20, padding: '0 6px', fontSize: 11 }} onClick={() => useDNSName(d.id)}>Use DNS name</Btn>}
+                      </div>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {d.supplies.filter((s) => s.class !== 'other' && s.percent !== null).slice(0, 5).map((s) => {
                       const r = remaining(s) ?? 0
@@ -152,6 +186,124 @@ export default function Devices({ user }: { user: User }) {
           <span className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Ic.info size={14} style={{ color: 'var(--info)' }} />Decommissioned devices are hidden unless you filter by that lifecycle state.</span>
         </div>
       </Card>
+      {renaming && (
+        <RenameDialog
+          deviceIds={selected}
+          onClose={() => setRenaming(false)}
+          onApplied={(n) => {
+            setRenaming(false)
+            setSel({})
+            setMsg(`Renamed ${n} device${n === 1 ? '' : 's'}.`)
+            load()
+          }}
+        />
+      )}
     </>
+  )
+}
+
+function RenameDialog({ deviceIds, onClose, onApplied }: { deviceIds: string[]; onClose: () => void; onApplied: (updated: number) => void }) {
+  const [source, setSource] = useState<'dns' | 'hostname' | 'sysName' | 'pattern'>('dns')
+  const [pattern, setPattern] = useState('{location}-{model}')
+  const [rows, setRows] = useState<RenameRow[]>([])
+  const [busy, setBusy] = useState(false)
+  const [applying, setApplying] = useState(false)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    if (source === 'pattern' && !pattern.trim()) {
+      setRows([])
+      return
+    }
+    let cancelled = false
+    setBusy(true)
+    setErr('')
+    api.post<RenameResponse>('/api/devices/rename', {
+      deviceIds,
+      source,
+      pattern: source === 'pattern' ? pattern : undefined,
+      dryRun: true,
+    }).then((res) => {
+      if (!cancelled) setRows(res.results || [])
+    }).catch((e) => {
+      if (!cancelled) setErr((e as Error).message)
+    }).finally(() => {
+      if (!cancelled) setBusy(false)
+    })
+    return () => { cancelled = true }
+  }, [deviceIds, source, pattern])
+
+  const willUpdate = rows.filter((r) => !r.skipped).length
+
+  const apply = async () => {
+    setApplying(true)
+    setErr('')
+    try {
+      const res = await api.post<RenameResponse>('/api/devices/rename', {
+        deviceIds,
+        source,
+        pattern: source === 'pattern' ? pattern : undefined,
+        dryRun: false,
+      })
+      onApplied(res.updated)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  return (
+    <Dialog
+      title={`Rename ${deviceIds.length} device${deviceIds.length === 1 ? '' : 's'}`}
+      sub="Preview the new operator display names before applying. Suspect or empty names are skipped."
+      onClose={onClose}
+      footer={
+        <>
+          <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn variant="pri" disabled={applying || busy || willUpdate === 0} onClick={apply}>
+            {applying ? 'Applying…' : `Apply (${willUpdate})`}
+          </Btn>
+        </>
+      }
+    >
+      <div className="stack" style={{ gap: 12 }}>
+        <div className="row" style={{ gap: 10 }}>
+          <label className="cap" htmlFor="rn-source">Source</label>
+          <select id="rn-source" className="fin" style={{ width: 220 }} value={source} onChange={(e) => setSource(e.target.value as typeof source)}>
+            <option value="dns">DNS name</option>
+            <option value="hostname">mDNS / advertised hostname</option>
+            <option value="sysName">Advertised sysName</option>
+            <option value="pattern">Pattern…</option>
+          </select>
+        </div>
+        {source === 'pattern' && (
+          <div>
+            <label className="cap" htmlFor="rn-pattern">Pattern</label>
+            <input id="rn-pattern" className="fin mono" value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="{location}-{model}-{serial}" />
+            <div className="cap" style={{ marginTop: 4 }}>Tokens: {'{serial}'} {'{model}'} {'{make}'} {'{address}'} {'{hostname}'} {'{dnsName}'} {'{sysName}'} {'{location}'} {'{assetTag}'}</div>
+          </div>
+        )}
+        {err && <div className="banner crit">{err}</div>}
+        <div className="tw" style={{ maxHeight: 300, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
+          <table className="tbl">
+            <thead><tr><th>Current name</th><th>New display name</th><th>Status</th></tr></thead>
+            <tbody>
+              {busy ? (
+                <tr><td colSpan={3} className="cap">Loading preview…</td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={3} className="cap">No preview rows.</td></tr>
+              ) : rows.map((r) => (
+                <tr key={r.id} style={r.skipped ? { opacity: 0.55 } : undefined}>
+                  <td className="mono">{r.from}</td>
+                  <td className="mono">{r.skipped ? '—' : r.to}</td>
+                  <td>{r.skipped ? <span className="cap">Skipped: {r.reason}</span> : <Pill tone="ok" xs>Will rename</Pill>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Dialog>
   )
 }

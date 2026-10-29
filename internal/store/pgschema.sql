@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS devices (
   id TEXT PRIMARY KEY,
   address TEXT NOT NULL,
   hostname TEXT NOT NULL DEFAULT '',
+  dns_name TEXT NOT NULL DEFAULT '',
+  dns_name_suspect INTEGER NOT NULL DEFAULT 0,
+  dns_checked_at TIMESTAMPTZ,
   mac TEXT NOT NULL DEFAULT '',
   serial TEXT NOT NULL DEFAULT '',
   uuid TEXT NOT NULL DEFAULT '',
@@ -24,6 +27,8 @@ CREATE TABLE IF NOT EXISTS devices (
   discovery_methods JSONB NOT NULL DEFAULT '[]',
   identify_methods JSONB NOT NULL DEFAULT '[]',
   display_name TEXT NOT NULL DEFAULT '',
+  display_name_source TEXT NOT NULL DEFAULT '',
+  dns_sync INTEGER NOT NULL DEFAULT 0,
   location TEXT NOT NULL DEFAULT '',
   asset_tag TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
@@ -45,6 +50,11 @@ CREATE INDEX IF NOT EXISTS devices_uuid ON devices(uuid);
 CREATE INDEX IF NOT EXISTS devices_mac ON devices(mac);
 CREATE INDEX IF NOT EXISTS devices_address ON devices(address);
 CREATE INDEX IF NOT EXISTS devices_state ON devices(state);
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS dns_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS dns_name_suspect INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS dns_checked_at TIMESTAMPTZ;
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS display_name_source TEXT NOT NULL DEFAULT '';
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS dns_sync INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS groups (
   id TEXT PRIMARY KEY,

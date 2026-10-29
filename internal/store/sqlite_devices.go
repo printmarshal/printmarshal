@@ -12,8 +12,8 @@ import (
 	"printmarshal/internal/model"
 )
 
-const deviceCols = `id, address, hostname, mac, serial, uuid, make, model, device_type, firmware, sys_descr, sys_name,
- enterprise_id, admin_url, capabilities, discovery_methods, identify_methods, display_name, location, asset_tag, notes,
+const deviceCols = `id, address, hostname, dns_name, dns_name_suspect, dns_checked_at, mac, serial, uuid, make, model, device_type, firmware, sys_descr, sys_name,
+ enterprise_id, admin_url, capabilities, discovery_methods, identify_methods, display_name, display_name_source, dns_sync, location, asset_tag, notes,
  state, status, supplies, trays, counters, severity, consecutive_failures, first_seen, last_seen, last_polled, created_at, updated_at,
  web_url_probed, web_url_override`
 
@@ -25,17 +25,22 @@ func scanDevice(r rowScanner) (*model.Device, error) {
 		caps, disc, ident, supplies, trays string
 		status, counters                   sql.NullString
 		firstSeen, lastSeen, created, upd  string
-		lastPolled                         sql.NullString
+		lastPolled, dnsCheckedAt           sql.NullString
+		dnsNameSuspect, dnsSync            int
 		failures                           int
 		severity                           string
 	)
-	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
-		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.Location, &d.AssetTag,
+	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.DNSName, &dnsNameSuspect, &dnsCheckedAt, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
+		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.DisplayNameSource, &dnsSync, &d.Location, &d.AssetTag,
 		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd,
 		&d.WebURLProbed, &d.WebURLOverride)
 	if err != nil {
 		return nil, err
 	}
+	d.DNSNameSuspect = dnsNameSuspect != 0
+	d.DNSCheckedAt = parseTimeP(dnsCheckedAt)
+	d.DNSSync = dnsSync != 0
+	d.DNSNameChanged = !d.DNSSync && d.DisplayNameSource == "dns" && d.DNSName != "" && d.DisplayName != "" && d.DNSName != d.DisplayName
 	d.Capabilities = map[model.Capability]string{}
 	fromJSON(sql.NullString{String: caps, Valid: true}, &d.Capabilities)
 	d.DiscoveryMethods = []string{}
@@ -128,10 +133,10 @@ func (s *SQLite) UpsertDevice(ctx context.Context, id *model.Identity, caps map[
 	n := now()
 	if existing == nil {
 		d := &model.Device{ID: newID()}
-		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(35)+`)`,
-			d.ID, id.Address, id.Hostname, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
+		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(40)+`)`,
+			d.ID, id.Address, id.Hostname, "", 0, nil, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
 			id.SysDescr, id.SysName, id.EnterpriseID, id.AdminURL, toJSON(caps), toJSON(discoveryMethods), toJSON(identMethods),
-			"", id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "")
+			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "")
 		if err != nil {
 			return nil, false, err
 		}
@@ -292,6 +297,15 @@ func (s *SQLite) PatchDevice(ctx context.Context, id string, p DevicePatch) (*mo
 	}
 	if p.DisplayName != nil {
 		d.DisplayName = *p.DisplayName
+		if p.DisplayNameSource == nil {
+			d.DisplayNameSource = ""
+		}
+	}
+	if p.DisplayNameSource != nil {
+		d.DisplayNameSource = *p.DisplayNameSource
+	}
+	if p.DNSSync != nil {
+		d.DNSSync = *p.DNSSync
 	}
 	if p.Location != nil {
 		d.Location = *p.Location
@@ -305,10 +319,34 @@ func (s *SQLite) PatchDevice(ctx context.Context, id string, p DevicePatch) (*mo
 	if p.WebURLOverride != nil {
 		d.WebURLOverride = strings.TrimSpace(*p.WebURLOverride)
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE devices SET display_name=?, location=?, asset_tag=?, notes=?, web_url_override=?, updated_at=? WHERE id=?`,
-		d.DisplayName, d.Location, d.AssetTag, d.Notes, d.WebURLOverride, now(), id)
+	dnsSync := 0
+	if d.DNSSync {
+		dnsSync = 1
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE devices SET display_name=?, display_name_source=?, dns_sync=?, location=?, asset_tag=?, notes=?, web_url_override=?, updated_at=? WHERE id=?`,
+		d.DisplayName, d.DisplayNameSource, dnsSync, d.Location, d.AssetTag, d.Notes, d.WebURLOverride, now(), id)
 	if err != nil {
 		return nil, err
+	}
+	return s.GetDevice(ctx, id)
+}
+
+// SetDeviceDNS implements Store.
+func (s *SQLite) SetDeviceDNS(ctx context.Context, id, dnsName string, suspect bool, checkedAt time.Time) (*model.Device, error) {
+	susp := 0
+	if suspect {
+		susp = 1
+	}
+	if checkedAt.IsZero() {
+		checkedAt = time.Now().UTC()
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE devices SET dns_name=?, dns_name_suspect=?, dns_checked_at=?, updated_at=? WHERE id=?`,
+		dnsName, susp, ts(checkedAt), now(), id)
+	if err != nil {
+		return nil, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil, ErrNotFound
 	}
 	return s.GetDevice(ctx, id)
 }
