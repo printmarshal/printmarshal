@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ago, fmtTime } from '../api'
 import type { Alert, Consumable, Device, InstalledSupply, Sample, StockEvent, Tray, User } from '../types'
@@ -19,8 +19,15 @@ const transitions: Record<string, string[]> = {
 }
 type Tab = 'overview' | 'config' | 'firmware' | 'security' | 'activity'
 
+/** Route wrapper: keyed by the route id so every piece of device-specific state (record, alerts, counters, error, note, tab...) is discarded
+ *  when navigating from one device to another, and the loading state shows until data for the new id arrives. */
 export default function DeviceDetail({ user }: { user: User }) {
   const { id } = useParams()
+  if (!id) return <Banner tone="crit">No device selected.</Banner>
+  return <DeviceDetailBody key={id} id={id} user={user} />
+}
+
+function DeviceDetailBody({ id, user }: { id: string; user: User }) {
   const navigate = useNavigate()
   const [device, setDevice] = useState<Device | null>(null)
   const [alerts, setAlerts] = useState<Alert[]>([])
@@ -34,11 +41,19 @@ export default function DeviceDetail({ user }: { user: User }) {
   const [secFailing, setSecFailing] = useState(0)
   const canOperate = user.role !== 'viewer'
 
+  // Request generation: only responses belonging to the most recent load() of the mounted component are applied.
+  const gen = useRef(0)
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false; gen.current++ } }, [])
+
   const load = useCallback(() => {
-    api.get<{ device: Device; alerts: Alert[] }>(`/api/devices/${id}`).then((r) => { setDevice(r.device); setAlerts(r.alerts) }).catch((e) => setError(e.message))
-    api.get<DeviceSecurity>(`/api/devices/${id}/security`).then((r) => setSecFailing(Math.max(0, ...r.assessments.map((a) => a.failed)))).catch(() => {})
-    api.get<Sample[]>(`/api/devices/${id}/telemetry?metric=counter.total&from=${new Date(Date.now() - 30 * 864e5).toISOString()}`).then(setCounters).catch(() => {})
+    const g = ++gen.current
+    const cur = () => alive.current && g === gen.current
+    api.get<{ device: Device; alerts: Alert[] }>(`/api/devices/${id}`).then((r) => { if (!cur()) return; setDevice(r.device); setAlerts(r.alerts); setError('') }).catch((e) => { if (cur()) setError(e.message) })
+    api.get<DeviceSecurity>(`/api/devices/${id}/security`).then((r) => { if (cur()) setSecFailing(Math.max(0, ...r.assessments.map((a) => a.failed))) }).catch(() => {})
+    api.get<Sample[]>(`/api/devices/${id}/telemetry?metric=counter.total&from=${new Date(Date.now() - 30 * 864e5).toISOString()}`).then((s) => { if (cur()) setCounters(s) }).catch(() => {})
     api.get<Sample[]>(`/api/devices/${id}/telemetry?metric=supply.percent&from=${new Date(Date.now() - 30 * 864e5).toISOString()}`).then((s) => {
+      if (!cur()) return
       const m: Record<string, Sample[]> = {}
       for (const x of s) (m[(x.label || '').split(':')[0]] ||= []).push(x)
       setSupplyHist(m)
@@ -47,21 +62,28 @@ export default function DeviceDetail({ user }: { user: User }) {
   useEffect(() => { load() }, [load])
   useEvents((e) => { const d = e.data as { id?: string; deviceId?: string }; if (d && (d.id === id || d.deviceId === id)) load() }, [id, load])
 
+  // Actions target the device that is actually displayed (the loaded record), never the bare route parameter.
+  const shownId = device?.id === id ? device.id : null
   const poll = async () => {
+    if (!shownId) return
     setBusy(true); setNote(null)
     try {
-      const r = await api.post<{ device: Device; servedBy: Record<string, string>; errors: Record<string, string>; reachable: boolean }>(`/api/devices/${id}/poll`)
+      const r = await api.post<{ device: Device; servedBy: Record<string, string>; errors: Record<string, string>; reachable: boolean }>(`/api/devices/${shownId}/poll`)
+      if (!alive.current) return
       setDevice(r.device)
       const errs = Object.entries(r.errors || {})
       const by = Object.values(r.servedBy || {}).filter((v, i, a) => a.indexOf(v) === i).join(', ')
       setNote(r.reachable ? { tone: errs.length ? 'warn' : 'ok', text: `Polled via ${by}${errs.length ? ` · ${errs.map(([k, v]) => `${k}: ${v}`).join('; ')}` : ''}` } : { tone: 'crit', text: `Unreachable: ${errs.map(([, v]) => v).join('; ')}` })
       load()
-    } catch (e) { setNote({ tone: 'crit', text: (e as Error).message }) } finally { setBusy(false) }
+    } catch (e) { if (alive.current) setNote({ tone: 'crit', text: (e as Error).message }) } finally { if (alive.current) setBusy(false) }
   }
-  const setState = async (state: string) => { try { setDevice(await api.post<Device>(`/api/devices/${id}/state`, { state })) } catch (e) { setNote({ tone: 'crit', text: (e as Error).message }) } }
-  const ack = async (a: Alert) => { await api.post(`/api/alerts/${a.id}/ack`); load() }
+  const setState = async (state: string) => {
+    if (!shownId) return
+    try { const nd = await api.post<Device>(`/api/devices/${shownId}/state`, { state }); if (alive.current) setDevice(nd) } catch (e) { if (alive.current) setNote({ tone: 'crit', text: (e as Error).message }) }
+  }
+  const ack = async (a: Alert) => { await api.post(`/api/alerts/${a.id}/ack`); if (alive.current) load() }
 
-  if (error) return <Banner tone="crit">{error}</Banner>
+  if (error && !device) return <Banner tone="crit">{error}</Banner>
   if (!device) return <div className="cap" aria-busy="true">Loading…</div>
   const d = device
   const inputs = d.trays.filter((t) => t.kind === 'input')
@@ -83,14 +105,15 @@ export default function DeviceDetail({ user }: { user: User }) {
         </div>
         {canOperate && (
           <div className="row" role="toolbar" aria-label="Device actions">
-            <Btn sm onClick={poll} disabled={busy}><Ic.refresh />{busy ? 'Polling…' : 'Poll now'}</Btn>
+            <Btn sm onClick={poll} disabled={busy || !shownId}><Ic.refresh />{busy ? 'Polling…' : 'Poll now'}</Btn>
             <a className="btn sm" href="#identity"><Ic.pencil />Edit</a>
             {d.adminUrl && <a className="btn sm" href={d.adminUrl} target="_blank" rel="noreferrer"><Ic.external />Device web page</a>}
             <span className="vsep" />
-            <label className="chip"><select aria-label="Change lifecycle state" value="" onChange={(e) => e.target.value && setState(e.target.value)}><option value="">Change state…</option>{(transitions[d.state] || []).map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select></label>
+            <label className="chip"><select aria-label="Change lifecycle state" value="" disabled={!shownId} onChange={(e) => e.target.value && setState(e.target.value)}><option value="">Change state…</option>{(transitions[d.state] || []).map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select></label>
           </div>
         )}
       </div>
+      {error && <Banner tone="crit">{error}</Banner>}
       {note && <Banner tone={note.tone}>{note.text}</Banner>}
       {topAlert && (
         <Banner tone="crit" role="alert" right={<>{canOperate && !topAlert.ackedAt && <Btn sm onClick={() => ack(topAlert)}>Acknowledge</Btn>}<Link className="btn sm ghost" to="/alerts">Open alerts</Link></>}>
