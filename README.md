@@ -97,12 +97,17 @@ What works today:
 - **Identity and access** ([docs](docs/auth.md)) — local accounts, optional OpenID
   Connect single sign-on (authorization code + PKCE, discovery, RS256/ES256 ID-token
   verification with the standard library, role mapping from IdP claims, domain
-  allow-list) for Entra ID / Okta / Keycloak and the like, with accounts bound to the
-  provider's subject rather than a username; API tokens as first-class service
-  accounts (admin-issued, secret shown once, expiring, revocable, unable to touch
-  authentication or users), and group scopes that confine a token to the devices in
-  named groups across every device route, nested target and device-owned resource.
-  Every sign-in, denial and token change is a security event in the audit log.
+  allow-list) for Entra ID / Okta / Keycloak and the like, plus the legacy enterprise
+  methods: SAML 2.0 (SP metadata, redirect/POST bindings, signature, audience,
+  validity and replay checks, Entra ID / Okta / ADFS / Keycloak notes), LDAP /
+  Active Directory (service-account search or direct bind, StartTLS / LDAPS,
+  groups → roles) and RADIUS PAP (RFC 2865/2869, stdlib only) behind the same login
+  form. Every external account is bound by issuer + subject, never by username.
+  API tokens are first-class service accounts (admin-issued, secret shown once,
+  expiring, revocable, unable to touch authentication or users), and group scopes
+  confine a token to the devices in named groups across every device route, nested
+  target and device-owned resource. Every sign-in, denial and token change is a
+  security event in the audit log.
 - **Exports and SIEM** ([docs](docs/export.md)) — every security event, alert
   and dead notification forwarded from the event bus to RFC 5424 syslog (UDP /
   TCP / TLS, with structured data, CEF or JSON payloads), a rotating JSON-lines

@@ -29,5 +29,6 @@
   ],
   "jobs": { "workers": 4 },
   "auth": { "sessionTtl": "720h", "secureCookies": false, "allowedOrigins": [], "loginFailuresPerMinute": 10 },
+  "_auth_note": "optional sign-in methods go under auth: oidc, saml (single sign-on), ldap and radius (behind the login form). Each is off until configured and every secret is named by an *Env field, never inline. Complete, copy-ready blocks for each are in docs/auth.md.",
   "telemetry": { "retention": "2160h" }
 }

@@ -5,8 +5,16 @@ PrintMarshal has three kinds of principal and two layers of authorization.
 | Principal | How it signs in | Where it is managed |
 | --- | --- | --- |
 | Local user | username + password → session cookie / bearer session token | Settings → Users & roles |
-| OIDC user | "Sign in with …" → identity provider → session | provisioned on first sign-in; role from the IdP |
+| OIDC / SAML user | "Sign in with …" → identity provider → session | provisioned on first sign-in; role from the IdP |
+| LDAP / RADIUS user | username + password on the same login form → directory / RADIUS server → session | provisioned on first sign-in; role from groups / reply attributes |
 | API token (service account) | `Authorization: Bearer pmt_…` | Settings → API tokens, `/api/tokens` |
+
+Every external method is optional and off until configured, and all of them
+share one rule: the local account is bound to the identity the provider
+reports (**issuer + subject**), never to the username. `GET
+/api/auth/providers` lists what is enabled (`providers[]` with `kind`,
+`name`, `method` = `redirect` or `password`, and `start` for the redirect
+kinds); the login page builds itself from that list.
 
 Authorization is the role rank (viewer < operator < admin) plus an optional
 **group scope** that limits a principal to the devices in named groups.
@@ -225,11 +233,332 @@ either as `roleClaim`. `preferred_username` is set by default.
 Any other compliant provider (Google Workspace, Auth0, Authentik, Dex,
 Zitadel) works the same way; only the claim that carries roles differs.
 
+## LDAP / Active Directory
+
+For sites whose identities live in a directory and that have no web SSO.
+Users type their directory credentials into the ordinary login form; the
+server binds to the directory on their behalf. Implemented with
+`github.com/go-ldap/ldap/v3`.
+
+### Configuration
+
+```json
+"auth": {
+  "ldap": {
+    "url": "ldaps://dc1.corp.example.com:636",
+    "startTls": false,
+    "caFile": "/etc/printmarshal/corp-root-ca.pem",
+    "bindDN": "CN=printmarshal,OU=Service Accounts,DC=corp,DC=example,DC=com",
+    "bindPasswordEnv": "PM_LDAP_BIND_PASSWORD",
+    "baseDN": "OU=People,DC=corp,DC=example,DC=com",
+    "userFilter": "(|(sAMAccountName=%s)(userPrincipalName=%s))",
+    "usernameAttr": "sAMAccountName",
+    "subjectAttr": "objectGUID",
+    "groupAttr": "memberOf",
+    "roleMap": {
+      "CN=PrintMarshal Admins,OU=Groups,DC=corp,DC=example,DC=com": "admin",
+      "PrintMarshal Operators": "operator"
+    },
+    "defaultRole": "viewer",
+    "allowedGroups": ["PrintMarshal Users"],
+    "timeout": "10s",
+    "displayName": "Corp AD"
+  }
+}
+```
+
+Without a service account, bind directly as the user instead:
+
+```json
+"ldap": {
+  "url": "ldap://ldap.example.com:389",
+  "startTls": true,
+  "userDNTemplate": "uid=%s,ou=people,dc=example,dc=com",
+  "baseDN": "dc=example,dc=com",
+  "subjectAttr": "entryUUID",
+  "roleMap": { "cn=printer-admins,ou=groups,dc=example,dc=com": "admin" }
+}
+```
+
+(`"userDNTemplate": "%s@corp.example.com"` binds with an AD user principal
+name.) Environment overrides: `PM_LDAP_URL`, `PM_LDAP_START_TLS`,
+`PM_LDAP_CA_FILE`, `PM_LDAP_BIND_DN`, `PM_LDAP_BIND_PASSWORD_ENV` (the *name*
+of the variable holding the password), `PM_LDAP_USER_DN_TEMPLATE`,
+`PM_LDAP_BASE_DN`, `PM_LDAP_USER_FILTER`. The service-account password lives
+only in the variable `bindPasswordEnv` names. LDAP is on as soon as `url`
+is set.
+
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `url` | `ldap://host:389` or `ldaps://host:636` | required |
+| `startTls` | upgrade an `ldap://` connection with StartTLS before any bind | `false` |
+| `caFile` / `insecureSkipVerify` | PEM bundle that verifies the server / skip verification (lab only) | system roots |
+| `bindDN` + `bindPasswordEnv` | read-only service account that finds the user's entry | none → direct bind |
+| `userDNTemplate` | bind name when there is no service account; `%s` is the login name (DN-escaped) | — |
+| `baseDN` | search base for the user entry | required with `bindDN`; optional with a template |
+| `userFilter` | RFC 4515 filter; every `%s` is the escaped login name | `(\|(sAMAccountName=%s)(uid=%s)(userPrincipalName=%s)(mail=%s))` |
+| `usernameAttr` | attribute that becomes the local username | the attribute that matched the login name, then `sAMAccountName`, `uid`, the typed name (direct bind), the DN |
+| `subjectAttr` | stable identifier the account is bound to | `objectGUID` (rendered as the canonical GUID string), then `entryUUID`, then the DN |
+| `groupAttr` | multi-valued attribute listing the user's groups | `memberOf` |
+| `roleMap` | group **DN or CN** → `viewer` / `operator` / `admin` (case-insensitive) | none |
+| `defaultRole` | when nothing in `roleMap` matches | `viewer` |
+| `allowedGroups` | DNs or CNs; users in none of them are refused | any |
+| `timeout` | per sign-in, covering connect, binds and search | `10s` |
+| `displayName` | name shown on the login page and in audit entries | the server host |
+
+### Flow
+
+`POST /api/auth/login` always tries the local account first. The directory
+is consulted only when **no local account owns that username**, or the
+account that does is already bound to this LDAP issuer. A local account
+(the built-in `admin`, anyone created in Settings) therefore keeps its
+local password as the only way in, whatever the directory says. Then:
+
+1. Connect (TLS for `ldaps://`, StartTLS when asked; an empty password is
+   refused before anything is sent, so an "unauthenticated bind" can never
+   succeed).
+2. With a service account: bind as it, search `baseDN` (subtree) with
+   `userFilter`; exactly one entry must match, then bind as that entry with
+   the user's password. Without one: bind as `userDNTemplate` and read the
+   entry (through `userFilter` under `baseDN`, or the bind DN itself when
+   `baseDN` is empty).
+3. Read `groupAttr`, check `allowedGroups`, map the role (highest wins).
+4. Provision through the same path as OIDC with issuer `ldap:<url>` and
+   the `subjectAttr` value as the subject; audit `user.create` with
+   `source: ldap` on first sign-in, `auth.login` ("signed in via <name>")
+   on every one.
+
+Wrong password, unknown user, several matching entries and a login name
+with filter metacharacters all answer `401 invalid credentials` with the
+same body and delay, and count towards the login rate limit. A directory
+that cannot be reached (or an empty `bindPasswordEnv` variable) answers
+`503` with a generic message; the cause is in the server log and in an
+`auth.failed` event with result `error`.
+
+### Roles
+
+`roleMap` keys may be full group DNs or just the first RDN value (the CN),
+compared case-insensitively. When a `roleMap` is set the role is re-applied
+on every sign-in; without one, roles are assigned once (`defaultRole`) and
+managed locally.
+
+### Security notes
+
+- Prefer `ldaps://` or `startTls: true` with `caFile`: the user's password
+  travels in the simple bind. Plain `ldap://` without StartTLS sends it in
+  clear text and should only be used on an isolated management network.
+- The service account needs **read access to the user base only** (the
+  user attributes above and `memberOf`); it never writes. Give it a long
+  random password, no interactive logon, and keep it in `bindPasswordEnv`.
+- Login names are escaped for both filters (RFC 4515) and DNs (RFC 4514)
+  before use; the search is limited to two entries so an over-broad filter
+  cannot be used to enumerate the directory.
+- A renamed directory user keeps their PrintMarshal account (bound by GUID /
+  UUID); a deleted-and-recreated one gets a new account.
+
+## RADIUS
+
+For sites that front their authentication with a RADIUS server (NPS,
+FreeRADIUS, a token appliance). Implemented with the standard library only:
+RFC 2865 PAP `Access-Request` over UDP with the `User-Password` hidden under
+the shared secret, a `Message-Authenticator` (RFC 2869, HMAC-MD5) on every
+request, and the reply's Response Authenticator and Message-Authenticator
+verified before it is trusted. `Access-Challenge` (two-step / OTP prompts)
+is not supported and is treated as a rejection.
+
+### Configuration
+
+```json
+"auth": {
+  "radius": {
+    "servers": ["nps1.corp.example.com:1812", "nps2.corp.example.com:1812"],
+    "secretEnv": "PM_RADIUS_SECRET",
+    "timeout": "3s",
+    "retries": 2,
+    "nasIdentifier": "printmarshal",
+    "roleAttribute": "Filter-Id",
+    "roleMap": { "printmarshal-admin": "admin", "printmarshal-operator": "operator" },
+    "defaultRole": "viewer",
+    "displayName": "Corp RADIUS"
+  }
+}
+```
+
+Environment overrides: `PM_RADIUS_SERVERS` (comma separated),
+`PM_RADIUS_SECRET_ENV` (the *name* of the variable holding the secret),
+`PM_RADIUS_NAS_IDENTIFIER`. RADIUS is on as soon as `servers` has an entry.
+
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `servers` | `host:port`, tried in order; each gets `retries` retransmissions | required |
+| `secretEnv` | env var holding the shared secret | required |
+| `timeout` / `retries` | per attempt / retransmissions per server | `3s` / `2` |
+| `nasIdentifier` | `NAS-Identifier` attribute (`NAS-IP-Address` 127.0.0.1 is sent as well) | `printmarshal` |
+| `roleAttribute` | reply attribute looked up in `roleMap`: `Filter-Id` or `Class` | `Filter-Id` |
+| `roleMap` / `defaultRole` | value → role; highest wins; re-applied on every sign-in when set | none / `viewer` |
+
+### Flow and identity
+
+The login handler tries the local account, then LDAP (when configured),
+then RADIUS — the same rules as above: a free username is offered to each
+in turn, a bound account only to its own provider, a local account to
+none. A reject from any server is final; only a server that does not
+answer is skipped.
+
+**RADIUS has no stable user identifier.** The subject is therefore the
+**lowercased username** and the issuer `radius:<first server>`, which
+means: renaming a user at the RADIUS backend creates a new PrintMarshal
+account, and giving the old name to someone else hands them the old
+account's role. Use `roleMap` so roles follow the reply attributes rather
+than the account, and prefer LDAP or SAML when a stable identifier exists.
+
+### Security notes
+
+- **PAP sends the password to the RADIUS server protected only by the
+  shared secret** (an MD5-based stream cipher). Use RadSec (RADIUS over
+  TLS, through a local proxy such as radsecproxy) or IPsec on any network
+  you do not fully trust, and a long random secret.
+- Replies are accepted only with a matching identifier, a correct Response
+  Authenticator and, when present, a correct Message-Authenticator; forged
+  or truncated packets are ignored like lost ones.
+- Change `nasIdentifier` if your policy keys on it; register PrintMarshal's
+  source address as a RADIUS client at the server.
+
+## SAML 2.0
+
+For identity providers that only speak SAML (ADFS, older Shibboleth /
+Okta / Entra ID configurations). PrintMarshal is a standard **service
+provider** with the HTTP-Redirect binding for the request and HTTP-POST
+for the response, built on `github.com/crewjam/saml` for metadata,
+XML-DSIG verification and assertion decryption.
+
+### Configuration
+
+```json
+"auth": {
+  "saml": {
+    "idpMetadataUrl": "https://login.microsoftonline.com/<tenant-id>/federationmetadata/2007-06/federationmetadata.xml?appid=<app-id>",
+    "baseUrl": "https://printmarshal.example.com",
+    "signRequests": false,
+    "usernameAttr": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
+    "subjectAttr": "http://schemas.microsoft.com/identity/claims/objectidentifier",
+    "roleAttr": "http://schemas.microsoft.com/ws/2008/06/identity/claims/groups",
+    "roleMap": { "<admins group object id>": "admin", "<operators group object id>": "operator" },
+    "defaultRole": "viewer",
+    "allowedGroups": [],
+    "displayName": "Corp SSO (SAML)"
+  }
+}
+```
+
+Environment overrides: `PM_SAML_IDP_METADATA_URL`, `PM_SAML_IDP_METADATA_FILE`,
+`PM_SAML_BASE_URL`, `PM_SAML_ENTITY_ID`, `PM_SAML_ACS_URL`,
+`PM_SAML_SP_CERT_FILE`, `PM_SAML_SP_KEY_FILE`. SAML is on as soon as one of
+the two metadata sources is set.
+
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `idpMetadataUrl` / `idpMetadataFile` | the IdP's metadata (`https://` only, except loopback), fetched once at first use, or a local copy | one required |
+| `baseUrl` | PrintMarshal's public origin | required |
+| `entityId` | the SP entity ID / audience | `<baseUrl>/api/auth/saml/metadata` |
+| `acsUrl` | the assertion consumer service | `<baseUrl>/api/auth/saml/acs` |
+| `spCertFile` / `spKeyFile` | the SP signing pair (PEM, RSA) | generated under `<dataDir>/saml-sp.crt` / `.key` (mode 0600) on first use; the log says where |
+| `signRequests` | sign AuthnRequests (RSA-SHA256) | `false` |
+| `usernameAttr` | assertion attribute (Name or FriendlyName) used as the username | the NameID |
+| `subjectAttr` | attribute used as the stable subject | the NameID when its format is `persistent`, `unspecified` or absent; a `transient` or `emailAddress` NameID requires `subjectAttr` |
+| `roleAttr` / `roleMap` / `defaultRole` | groups attribute → role; highest wins; re-applied on every sign-in when both are set | — |
+| `allowedGroups` | users with none of these `roleAttr` values are refused | any |
+| `displayName` | login button label | the IdP host |
+
+### Routes and flow
+
+- `GET /api/auth/saml/metadata` — the SP metadata to register at the IdP
+  (entity ID, ACS URL, the signing certificate, `WantAssertionsSigned`).
+- `GET /api/auth/saml/start` — builds an AuthnRequest, keeps its ID in a
+  10-minute `pm_saml` cookie (HttpOnly, path-limited to `/api/auth/saml/`;
+  `Secure; SameSite=None` behind TLS with `auth.secureCookies`) and
+  redirects to the IdP. RelayState is empty: the landing page is always `/`.
+- `POST /api/auth/saml/acs` — validates the response: XML round-trip safety,
+  the signature on the Response and/or Assertion against the IdP metadata
+  certificates (an unsigned response with an unsigned assertion is
+  rejected), the Issuer, `Destination` = the ACS URL, the audience =
+  entity ID, `NotBefore` / `NotOnOrAfter` on the conditions and the bearer
+  confirmation (three minutes of clock skew), `InResponseTo` = the ID in the
+  `pm_saml` cookie (IdP-initiated sign-in is deliberately not accepted),
+  and that the assertion ID has not been presented before within its
+  validity window. Encrypted assertions are decrypted with the SP key. Then
+  the user is provisioned with issuer `saml:<IdP entity ID>`, the role is
+  mapped, a normal session is issued and the browser lands on `/`. Failures
+  go back to `/?sso_error=<message>` and are published as `auth.failed`.
+
+### Provider notes
+
+**Microsoft Entra ID.** Enterprise applications → New application → Create
+your own → *Integrate any other application*. Single sign-on → SAML:
+Identifier = `https://<host>/api/auth/saml/metadata`, Reply URL =
+`https://<host>/api/auth/saml/acs`. Use the *App Federation Metadata Url*
+as `idpMetadataUrl`. Entra's default NameID is the UPN with format
+`emailAddress` or `unspecified` depending on the template, so set
+`subjectAttr` to `http://schemas.microsoft.com/identity/claims/objectidentifier`
+(stable object id) and `usernameAttr` to
+`http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Add a groups
+claim (Attributes & Claims → Add a group claim → groups assigned to the
+application, or security groups) and map the group **object ids** in
+`roleMap`; with "Customize the name of the group claim" you can emit
+display names instead, in which case map those.
+
+**Okta.** Applications → Create App Integration → SAML 2.0. Single sign-on
+URL = `https://<host>/api/auth/saml/acs`, Audience URI =
+`https://<host>/api/auth/saml/metadata`, Name ID format *Persistent*
+(then the NameID is the subject) or *Unspecified* with `user.login`. Add a
+group attribute statement (e.g. name `groups`, filter *Starts with*
+`printmarshal-`) and use `"roleAttr": "groups"`. The IdP metadata URL is
+on the app's Sign On tab.
+
+**ADFS.** Add Relying Party Trust → *Import data about the relying party
+published online* with `https://<host>/api/auth/saml/metadata` (or the
+downloaded file). Issuance transform rules: *Send LDAP Attributes as
+Claims* with `objectGUID` (or `SAM-Account-Name`) → Name ID
+(**persistent** or unspecified format) or → a custom claim used as
+`subjectAttr`; *Send Group Membership as a Claim* or *Token-Groups —
+Unqualified Names* → `http://schemas.xmlsoap.org/claims/Group` and use that
+as `roleAttr` with the group names in `roleMap`. `idpMetadataUrl` is
+`https://<adfs>/FederationMetadata/2007-06/FederationMetadata.xml`. ADFS
+signs with SHA-256 by default and encrypts assertions when the SP metadata
+carries an encryption certificate (PrintMarshal's does); both work.
+
+**Keycloak.** Clients → Create client → SAML, Client ID =
+`https://<host>/api/auth/saml/metadata`, Valid redirect URIs / Master SAML
+Processing URL = `https://<host>/api/auth/saml/acs`. In *Keys* turn *Client
+signature required* off unless you set `signRequests: true` (then upload
+the certificate from the SP metadata). Name ID format *persistent* (or
+*username*, which is stable in Keycloak). Add a *Group list* or *Role list*
+mapper (single attribute, e.g. `groups`) and use it as `roleAttr`. The
+realm's IdP metadata is at
+`https://<host>/realms/<realm>/protocol/saml/descriptor`.
+
+### Security notes
+
+- Use `idpMetadataUrl` over `https` or a file you obtained out of band: the
+  metadata carries the certificates every assertion is verified against.
+  Metadata is fetched once per process start; restart after an IdP key
+  rollover (or point at a file you update).
+- The SP key only signs AuthnRequests (when enabled) and decrypts
+  assertions; losing it costs you a metadata re-upload at the IdP, not any
+  secrets. Back it up with the data directory all the same.
+- An IdP that cannot provide a stable NameID must provide an attribute for
+  `subjectAttr`; without one the sign-in is refused rather than bound to a
+  value that may change hands.
+
 ## Security notes
 
 - Secrets at rest: passwords are bcrypt; session and API-token secrets are
-  SHA-256 digests; the OIDC client secret is read from the environment at
-  use time and never stored.
+  SHA-256 digests; the OIDC client secret, LDAP service-account password
+  and RADIUS shared secret are read from the environment at use time and
+  never stored or logged.
+- All four external methods bind accounts by (issuer, subject) and refuse
+  a first sign-in whose username is already taken, so no provider can hand
+  out the local `admin` account or move an account between people.
 - Every denial (`auth.denied`), failed sign-in (`auth.failed`), sign-in,
   sign-out, session revocation and token change is a security event in the
   catalogue (`GET /api/events/catalog`) and is mirrored into the audit log,
@@ -240,8 +569,9 @@ Zitadel) works the same way; only the claim that carries roles differs.
 - Put PrintMarshal behind TLS before enabling SSO or issuing tokens
   (docs/security.md); set `PM_SECURE_COOKIES=true` so the session and SSO
   cookies are `Secure`.
-- The OIDC flow cookie is single use and path-limited; a replayed callback
-  (no cookie, reused state) fails. Failed callbacks count towards the login
-  rate limit.
+- The OIDC and SAML flow cookies are single use and path-limited; a
+  replayed callback (no cookie, reused state / request ID) fails, and a
+  SAML assertion ID is remembered until it expires. Failed callbacks and
+  failed LDAP / RADIUS attempts count towards the login rate limit.
 - Clock skew of up to one minute is tolerated on `exp`/`iat`; keep the
   server's clock synchronised.
