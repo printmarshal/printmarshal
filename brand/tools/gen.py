@@ -1,14 +1,14 @@
 # Generates every file in brand/ from the three mark paths and Barlow Bold.
 # Usage: python3 -m venv v && v/bin/pip install fonttools uharfbuzz && BARLOW=/path/Barlow-Bold.ttf v/bin/python brand/tools/gen.py brand
 
-import os, subprocess, sys
+import os, re, subprocess, sys
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 import uharfbuzz as hb
 
 SP = os.path.dirname(os.path.abspath(__file__))
-OUT = sys.argv[1]
+OUT = os.path.abspath(sys.argv[1])
 PNG = os.path.join(OUT, "png")
 os.makedirs(PNG, exist_ok=True)
 
@@ -158,15 +158,18 @@ def export(svg_name, png_name, width, height=None, background="transparent"):
     vw, vh = float(vb[2]), float(vb[3])
     if height is None:
         height = round(width * vh / vw)
-    html = os.path.join(SP, "render.html")
-    with open(html, "w") as f:
-        f.write(f'<!doctype html><html><body style="margin:0;background:{background}">'
-                f'<img src="file://{src}" width="{width}" height="{height}" style="display:block"></body></html>')
+    # Screenshot a copy of the SVG sized to the export, so the page itself is
+    # the image and nothing can be captured before it has loaded.
+    text = open(src).read()
+    text = re.sub(r'width="[^"]*" height="[^"]*"', f'width="{width}" height="{height}"', text, count=1)
+    tmp = os.path.join(SP, "render.svg")
+    with open(tmp, "w") as f:
+        f.write(text)
     out = os.path.join(PNG, png_name)
     subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-sandbox", "--hide-scrollbars",
                     "--force-device-scale-factor=1", "--default-background-color=00000000",
                     f"--window-size={width},{height}", f"--screenshot={out}",
-                    f"--user-data-dir={os.path.join(SP, 'chrome-profile')}", f"file://{html}"],
+                    f"--user-data-dir={os.path.join(SP, 'chrome-profile')}", f"file://{tmp}"],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=90)
     print("exported", png_name, width, height)
 
