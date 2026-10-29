@@ -140,6 +140,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/settings", s.require(model.RoleViewer, s.getSettings))
 	mux.Handle("PATCH /api/settings", s.require(model.RoleAdmin, s.patchSettings))
 	mux.Handle("DELETE /api/settings", s.require(model.RoleAdmin, s.resetSettings))
+	mux.Handle("GET /api/settings/directory", s.require(model.RoleAdmin, s.getDirectorySettings))
+	mux.Handle("PUT /api/settings/directory", s.require(model.RoleAdmin, s.putDirectorySettings))
+	mux.Handle("POST /api/settings/directory/test", s.require(model.RoleAdmin, s.testDirectory))
 	mux.Handle("GET /api/drivers", s.require(model.RoleViewer, s.listDrivers))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {

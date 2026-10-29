@@ -228,4 +228,8 @@ type Store interface {
 	// Settings (small JSON values)
 	GetSetting(ctx context.Context, key string, dst any) error
 	SetSetting(ctx context.Context, key string, v any) error
+	// Secret settings: sealed with the master key, write-only from the
+	// outside (secret_settings.go). "" clears; Get returns ErrNotFound then.
+	SetSecretSetting(ctx context.Context, key, plain string) error
+	GetSecretSetting(ctx context.Context, key string) (string, error)
 }
