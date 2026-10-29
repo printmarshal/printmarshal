@@ -174,6 +174,7 @@ export("app-icon.svg", "org-avatar-1024.png", 1024)
 for s in (512, 256, 128, 64, 32, 16):
     export("app-icon.svg", f"app-icon-{s}.png", s)
 export("mark.svg", "mark-512.png", 512)
+export("mark.svg", "mark-1024.png", 1024)  # transparent avatar: the shield alone
 export("mark-on-dark.svg", "mark-on-dark-512.png", 512)
 export("mark.svg", "favicon-32.png", 32)
 export("logo-horizontal.svg", "logo-horizontal-1600.png", 1600)
