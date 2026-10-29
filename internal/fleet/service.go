@@ -108,9 +108,6 @@ func (s *Service) IdentifyAndUpsert(ctx context.Context, address string, methods
 	if err != nil {
 		return nil, false, err
 	}
-	if ident.Hostname != "" && ident.HostnameSource == "" {
-		ident.HostnameSource = "advertised"
-	}
 	applyHints(ident, hints)
 	dev, created, err := s.Store.UpsertDevice(ctx, ident, caps, methods)
 	if err != nil {
@@ -125,9 +122,8 @@ func (s *Service) IdentifyAndUpsert(ctx context.Context, address string, methods
 
 // applyHints fills identity gaps from DNS-SD TXT records (model, make, UUID, admin URL).
 func applyHints(id *model.Identity, c discovery.Candidate) {
-	if c.Hostname != "" && (id.Hostname == "" || id.HostnameSource != "mdns") {
+	if c.Hostname != "" && id.Hostname == "" {
 		id.Hostname = c.Hostname
-		id.HostnameSource = "mdns"
 	}
 	if c.TXT == nil {
 		return

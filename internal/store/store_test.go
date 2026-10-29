@@ -48,28 +48,74 @@ func testOperatorFieldsSurviveScan(t *testing.T, s testStore) {
 	if len(d2.DiscoveryMethods) != 2 || len(d2.IdentifyMethods) != 2 {
 		t.Errorf("methods = %v / %v", d2.DiscoveryMethods, d2.IdentifyMethods)
 	}
-	// Hostname and HostnameSource round-trip through SetDeviceHostname and UpsertDevice.
-	dDNS, err := s.SetDeviceHostname(ctx, d.ID, "printer-lobby", "dns")
+	// DNSName, DNSNameSuspect, DNSCheckedAt, DisplayNameSource, DNSSync, and computed DNSNameChanged round-trip.
+	checkedAt := d2.UpdatedAt
+	dDNS, err := s.SetDeviceDNS(ctx, d.ID, "printer-lobby", false, checkedAt)
 	if err != nil {
-		t.Fatalf("SetDeviceHostname: %v", err)
+		t.Fatalf("SetDeviceDNS: %v", err)
 	}
-	if dDNS.Hostname != "printer-lobby" || dDNS.HostnameSource != "dns" {
-		t.Errorf("after SetDeviceHostname: hostname=%q source=%q", dDNS.Hostname, dDNS.HostnameSource)
+	if dDNS.DNSName != "printer-lobby" || dDNS.DNSNameSuspect || dDNS.DNSCheckedAt == nil || !dDNS.DNSCheckedAt.Equal(checkedAt) {
+		t.Errorf("after SetDeviceDNS: dnsName=%q suspect=%v checkedAt=%v", dDNS.DNSName, dDNS.DNSNameSuspect, dDNS.DNSCheckedAt)
 	}
-	// An mDNS hostname on a later scan upgrades the DNS hostname; a subsequent non-mDNS scan does not clobber mDNS.
-	dMDNS, _, err := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.77", Serial: "SN1", Hostname: "printer-lobby.local", HostnameSource: "mdns", Method: "ipp"}, nil, []string{"mdns"})
+	if dDNS.Hostname != "" {
+		t.Errorf("SetDeviceDNS must not touch Hostname, got %q", dDNS.Hostname)
+	}
+	dnsNameVal := "printer-lobby"
+	dnsSrc := "dns"
+	syncFalse := false
+	dPatched, err := s.PatchDevice(ctx, d.ID, DevicePatch{DisplayName: &dnsNameVal, DisplayNameSource: &dnsSrc, DNSSync: &syncFalse})
+	if err != nil {
+		t.Fatalf("PatchDevice dns source: %v", err)
+	}
+	if dPatched.DisplayName != "printer-lobby" || dPatched.DisplayNameSource != "dns" || dPatched.DNSSync || dPatched.DNSNameChanged {
+		t.Errorf("after PatchDevice: %+v", dPatched)
+	}
+	// When DNS name changes while dnsSync is off and displayNameSource is "dns", DNSNameChanged is computed true.
+	dChanged, err := s.SetDeviceDNS(ctx, d.ID, "printer-lobby-2", true, checkedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dMDNS.Hostname != "printer-lobby.local" || dMDNS.HostnameSource != "mdns" {
-		t.Errorf("mDNS upsert should win: hostname=%q source=%q", dMDNS.Hostname, dMDNS.HostnameSource)
+	if !dChanged.DNSNameSuspect || !dChanged.DNSNameChanged {
+		t.Errorf("expected suspect=true and dnsNameChanged=true, got %+v", dChanged)
 	}
-	dAdv, _, err := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.77", Serial: "SN1", Hostname: "NPIABE5A1", HostnameSource: "advertised", Method: "snmp"}, nil, []string{"scan"})
+	// Turning DNSSync on clears DNSNameChanged; manual DisplayName patch without DisplayNameSource clears DisplayNameSource.
+	syncTrue := true
+	dSync, err := s.PatchDevice(ctx, d.ID, DevicePatch{DNSSync: &syncTrue})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dAdv.Hostname != "printer-lobby.local" || dAdv.HostnameSource != "mdns" {
-		t.Errorf("advertised hostname should not overwrite mDNS: hostname=%q source=%q", dAdv.Hostname, dAdv.HostnameSource)
+	if !dSync.DNSSync || dSync.DNSNameChanged {
+		t.Errorf("expected dnsSync=true and dnsNameChanged=false, got %+v", dSync)
+	}
+	manual := "Manual name"
+	dManual, err := s.PatchDevice(ctx, d.ID, DevicePatch{DisplayName: &manual})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dManual.DisplayName != manual || dManual.DisplayNameSource != "" {
+		t.Errorf("manual displayName should clear displayNameSource, got %+v", dManual)
+	}
+	// Plain "first non-empty wins" for hostname on UpsertDevice.
+	dHost1, _, err := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.77", Serial: "SN1", Hostname: "first-host", Method: "ipp"}, nil, []string{"mdns"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dHost1.Hostname != "first-host" {
+		t.Errorf("first hostname = %q, want first-host", dHost1.Hostname)
+	}
+	dHost2, _, err := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.77", Serial: "SN1", Hostname: "second-host", Method: "snmp"}, nil, []string{"scan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dHost2.Hostname != "second-host" {
+		t.Errorf("new non-empty hostname should win: got %q, want second-host", dHost2.Hostname)
+	}
+	dHost3, _, err := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.77", Serial: "SN1", Hostname: "", Method: "snmp"}, nil, []string{"scan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dHost3.Hostname != "second-host" {
+		t.Errorf("empty hostname should keep existing: got %q, want second-host", dHost3.Hostname)
 	}
 }
 

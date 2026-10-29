@@ -30,9 +30,11 @@ Source: `internal/api/server.go`.
 | GET | `/api/devices.csv` | viewer | query: `device-list filters` | 200 devices CSV | Read |
 | GET | `/api/supplies.csv` | viewer | query: `device-list filters` | 200 installed supplies CSV | Read |
 | GET | `/api/devices/{id}` | viewer | — | 200 `{device,groups,alerts[]}` | Read |
-| PATCH | `/api/devices/{id}` | operator | `{displayName?,location?,assetTag?,notes?}` | 200 Device | PM |
+| PATCH | `/api/devices/{id}` | operator | `{displayName?,location?,assetTag?,notes?,dnsSync?}` | 200 Device | PM |
 | DELETE | `/api/devices/{id}` | admin | — | 200 `{ok:true}` | PM |
 | POST | `/api/devices/{id}/poll` | operator | — | 200 `{device,servedBy,errors,reachable}` | PM |
+| POST | `/api/devices/{id}/refresh-hostname` | operator | — | 200 Device | PM |
+| POST | `/api/devices/rename` | operator | `{deviceIds:string[],source:"dns"\|"hostname"\|"sysName"\|"pattern",pattern?,dryRun?}` | 200 `{dryRun,source,pattern?,updated,skipped,results:[{id,from,to,skipped,reason?}]}` | **DR** |
 | POST | `/api/devices/{id}/state` | operator | `{state}` | 200 Device | PM |
 | GET | `/api/devices/{id}/alerts` | viewer | query: `all,limit (200)` | 200 Alert[] | Read |
 | GET | `/api/devices/{id}/telemetry` | viewer | query: `metric,label,from,to,limit` | 200 TelemetrySample[] | Read |
@@ -61,7 +63,7 @@ Source: `internal/api/server.go`.
 | DELETE | `/api/users/{id}` | admin | — | 200 `{ok:true}` | PM |
 | GET | `/api/audit` | operator | query: `limit (200)` | 200 AuditEntry[] | Read |
 | GET | `/api/notifications` | operator | query: `limit (200)` | 200 NotificationLog[] | Read |
-| GET | `/api/settings` | viewer | — | 200 `{version,poll,discovery,trap,alerts,telemetry,runtime,defaults,notifiers}` | Read |
+| GET | `/api/settings` | viewer | — | 200 `{version,poll,discovery,trap,alerts,telemetry,names,runtime,defaults,notifiers}` | Read |
 | PATCH | `/api/settings` | admin | RuntimeSettings partial overlay | 200 RuntimeSettings | PM |
 | DELETE | `/api/settings` | admin | — | 200 RuntimeSettings | PM |
 | GET | `/api/drivers` | viewer | — | 200 driver descriptors[] | Read |
@@ -537,6 +539,20 @@ var body struct {
 		Location    *string `json:"location"`
 		AssetTag    *string `json:"assetTag"`
 		Notes       *string `json:"notes"`
+		DNSSync     *bool   `json:"dnsSync"`
+	}
+```
+
+### renameDevices
+
+Source: `internal/api/server.go`.
+
+```go
+var body struct {
+		DeviceIDs []string `json:"deviceIds"`
+		Source    string   `json:"source"` // dns | hostname | sysName | pattern
+		Pattern   string   `json:"pattern"`
+		DryRun    *bool    `json:"dryRun"`
 	}
 ```
 
@@ -770,6 +786,10 @@ type DiscoveryParams struct {
 Source: `internal/fleet/runtime.go`.
 
 ```go
+type NameSettings struct {
+	Source string `json:"source"` // advertised (default) | dns | display
+}
+
 type RuntimeSettings struct {
 	PollInterval          config.Duration `json:"pollInterval"`
 	PollConcurrency       int             `json:"pollConcurrency"`
@@ -780,8 +800,15 @@ type RuntimeSettings struct {
 	SupplyCriticalPercent int             `json:"supplyCriticalPercent"`
 	OfflineAfterFailures  int             `json:"offlineAfterFailures"`
 	TelemetryRetention    config.Duration `json:"telemetryRetention"`
+	Names                 NameSettings    `json:"names"`
 }
 ```
+
+## Device renaming and name-source preference
+
+`POST /api/devices/rename` (operator) previews or applies bulk display-name updates across `deviceIds` (subject to group-scope checks via `allowedAll`). `source` must be `"dns"`, `"hostname"`, `"sysName"`, or `"pattern"`. When `source` is `"pattern"`, `pattern` expands `{serial}`, `{model}`, `{make}`, `{address}`, `{hostname}`, `{dnsName}`, `{sysName}`, `{location}`, and `{assetTag}` along with literal text. Omitting `dryRun` (or passing `dryRun: true`) returns a preview without writing; `dryRun: false` sets `displayName` and `displayNameSource` for non-skipped devices, records one `devices.rename` audit entry plus `device.patch` per updated device, and publishes `device.updated`. Devices are skipped when the selected source is empty, when a referenced DNS name is flagged `dnsNameSuspect`, or when the computed name equals the current name.
+
+The runtime setting `names.source` (`GET/PATCH /api/settings`, admin to modify) selects the preferred name source shown in the UI (`"advertised"` default, `"dns"`, or `"display"`), falling back to the standard precedence (`displayName` → `sysName` → `hostname` → `model` → `address`) when a device lacks the preferred source or its DNS name is suspect. Per-device `dnsSync` (`PATCH /api/devices/{id}`) optionally keeps `displayName` synchronized when `DNSName` changes on refresh (audited as `device.patch` with reason `"dns sync"`).
 
 ### Target
 

@@ -219,6 +219,7 @@ Results are merged per key; a key no driver serves is `skipped` with a reason.
 | GET | `/api/config/writes/{id}` | viewer | | `{write, reversible}` |
 | POST | `/api/config/writes/{id}/revert` | operator | `{dryRun}` (omitted = dry run) | 202 `{job}` |
 | POST | `/api/devices/{id}/refresh-hostname` | operator | | updated `Device` |
+| POST | `/api/devices/rename` | operator | `{deviceIds, source, pattern?, dryRun}` (omitted = dry run) | `{dryRun, source, pattern?, updated, skipped, results[]}` |
 
 Jobs are read through the existing `GET /api/jobs/{id}`; each per-device result
 carries `data.writeId`, `data.results[]` (the per-setting status and, for real
@@ -226,15 +227,26 @@ applies, `outcome` / `readBack`) and `data.verified` / `data.diverged`.
 
 ## Reverse DNS hostname lookup (`discovery.reverseDns`)
 
-When a device has no mDNS hostname (`HostnameSource != "mdns"`), PrintMarshal runs a
-PTR lookup on the device's address after identification, on successful polls at most
-once per `refreshInterval`, and on demand via `POST /api/devices/{id}/refresh-hostname`
-(operator role). Display names follow the precedence: operator `displayName` →
-DNS/mDNS `hostname` → advertised `sysName` → `model` → `address`.
+Reverse DNS is **optional and off by default** (`discovery.reverseDns.enabled: false`).
+When enabled, PrintMarshal runs a PTR lookup on the device's address after
+identification and on successful polls at most once per `refreshInterval`
+(operators can also trigger a lookup on demand via `POST /api/devices/{id}/refresh-hostname`).
+The looked-up name is stored in `Device.DNSName` (`dnsName`, column `dns_name`),
+never in `Device.Hostname` (`hostname` stays what mDNS/drivers report). Names with
+invalid hostname characters, labels > 63 characters or total > 253 characters, or
+IP-derived patterns (containing the address's octets joined by `-` or `.`, such as
+`10-0-0-7` or `ip-10-0-0-7`) are stored with `dnsNameSuspect: true` and are never
+offered by rename actions or automatic display-name selection.
+
+Display names keep their original precedence (`displayName` → `sysName` → `hostname` →
+`model` → `address`) unless an administrator changes the runtime setting `names.source`
+(`advertised` default | `dns` | `display` via `GET/PATCH /api/settings`) or an operator
+explicitly renames devices via `POST /api/devices/rename` (or enables per-device
+`dnsSync` via `PATCH /api/devices/{id}`).
 
 | JSON | Env | Default | Meaning |
 | --- | --- | --- | --- |
-| `discovery.reverseDns.enabled` | `PM_REVERSE_DNS_ENABLED` | `true` | Enable reverse DNS (PTR) lookups after identification and during polling. |
+| `discovery.reverseDns.enabled` | `PM_REVERSE_DNS_ENABLED` | `false` | Enable reverse DNS (PTR) lookups after identification and during polling (populates `Device.DNSName`). |
 | `discovery.reverseDns.server` | `PM_REVERSE_DNS_SERVER` | `""` | Custom DNS server (`host` or `host:port`, default port `53`); empty uses the system resolver. |
 | `discovery.reverseDns.shortNames` | `PM_REVERSE_DNS_SHORT_NAMES` | `true` | Store only the first DNS label (e.g. `printer-7` instead of `printer-7.corp.example.com`). |
 | `discovery.reverseDns.timeout` | `PM_REVERSE_DNS_TIMEOUT` | `1s` | Per-lookup context timeout so slow or unreachable DNS never blocks discovery or polling. |

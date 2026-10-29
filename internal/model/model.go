@@ -78,20 +78,22 @@ type Device struct {
 	ID string `json:"id"`
 
 	// Identity — automatic fields, refreshed by scans.
-	Address        string `json:"address"`
-	Hostname       string `json:"hostname,omitempty"`
-	HostnameSource string `json:"hostnameSource,omitempty"` // mdns | dns | advertised | ""
-	MAC            string `json:"mac,omitempty"`
-	Serial         string `json:"serial,omitempty"`
-	UUID           string `json:"uuid,omitempty"`
-	Make           string `json:"make,omitempty"`
-	Model          string `json:"model,omitempty"`
-	DeviceType     string `json:"deviceType,omitempty"` // printer | mfp | scanner | unknown
-	Firmware       string `json:"firmware,omitempty"`
-	SysDescr       string `json:"sysDescr,omitempty"`
-	SysName        string `json:"sysName,omitempty"`
-	EnterpriseID   int    `json:"enterpriseId,omitempty"` // raw IANA enterprise from sysObjectID; interpreted only by plugins
-	AdminURL       string `json:"adminUrl,omitempty"`
+	Address        string     `json:"address"`
+	Hostname       string     `json:"hostname,omitempty"`
+	DNSName        string     `json:"dnsName,omitempty"`
+	DNSNameSuspect bool       `json:"dnsNameSuspect,omitempty"`
+	DNSCheckedAt   *time.Time `json:"dnsCheckedAt,omitempty"`
+	MAC            string     `json:"mac,omitempty"`
+	Serial         string     `json:"serial,omitempty"`
+	UUID           string     `json:"uuid,omitempty"`
+	Make           string     `json:"make,omitempty"`
+	Model          string     `json:"model,omitempty"`
+	DeviceType     string     `json:"deviceType,omitempty"` // printer | mfp | scanner | unknown
+	Firmware       string     `json:"firmware,omitempty"`
+	SysDescr       string     `json:"sysDescr,omitempty"`
+	SysName        string     `json:"sysName,omitempty"`
+	EnterpriseID   int        `json:"enterpriseId,omitempty"` // raw IANA enterprise from sysObjectID; interpreted only by plugins
+	AdminURL       string     `json:"adminUrl,omitempty"`
 
 	// Resolved capability profile: capability -> driver that serves it.
 	Capabilities     map[Capability]string `json:"capabilities"`
@@ -99,10 +101,13 @@ type Device struct {
 	IdentifyMethods  []string              `json:"identifyMethods"`
 
 	// Operator fields — never overwritten by a scan.
-	DisplayName string `json:"displayName"`
-	Location    string `json:"location"`
-	AssetTag    string `json:"assetTag"`
-	Notes       string `json:"notes"`
+	DisplayName       string `json:"displayName"`
+	DisplayNameSource string `json:"displayNameSource,omitempty"`
+	DNSSync           bool   `json:"dnsSync,omitempty"`
+	DNSNameChanged    bool   `json:"dnsNameChanged,omitempty"`
+	Location          string `json:"location"`
+	AssetTag          string `json:"assetTag"`
+	Notes             string `json:"notes"`
 
 	State LifecycleState `json:"state"`
 
@@ -124,14 +129,30 @@ func (d *Device) Name() string {
 	switch {
 	case d.DisplayName != "":
 		return d.DisplayName
-	case d.Hostname != "":
-		return d.Hostname
 	case d.SysName != "":
 		return d.SysName
+	case d.Hostname != "":
+		return d.Hostname
 	case d.Model != "":
 		return d.Model
 	}
 	return d.Address
+}
+
+// NameWith returns the preferred name according to source ("advertised" |
+// "dns" | "display"), falling back to the original precedence order.
+func (d *Device) NameWith(source string) string {
+	switch source {
+	case "dns":
+		if d.DNSName != "" && !d.DNSNameSuspect {
+			return d.DNSName
+		}
+	case "display":
+		if d.DisplayName != "" {
+			return d.DisplayName
+		}
+	}
+	return d.Name()
 }
 
 // Status is a device's current state as read from it.
@@ -200,21 +221,20 @@ type Counters struct {
 
 // Identity is what the identify capability produces for an address.
 type Identity struct {
-	Address        string
-	Hostname       string
-	HostnameSource string
-	MAC            string
-	Serial         string
-	UUID           string
-	Make           string
-	Model          string
-	DeviceType     string
-	Firmware       string
-	SysDescr       string
-	SysName        string
-	SysLocation    string
-	EnterpriseID   int
-	AdminURL       string
+	Address      string
+	Hostname     string
+	MAC          string
+	Serial       string
+	UUID         string
+	Make         string
+	Model        string
+	DeviceType   string
+	Firmware     string
+	SysDescr     string
+	SysName      string
+	SysLocation  string
+	EnterpriseID int
+	AdminURL     string
 	// Capabilities this driver can serve for the device it just identified.
 	Capabilities []Capability
 	Method       string // driver name

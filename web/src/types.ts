@@ -14,10 +14,10 @@ export interface Status {
 }
 export interface Counters { total: number; mono?: number; color?: number; duplex?: number; powerOn?: number; byMarker?: Record<string, number>; at: string }
 export interface Device {
-  id: string; address: string; hostname?: string; hostnameSource?: 'mdns' | 'dns' | 'advertised' | ''; mac?: string; serial?: string; uuid?: string; make?: string; model?: string
+  id: string; address: string; hostname?: string; dnsName?: string; dnsNameSuspect?: boolean; dnsCheckedAt?: string; mac?: string; serial?: string; uuid?: string; make?: string; model?: string
   deviceType?: string; firmware?: string; sysDescr?: string; sysName?: string; enterpriseId?: number; adminUrl?: string
   capabilities: Record<string, string>; discoveryMethods: string[]; identifyMethods: string[]
-  displayName: string; location: string; assetTag: string; notes: string; state: string
+  displayName: string; displayNameSource?: string; dnsSync?: boolean; dnsNameChanged?: boolean; location: string; assetTag: string; notes: string; state: string
   status?: Status; supplies: Supply[]; trays: Tray[]; counters?: Counters
   firstSeen: string; lastSeen: string; lastPolled?: string; createdAt: string; updatedAt: string
 }
@@ -74,8 +74,38 @@ export interface Dashboard {
 }
 export interface Event { type: string; at: string; data: unknown }
 
+export type NameSource = 'advertised' | 'dns' | 'display'
+
+let currentNameSource: NameSource = 'advertised'
+
+export function setNameSource(source?: string) {
+  if (source === 'dns' || source === 'display' || source === 'advertised') {
+    currentNameSource = source
+  } else {
+    currentNameSource = 'advertised'
+  }
+}
+
+export function getNameSource(): NameSource {
+  return currentNameSource
+}
+
+export interface RenameRow {
+  id: string; from: string; to: string; skipped: boolean; reason?: string
+}
+
+export interface RenameResponse {
+  dryRun: boolean; source: string; pattern?: string; updated: number; skipped: number; results: RenameRow[]
+}
+
 export function deviceName(d: Device): string {
-  return d.displayName || d.hostname || d.sysName || d.model || d.address
+  if (currentNameSource === 'dns' && d.dnsName && !d.dnsNameSuspect) {
+    return d.dnsName
+  }
+  if (currentNameSource === 'display' && d.displayName) {
+    return d.displayName
+  }
+  return d.displayName || d.sysName || d.hostname || d.model || d.address
 }
 
 /** Make + model without repeating the make when the model already starts with it. */

@@ -115,9 +115,17 @@ func (s *SQLite) migrate() error {
 	if err := s.migrateFixedWidthTimestamps(); err != nil {
 		return fmt.Errorf("migrate timestamps: %w", err)
 	}
-	// Migration 6: record where a device's hostname came from (mdns, dns, advertised).
-	if err := s.addColumn("devices", "hostname_source", "hostname_source TEXT NOT NULL DEFAULT ''"); err != nil {
-		return fmt.Errorf("migrate devices.hostname_source: %w", err)
+	// Migration 6: DNS name lookup and rename/sync metadata on devices.
+	for _, col := range []struct{ name, ddl string }{
+		{"dns_name", "dns_name TEXT NOT NULL DEFAULT ''"},
+		{"dns_name_suspect", "dns_name_suspect INTEGER NOT NULL DEFAULT 0"},
+		{"dns_checked_at", "dns_checked_at TEXT"},
+		{"display_name_source", "display_name_source TEXT NOT NULL DEFAULT ''"},
+		{"dns_sync", "dns_sync INTEGER NOT NULL DEFAULT 0"},
+	} {
+		if err := s.addColumn("devices", col.name, col.ddl); err != nil {
+			return fmt.Errorf("migrate devices.%s: %w", col.name, err)
+		}
 	}
 	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (6, ?)`, now()); err != nil {
 		return err
@@ -128,7 +136,7 @@ func (s *SQLite) migrate() error {
 // timestampColumns lists every TEXT column holding a ts()/now() value.
 var timestampColumns = map[string][]string{
 	"schema_migrations":         {"applied_at"},
-	"devices":                   {"first_seen", "last_seen", "created_at", "updated_at"},
+	"devices":                   {"first_seen", "last_seen", "dns_checked_at", "created_at", "updated_at"},
 	"groups":                    {"created_at", "updated_at"},
 	"credentials":               {"created_at", "updated_at"},
 	"jobs":                      {"created_at", "started_at", "finished_at"},

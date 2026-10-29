@@ -31,10 +31,12 @@ type DeviceFilter struct {
 
 // DevicePatch holds operator-editable fields (spec §8.2). Nil = unchanged.
 type DevicePatch struct {
-	DisplayName *string
-	Location    *string
-	AssetTag    *string
-	Notes       *string
+	DisplayName       *string
+	DisplayNameSource *string
+	DNSSync           *bool
+	Location          *string
+	AssetTag          *string
+	Notes             *string
 }
 
 // PollUpdate is what a poll writes back onto a device (automatic fields only).
@@ -134,7 +136,7 @@ type Store interface {
 	ListDevices(ctx context.Context, f DeviceFilter) ([]*model.Device, error)
 	CountDevices(ctx context.Context, f DeviceFilter) (int, error)
 	PatchDevice(ctx context.Context, id string, p DevicePatch) (*model.Device, error)
-	SetDeviceHostname(ctx context.Context, id, hostname, source string) (*model.Device, error)
+	SetDeviceDNS(ctx context.Context, id, dnsName string, suspect bool, checkedAt time.Time) (*model.Device, error)
 	SetDeviceState(ctx context.Context, id string, state model.LifecycleState) (*model.Device, error)
 	ApplyPoll(ctx context.Context, id string, u PollUpdate) (*model.Device, error)
 	DeviceFailures(ctx context.Context, id string) (int, error)

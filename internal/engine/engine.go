@@ -275,10 +275,7 @@ func mergeIdentity(dst, src *model.Identity) {
 			*d = strings.TrimSpace(s)
 		}
 	}
-	if dst.Hostname == "" && strings.TrimSpace(src.Hostname) != "" {
-		dst.Hostname = strings.TrimSpace(src.Hostname)
-		dst.HostnameSource = strings.TrimSpace(src.HostnameSource)
-	}
+	set(&dst.Hostname, src.Hostname)
 	set(&dst.MAC, src.MAC)
 	set(&dst.Serial, src.Serial)
 	set(&dst.UUID, src.UUID)

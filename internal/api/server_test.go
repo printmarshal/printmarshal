@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -194,7 +195,7 @@ func TestRefreshDeviceHostname(t *testing.T) {
 	admin := login(t, ts, "admin", "adminpass123")
 	viewer := login(t, ts, "viewer", "viewerpass1")
 
-	d, _, err := s.Store.UpsertDevice(context.Background(), &model.Identity{Address: "10.0.0.5", Serial: "S1", Model: "Acme 1", Method: "snmp"}, nil, nil)
+	d, _, err := s.Store.UpsertDevice(context.Background(), &model.Identity{Address: "10.0.0.5", Hostname: "adv-host", Serial: "S1", Model: "Acme 1", Method: "snmp"}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,10 +209,166 @@ func TestRefreshDeviceHostname(t *testing.T) {
 		t.Errorf("unknown device refresh-hostname = %d, want 404", code)
 	}
 	code, body := do(t, ts, admin, "POST", "/api/devices/"+d.ID+"/refresh-hostname", "")
-	if code != 200 || !strings.Contains(body, `"hostname":"printer-7"`) || !strings.Contains(body, `"hostnameSource":"dns"`) {
+	if code != 200 || !strings.Contains(body, `"dnsName":"printer-7"`) || !strings.Contains(body, `"hostname":"adv-host"`) {
 		t.Fatalf("refresh-hostname: %d %s", code, body)
 	}
 	if code, body := do(t, ts, admin, "GET", "/api/audit", ""); code != 200 || !strings.Contains(body, "device.refresh_hostname") {
 		t.Errorf("audit after refresh-hostname: %d %s", code, body)
+	}
+}
+
+func TestRenameDevicesAndNameSourceSetting(t *testing.T) {
+	ts, s := newTestServer(t)
+	admin := login(t, ts, "admin", "adminpass123")
+	viewer := login(t, ts, "viewer", "viewerpass1")
+	ctx := context.Background()
+
+	d1, _, err := s.Store.UpsertDevice(ctx, &model.Identity{
+		Address: "10.0.0.11", Hostname: "mdns-11.local", SysName: "NPI11", Serial: "SN11", Make: "Acme", Model: "Laser 1", SysLocation: "Floor2", Method: "snmp",
+	}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Store.SetDeviceDNS(ctx, d1.ID, "printer-11", false, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	tag := "AT-11"
+	if _, err := s.Store.PatchDevice(ctx, d1.ID, store.DevicePatch{AssetTag: &tag}); err != nil {
+		t.Fatal(err)
+	}
+
+	d2, _, err := s.Store.UpsertDevice(ctx, &model.Identity{
+		Address: "10.0.0.12", Hostname: "", SysName: "NPI12", Serial: "SN12", Make: "Acme", Model: "Laser 2", Method: "snmp",
+	}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Suspect DNS name on d2 (IP-derived).
+	if _, err := s.Store.SetDeviceDNS(ctx, d2.ID, "ip-10-0-0-12", true, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+
+	d3, _, err := s.Store.UpsertDevice(ctx, &model.Identity{
+		Address: "10.0.0.13", Serial: "SN13", Make: "Acme", Model: "Laser 3", Method: "snmp",
+	}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Viewer cannot rename.
+	if code, _ := do(t, ts, viewer, "POST", "/api/devices/rename", `{"deviceIds":["`+d1.ID+`"],"source":"dns"}`); code != 403 {
+		t.Fatalf("viewer rename = %d, want 403", code)
+	}
+
+	// Missing dryRun defaults to dryRun:true; d1 will rename, d2 skipped (suspect), d3 skipped (empty).
+	reqDNS := fmt.Sprintf(`{"deviceIds":[%q,%q,%q],"source":"dns"}`, d1.ID, d2.ID, d3.ID)
+	code, body := do(t, ts, admin, "POST", "/api/devices/rename", reqDNS)
+	if code != 200 || !strings.Contains(body, `"dryRun":true`) || !strings.Contains(body, `"updated":1`) || !strings.Contains(body, `"skipped":2`) || !strings.Contains(body, "DNS name is suspect") || !strings.Contains(body, "DNS name is empty") {
+		t.Fatalf("dry-run dns rename: %d %s", code, body)
+	}
+	afterDry, _ := s.Store.GetDevice(ctx, d1.ID)
+	if afterDry.DisplayName != "" {
+		t.Fatalf("dry run must not persist displayName, got %q", afterDry.DisplayName)
+	}
+
+	// Apply with dryRun:false.
+	applyDNS := fmt.Sprintf(`{"deviceIds":[%q,%q,%q],"source":"dns","dryRun":false}`, d1.ID, d2.ID, d3.ID)
+	code, body = do(t, ts, admin, "POST", "/api/devices/rename", applyDNS)
+	if code != 200 || !strings.Contains(body, `"dryRun":false`) || !strings.Contains(body, `"updated":1`) {
+		t.Fatalf("apply dns rename: %d %s", code, body)
+	}
+	afterApply, _ := s.Store.GetDevice(ctx, d1.ID)
+	if afterApply.DisplayName != "printer-11" || afterApply.DisplayNameSource != "dns" {
+		t.Fatalf("after apply: displayName=%q source=%q", afterApply.DisplayName, afterApply.DisplayNameSource)
+	}
+
+	// Re-running the same rename skips d1 as "unchanged".
+	code, body = do(t, ts, admin, "POST", "/api/devices/rename", fmt.Sprintf(`{"deviceIds":[%q],"source":"dns"}`, d1.ID))
+	if code != 200 || !strings.Contains(body, `"skipped":1`) || !strings.Contains(body, `"reason":"unchanged"`) {
+		t.Fatalf("unchanged skip: %d %s", code, body)
+	}
+
+	// Source = hostname and sysName.
+	code, body = do(t, ts, admin, "POST", "/api/devices/rename", fmt.Sprintf(`{"deviceIds":[%q,%q],"source":"hostname","dryRun":false}`, d1.ID, d2.ID))
+	if code != 200 || !strings.Contains(body, `"updated":1`) || !strings.Contains(body, `"hostname is empty"`) {
+		t.Fatalf("hostname rename: %d %s", code, body)
+	}
+	d1Host, _ := s.Store.GetDevice(ctx, d1.ID)
+	if d1Host.DisplayName != "mdns-11.local" || d1Host.DisplayNameSource != "hostname" {
+		t.Fatalf("hostname apply: %+v", d1Host)
+	}
+
+	code, body = do(t, ts, admin, "POST", "/api/devices/rename", fmt.Sprintf(`{"deviceIds":[%q,%q],"source":"sysName","dryRun":false}`, d1.ID, d3.ID))
+	if code != 200 || !strings.Contains(body, `"updated":1`) || !strings.Contains(body, `"sysName is empty"`) {
+		t.Fatalf("sysName rename: %d %s", code, body)
+	}
+
+	// Pattern expansion with all supported tokens.
+	patReq := fmt.Sprintf(`{"deviceIds":[%q,%q],"source":"pattern","pattern":"{location}-{make}-{model}-{serial}-{address}-{hostname}-{dnsName}-{sysName}-{assetTag}","dryRun":false}`, d1.ID, d2.ID)
+	code, body = do(t, ts, admin, "POST", "/api/devices/rename", patReq)
+	if code != 200 || !strings.Contains(body, `"updated":1`) || !strings.Contains(body, `"DNS name is suspect"`) {
+		t.Fatalf("pattern rename: %d %s", code, body)
+	}
+	d1Pat, _ := s.Store.GetDevice(ctx, d1.ID)
+	wantPat := "Floor2-Acme-Laser 1-SN11-10.0.0.11-mdns-11.local-printer-11-NPI11-AT-11"
+	if d1Pat.DisplayName != wantPat || d1Pat.DisplayNameSource != "pattern" {
+		t.Fatalf("pattern result = %q (source %q), want %q", d1Pat.DisplayName, d1Pat.DisplayNameSource, wantPat)
+	}
+
+	// Audit contains devices.rename and device.patch.
+	code, auditBody := do(t, ts, admin, "GET", "/api/audit", "")
+	if code != 200 || !strings.Contains(auditBody, "devices.rename") || !strings.Contains(auditBody, "device.patch") {
+		t.Errorf("expected devices.rename and device.patch in audit: %d %s", code, auditBody)
+	}
+
+	// PATCH /api/devices/{id} accepts dnsSync: bool.
+	code, body = do(t, ts, admin, "PATCH", "/api/devices/"+d1.ID, `{"dnsSync":true}`)
+	if code != 200 || !strings.Contains(body, `"dnsSync":true`) {
+		t.Fatalf("patch dnsSync: %d %s", code, body)
+	}
+
+	// Group scope enforcement for scoped API token on POST /api/devices/rename.
+	grp := &model.Group{Name: "G1", Kind: "static", MemberIDs: []string{d1.ID}}
+	if err := s.Store.CreateGroup(ctx, grp); err != nil {
+		t.Fatal(err)
+	}
+	code, tokBody := do(t, ts, admin, "POST", "/api/tokens", fmt.Sprintf(`{"name":"scoped-op","role":"operator","scope":[%q]}`, grp.ID))
+	if code != 201 {
+		t.Fatalf("create scoped token: %d %s", code, tokBody)
+	}
+	var tokResp struct {
+		Secret string `json:"secret"`
+	}
+	if err := json.Unmarshal([]byte(tokBody), &tokResp); err != nil {
+		t.Fatal(err)
+	}
+	// Naming d2 (outside grp) is denied with 403.
+	if code, _ := do(t, ts, tokResp.Secret, "POST", "/api/devices/rename", fmt.Sprintf(`{"deviceIds":[%q],"source":"sysName"}`, d2.ID)); code != 403 {
+		t.Errorf("scoped token rename outside group = %d, want 403", code)
+	}
+	// Naming d1 (inside grp) is allowed.
+	if code, _ := do(t, ts, tokResp.Secret, "POST", "/api/devices/rename", fmt.Sprintf(`{"deviceIds":[%q],"source":"dns"}`, d1.ID)); code != 200 {
+		t.Errorf("scoped token rename inside group = %d, want 200", code)
+	}
+
+	// Runtime settings: names.source GET/PATCH validation.
+	code, setBody := do(t, ts, admin, "GET", "/api/settings", "")
+	if code != 200 || !strings.Contains(setBody, `"source":"advertised"`) {
+		t.Fatalf("GET /api/settings default names.source: %d %s", code, setBody)
+	}
+	var settings struct {
+		Runtime map[string]any `json:"runtime"`
+	}
+	_ = json.Unmarshal([]byte(setBody), &settings)
+	settings.Runtime["names"] = map[string]any{"source": "dns"}
+	rawPatch, _ := json.Marshal(settings.Runtime)
+	code, patchBody := do(t, ts, admin, "PATCH", "/api/settings", string(rawPatch))
+	if code != 200 || !strings.Contains(patchBody, `"source":"dns"`) {
+		t.Fatalf("PATCH /api/settings names.source=dns: %d %s", code, patchBody)
+	}
+	settings.Runtime["names"] = map[string]any{"source": "bogus"}
+	rawBad, _ := json.Marshal(settings.Runtime)
+	if code, _ := do(t, ts, admin, "PATCH", "/api/settings", string(rawBad)); code != 400 {
+		t.Errorf("invalid names.source should fail with 400, got %d", code)
 	}
 }

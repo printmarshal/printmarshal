@@ -59,9 +59,15 @@ Lifecycle is operator-controlled and separate from online/offline status. A poll
 | `needs_attention` | `active`, `decommissioned` |
 | `decommissioned` | `onboarded` |
 
-Use `POST /api/devices/{id}/state` with `{"state":"active"}`. `PATCH /api/devices/{id}` accepts only `displayName`, `location`, `assetTag`, `notes`. Default fleet listings and scheduled polls exclude decommissioned devices; explicit filters/targets can include them on some read/configuration paths. Firmware excludes them. Deletion is an admin action, removes the device and associated records, and records a sync tombstone; decommissioning preserves the record.
+Use `POST /api/devices/{id}/state` with `{"state":"active"}`. `PATCH /api/devices/{id}` accepts only `displayName`, `location`, `assetTag`, `notes`, `dnsSync`. Default fleet listings and scheduled polls exclude decommissioned devices; explicit filters/targets can include them on some read/configuration paths. Firmware excludes them. Deletion is an admin action, removes the device and associated records, and records a sync tombstone; decommissioning preserves the record.
 
 `GET /api/devices` supports `q`, `state`, `make`, `model`, `severity`, `group`, `sort`, `limit`, `offset`, `includeDecommissioned`. Sort values are `name`, `model`, `address`, `lastSeen`, `severity`. `total` is the count of returned/resolved devices, not a promise of the unpaginated database size. CSV endpoints are `/api/devices.csv` and `/api/supplies.csv`.
+
+## Reverse DNS names, name-source setting and explicit rename
+
+Reverse DNS lookup (`discovery.reverseDns.enabled`) is optional and off by default. When enabled (or triggered manually via `POST /api/devices/{id}/refresh-hostname`), PrintMarshal stores the PTR result in `Device.DNSName` (`dnsName`, with timestamp `dnsCheckedAt`) and never overwrites `Device.Hostname` (which remains what mDNS or protocol drivers report). Looked-up names with invalid hostname characters, labels over 63 characters or total length over 253 characters, or IP-encoded octets joined by `-` or `.` (such as `10-0-0-7` or `ip-10-0-0-7`) are marked `dnsNameSuspect: true` and excluded from automatic selection and rename actions.
+
+A looked-up DNS name never silently changes what is displayed. Default name precedence remains `displayName` → `sysName` → `hostname` → `model` → `address`. Administrators can set the preferred display source across the UI via `names.source` in `GET/PATCH /api/settings` (`advertised` default | `dns` | `display`), and operators can explicitly copy names into `displayName` using `POST /api/devices/rename` (`source`: `dns` | `hostname` | `sysName` | `pattern`, dry-run by default, recording `displayNameSource`). Per device, `dnsSync` (`PATCH /api/devices/{id}`) defaults to `false`: when enabled, a refreshed non-suspect DNS name that differs from `displayName` updates `displayName` automatically (audited as `device.patch` with reason `"dns sync"`); when off and `displayNameSource` is `"dns"`, a changed DNS name sets `dnsNameChanged: true` on read so the UI can offer a one-click update.
 
 ## Static and rule groups
 

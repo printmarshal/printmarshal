@@ -98,7 +98,7 @@ func (s *Postgres) migrate(ctx context.Context) error {
 	// They are recorded so later migrations number the same on both backends.
 	// 4 = users.external_issuer/external_subject (the ALTER ... IF NOT EXISTS above).
 	// 5 = SQLite's fixed-width timestamp rewrite (nothing to do here: timestamptz).
-	// 6 = devices.hostname_source (the ALTER ... IF NOT EXISTS above).
+	// 6 = devices.dns_name, dns_name_suspect, dns_checked_at, display_name_source, dns_sync (the ALTER ... IF NOT EXISTS above).
 	for _, v := range []int{1, 2, 3, 4, 5, 6} {
 		if _, err := conn.ExecContext(ctx, `INSERT INTO schema_migrations(version, applied_at) VALUES ($1, $2) ON CONFLICT DO NOTHING`, v, nowUTC()); err != nil {
 			return err

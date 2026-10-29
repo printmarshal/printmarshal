@@ -364,29 +364,66 @@ func TestPartialPollKeepsFaults(t *testing.T) {
 	}
 }
 
+func TestReverseDNSOffByDefault(t *testing.T) {
+	svc, _ := newTestService(t, "generic-laser.snmp")
+	fake := &fakeResolver{
+		ptrs:  map[string][]string{"10.0.0.5": {"printer-7.corp.example.com."}},
+		hosts: map[string][]string{"printer-7.corp.example.com": {"10.0.0.5"}},
+	}
+	svc.Resolver = fake
+	ctx := context.Background()
+
+	if svc.Cfg.Discovery.ReverseDNS.Enabled {
+		t.Fatal("reverseDns.enabled must default to false")
+	}
+	dev, created, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	if err != nil || !created {
+		t.Fatalf("identify: %v created=%v", err, created)
+	}
+	if fake.calls.Load() != 0 || dev.DNSName != "" || dev.DNSCheckedAt != nil {
+		t.Fatalf("expected 0 lookups and empty DNSName when disabled, got calls=%d dnsName=%q checkedAt=%v", fake.calls.Load(), dev.DNSName, dev.DNSCheckedAt)
+	}
+	polled, _, err := svc.PollDevice(ctx, dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fake.calls.Load() != 0 || polled.DNSName != "" {
+		t.Fatalf("poll with reverseDns disabled must not query DNS: calls=%d dnsName=%q", fake.calls.Load(), polled.DNSName)
+	}
+}
+
 func TestReverseDNSLookupAndShortNames(t *testing.T) {
 	svc, st := newTestService(t, "generic-laser.snmp")
+	svc.Cfg.Discovery.ReverseDNS.Enabled = true
 	svc.Resolver = &fakeResolver{
 		ptrs:  map[string][]string{"10.0.0.5": {"printer-7.corp.example.com."}},
 		hosts: map[string][]string{"printer-7.corp.example.com": {"10.0.0.5"}},
 	}
 	ctx := context.Background()
-	dev, created, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	cand := discovery.Candidate{Address: "10.0.0.5", Hostname: "mdns-printer.local"}
+	dev, created, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan", "mdns"}, cand)
 	if err != nil || !created {
 		t.Fatalf("identify: %v created=%v", err, created)
 	}
-	if dev.Hostname != "printer-7" || dev.HostnameSource != "dns" {
-		t.Fatalf("hostname=%q source=%q, want printer-7 / dns", dev.Hostname, dev.HostnameSource)
+	if dev.DNSName != "printer-7" || dev.DNSNameSuspect || dev.DNSCheckedAt == nil {
+		t.Fatalf("dnsName=%q suspect=%v checkedAt=%v, want printer-7 / false / non-nil", dev.DNSName, dev.DNSNameSuspect, dev.DNSCheckedAt)
 	}
-	if dev.Name() != "printer-7" {
-		t.Errorf("dev.Name() = %q, want printer-7 (DNS hostname before advertised sysName)", dev.Name())
+	if dev.Hostname != "mdns-printer.local" {
+		t.Fatalf("hostname must stay what mDNS/drivers report, got %q", dev.Hostname)
+	}
+	// Original name precedence: displayName -> sysName -> hostname -> model -> address (DNSName never silently overrides).
+	if dev.Name() == "printer-7" {
+		t.Errorf("dev.Name() = %q, must not silently use DNSName", dev.Name())
+	}
+	if dev.NameWith("dns") != "printer-7" {
+		t.Errorf("dev.NameWith(dns) = %q, want printer-7", dev.NameWith("dns"))
 	}
 	stored, err := st.GetDevice(ctx, dev.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.Hostname != "printer-7" || stored.HostnameSource != "dns" {
-		t.Errorf("stored hostname=%q source=%q", stored.Hostname, stored.HostnameSource)
+	if stored.DNSName != "printer-7" || stored.Hostname != "mdns-printer.local" {
+		t.Errorf("stored dnsName=%q hostname=%q", stored.DNSName, stored.Hostname)
 	}
 
 	// ShortNames=false keeps the FQDN (without trailing dot).
@@ -395,51 +432,128 @@ func TestReverseDNSLookupAndShortNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if upd.Hostname != "printer-7.corp.example.com" || upd.HostnameSource != "dns" {
-		t.Errorf("ShortNames=false: hostname=%q source=%q", upd.Hostname, upd.HostnameSource)
+	if upd.DNSName != "printer-7.corp.example.com" || upd.DNSNameSuspect {
+		t.Errorf("ShortNames=false: dnsName=%q suspect=%v", upd.DNSName, upd.DNSNameSuspect)
 	}
 }
 
-func TestReverseDNSMDNSHostnameNotOverwritten(t *testing.T) {
+func TestSuspectDNSNameDetection(t *testing.T) {
+	longLabel := strings.Repeat("a", 64)
+	longTotal := strings.Repeat("a.", 127) + "com" // 257 chars
+	cases := []struct {
+		name    string
+		addr    string
+		suspect bool
+	}{
+		{"printer-7", "10.0.0.7", false},
+		{"printer-7.corp.example.com", "10.0.0.7", false},
+		{"10-0-0-7", "10.0.0.7", true},
+		{"ip-10-0-0-7", "10.0.0.7", true},
+		{"host-10-0-0-7.corp.local", "10.0.0.7", true},
+		{"7-0-0-10.dynamic.example.com", "10.0.0.7", true},
+		{"10.0.0.7.in-addr.arpa", "10.0.0.7", true},
+		{"bad_char", "10.0.0.7", true},
+		{"-leading-hyphen", "10.0.0.7", true},
+		{"trailing-hyphen-", "10.0.0.7", true},
+		{"space in name", "10.0.0.7", true},
+		{longLabel, "10.0.0.7", true},
+		{longTotal, "10.0.0.7", true},
+	}
+	for _, tc := range cases {
+		if got := IsSuspectDNSName(tc.name, tc.addr); got != tc.suspect {
+			t.Errorf("IsSuspectDNSName(%q, %q) = %v, want %v", tc.name, tc.addr, got, tc.suspect)
+		}
+	}
+
 	svc, _ := newTestService(t, "generic-laser.snmp")
+	svc.Cfg.Discovery.ReverseDNS.Enabled = true
+	svc.Resolver = &fakeResolver{
+		ptrs:  map[string][]string{"10.0.0.5": {"ip-10-0-0-5.corp.example.com."}},
+		hosts: map[string][]string{"ip-10-0-0-5.corp.example.com": {"10.0.0.5"}},
+	}
+	dev, _, err := svc.IdentifyAndUpsert(context.Background(), "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.DNSName != "ip-10-0-0-5" || !dev.DNSNameSuspect {
+		t.Errorf("expected suspect DNS name stored with flag, got dnsName=%q suspect=%v", dev.DNSName, dev.DNSNameSuspect)
+	}
+	if dev.NameWith("dns") == "ip-10-0-0-5" {
+		t.Errorf("NameWith(dns) must not use a suspect DNS name, got %q", dev.NameWith("dns"))
+	}
+}
+
+func TestDNSSyncAndChangedIndicator(t *testing.T) {
+	svc, st := newTestService(t, "generic-laser.snmp")
+	svc.Cfg.Discovery.ReverseDNS.Enabled = true
 	fake := &fakeResolver{
-		ptrs:  map[string][]string{"10.0.0.5": {"dns-name.corp.example.com."}},
-		hosts: map[string][]string{"dns-name.corp.example.com": {"10.0.0.5"}},
+		ptrs:  map[string][]string{"10.0.0.5": {"printer-lobby.corp.example.com."}},
+		hosts: map[string][]string{"printer-lobby.corp.example.com": {"10.0.0.5"}},
 	}
 	svc.Resolver = fake
 	ctx := context.Background()
 
-	cand := discovery.Candidate{Address: "10.0.0.5", Hostname: "mdns-printer.local"}
-	dev, _, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"mdns"}, cand)
+	dev, _, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dev.Hostname != "mdns-printer.local" || dev.HostnameSource != "mdns" {
-		t.Fatalf("mDNS hostname must win: hostname=%q source=%q", dev.Hostname, dev.HostnameSource)
+	// Simulate operator renaming from DNS with dnsSync=false.
+	name := "printer-lobby"
+	src := "dns"
+	syncOff := false
+	dev, err = st.PatchDevice(ctx, dev.ID, store.DevicePatch{DisplayName: &name, DisplayNameSource: &src, DNSSync: &syncOff})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if fake.calls.Load() != 0 {
-		t.Errorf("expected 0 reverse DNS lookups when mDNS hostname is present, got %d", fake.calls.Load())
+	if dev.DNSNameChanged {
+		t.Fatalf("dnsNameChanged should be false when DNSName == DisplayName")
 	}
 
-	// Polling or on-demand refresh must not overwrite the mDNS hostname either.
-	polled, _, err := svc.PollDevice(ctx, dev)
+	// DNS changes while dnsSync is off -> displayName stays, dnsNameChanged becomes true.
+	fake.ptrs["10.0.0.5"] = []string{"printer-2f.corp.example.com."}
+	fake.hosts["printer-2f.corp.example.com"] = []string{"10.0.0.5"}
+	dev, err = svc.RefreshHostname(ctx, dev)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if polled.Hostname != "mdns-printer.local" || polled.HostnameSource != "mdns" {
-		t.Errorf("poll overwrote mDNS hostname: %q (%q)", polled.Hostname, polled.HostnameSource)
+	if dev.DNSName != "printer-2f" || dev.DisplayName != "printer-lobby" || !dev.DNSNameChanged {
+		t.Fatalf("with dnsSync=false: dnsName=%q displayName=%q changed=%v", dev.DNSName, dev.DisplayName, dev.DNSNameChanged)
 	}
-	refreshed, err := svc.RefreshHostname(ctx, polled)
+
+	// Turn dnsSync on; next DNS refresh updates DisplayName and audits device.patch with reason "dns sync".
+	syncOn := true
+	dev, err = st.PatchDevice(ctx, dev.ID, store.DevicePatch{DNSSync: &syncOn})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if refreshed.Hostname != "mdns-printer.local" || refreshed.HostnameSource != "mdns" {
-		t.Errorf("RefreshHostname overwrote mDNS hostname: %q (%q)", refreshed.Hostname, refreshed.HostnameSource)
+	fake.ptrs["10.0.0.5"] = []string{"printer-3f.corp.example.com."}
+	fake.hosts["printer-3f.corp.example.com"] = []string{"10.0.0.5"}
+	dev, err = svc.RefreshHostname(ctx, dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.DNSName != "printer-3f" || dev.DisplayName != "printer-3f" || dev.DNSNameChanged {
+		t.Fatalf("with dnsSync=true: dnsName=%q displayName=%q changed=%v", dev.DNSName, dev.DisplayName, dev.DNSNameChanged)
+	}
+	audits, err := st.ListAudit(ctx, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundAudit := false
+	for _, a := range audits {
+		if a.Action == "device.patch" && a.Target == dev.ID && a.After["reason"] == "dns sync" {
+			foundAudit = true
+			break
+		}
+	}
+	if !foundAudit {
+		t.Errorf("expected device.patch audit entry with reason 'dns sync', got %+v", audits)
 	}
 }
 
 func TestReverseDNSForwardConfirmRejectsMismatch(t *testing.T) {
 	svc, st := newTestService(t, "generic-laser.snmp")
+	svc.Cfg.Discovery.ReverseDNS.Enabled = true
 	fake := &fakeResolver{
 		ptrs:  map[string][]string{"10.0.0.5": {"spoofed.corp.example.com."}},
 		hosts: map[string][]string{"spoofed.corp.example.com": {"10.0.0.99"}}, // mismatch!
@@ -451,12 +565,12 @@ func TestReverseDNSForwardConfirmRejectsMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dev.Hostname != "" || dev.HostnameSource != "" {
-		t.Fatalf("forward-confirm mismatch should be rejected, got hostname=%q source=%q", dev.Hostname, dev.HostnameSource)
+	if dev.DNSName != "" {
+		t.Fatalf("forward-confirm mismatch should be rejected, got dnsName=%q", dev.DNSName)
 	}
 
-	// Pre-populate an existing DNS hostname; a later mismatched PTR lookup must keep the old value.
-	prev, err := st.SetDeviceHostname(ctx, dev.ID, "good-name", "dns")
+	// Pre-populate an existing DNS name; a later mismatched PTR lookup must keep the old value.
+	prev, err := st.SetDeviceDNS(ctx, dev.ID, "good-name", false, time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -464,8 +578,8 @@ func TestReverseDNSForwardConfirmRejectsMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if after.Hostname != "good-name" || after.HostnameSource != "dns" {
-		t.Errorf("expected old value good-name to be kept on mismatch, got %q (%q)", after.Hostname, after.HostnameSource)
+	if after.DNSName != "good-name" {
+		t.Errorf("expected old value good-name to be kept on mismatch, got %q", after.DNSName)
 	}
 
 	// Disabling ForwardConfirm accepts the PTR name without checking LookupHost.
@@ -474,13 +588,14 @@ func TestReverseDNSForwardConfirmRejectsMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if accepted.Hostname != "spoofed" || accepted.HostnameSource != "dns" {
-		t.Errorf("ForwardConfirm=false: got %q (%q), want spoofed / dns", accepted.Hostname, accepted.HostnameSource)
+	if accepted.DNSName != "spoofed" {
+		t.Errorf("ForwardConfirm=false: got %q, want spoofed", accepted.DNSName)
 	}
 }
 
 func TestReverseDNSTimeoutReturnsQuickly(t *testing.T) {
 	svc, _ := newTestService(t, "generic-laser.snmp")
+	svc.Cfg.Discovery.ReverseDNS.Enabled = true
 	svc.Cfg.Discovery.ReverseDNS.Timeout = config.Duration(30 * time.Millisecond)
 	svc.Resolver = &fakeResolver{
 		delay: 5 * time.Second,
@@ -497,13 +612,14 @@ func TestReverseDNSTimeoutReturnsQuickly(t *testing.T) {
 	if elapsed > 500*time.Millisecond {
 		t.Errorf("lookup blocked for %v, expected ~30ms timeout", elapsed)
 	}
-	if dev.Hostname != "" {
-		t.Errorf("timed-out lookup should leave hostname empty, got %q", dev.Hostname)
+	if dev.DNSName != "" {
+		t.Errorf("timed-out lookup should leave dnsName empty, got %q", dev.DNSName)
 	}
 }
 
 func TestReverseDNSPollRefreshIntervalAndRetry(t *testing.T) {
 	svc, _ := newTestService(t, "generic-laser.snmp")
+	svc.Cfg.Discovery.ReverseDNS.Enabled = true
 	fake := &fakeResolver{
 		ptrs:  map[string][]string{},
 		hosts: map[string][]string{},
@@ -516,8 +632,8 @@ func TestReverseDNSPollRefreshIntervalAndRetry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if dev.Hostname != "" || fake.calls.Load() != 1 {
-		t.Fatalf("after failed identify: hostname=%q calls=%d", dev.Hostname, fake.calls.Load())
+	if dev.DNSName != "" || fake.calls.Load() != 1 {
+		t.Fatalf("after failed identify: dnsName=%q calls=%d", dev.DNSName, fake.calls.Load())
 	}
 
 	// DNS record appears; next poll retries because the previous lookup failed.
@@ -527,8 +643,8 @@ func TestReverseDNSPollRefreshIntervalAndRetry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if polled.Hostname != "printer-5" || polled.HostnameSource != "dns" || fake.calls.Load() != 2 {
-		t.Fatalf("poll retry: hostname=%q source=%q calls=%d", polled.Hostname, polled.HostnameSource, fake.calls.Load())
+	if polled.DNSName != "printer-5" || fake.calls.Load() != 2 {
+		t.Fatalf("poll retry: dnsName=%q calls=%d", polled.DNSName, fake.calls.Load())
 	}
 
 	// Second poll within refreshInterval (24h) does not re-query DNS.
@@ -536,11 +652,11 @@ func TestReverseDNSPollRefreshIntervalAndRetry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fake.calls.Load() != 2 || polled2.Hostname != "printer-5" {
-		t.Errorf("expected poll within refreshInterval to skip DNS, calls=%d hostname=%q", fake.calls.Load(), polled2.Hostname)
+	if fake.calls.Load() != 2 || polled2.DNSName != "printer-5" {
+		t.Errorf("expected poll within refreshInterval to skip DNS, calls=%d dnsName=%q", fake.calls.Load(), polled2.DNSName)
 	}
 
-	// Once refreshInterval has elapsed, the next poll refreshes the hostname.
+	// Once refreshInterval has elapsed, the next poll refreshes the DNS name.
 	fake.ptrs["10.0.0.5"] = []string{"printer-5-renamed.corp.example.com."}
 	fake.hosts["printer-5-renamed.corp.example.com"] = []string{"10.0.0.5"}
 	svc.dnsMu.Lock()
@@ -550,8 +666,8 @@ func TestReverseDNSPollRefreshIntervalAndRetry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if polled3.Hostname != "printer-5-renamed" || fake.calls.Load() != 3 {
-		t.Errorf("expected poll after refreshInterval to update hostname, got %q (calls=%d)", polled3.Hostname, fake.calls.Load())
+	if polled3.DNSName != "printer-5-renamed" || fake.calls.Load() != 3 {
+		t.Errorf("expected poll after refreshInterval to update dnsName, got %q (calls=%d)", polled3.DNSName, fake.calls.Load())
 	}
 }
 
