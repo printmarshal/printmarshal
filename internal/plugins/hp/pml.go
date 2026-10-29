@@ -119,6 +119,11 @@ func readPMLIdentity(ctx context.Context, p *vendorkit.Probe) (PMLIdentity, bool
 	if id.ProductNumber == "" {
 		id.ProductNumber = p.GetStr(ctx, oidJDProductNumber)
 	}
+	if id.ModelName == "" {
+		// One lost SNMP reply (2 s timeout, 64 scan workers at once) would leave the
+		// device with the print server's name as its model, so ask once more.
+		id.ModelName = pmlGet(ctx, p, oidModelName)
+	}
 	id.Components = readFirmwareComponents(ctx, p)
 	ok := id.Serial != "" || id.ModelName != "" || id.FWDateCode != "" || id.ProductNumber != ""
 	return id, ok

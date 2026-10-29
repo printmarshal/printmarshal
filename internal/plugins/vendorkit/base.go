@@ -395,6 +395,12 @@ func (b *Base) fillFromProbe(ctx context.Context, p *Probe, id *model.Identity) 
 	if p.IPP != nil {
 		devID := ParseDeviceID(p.IPP.String("printer-device-id"))
 		id.Model = firstNonEmpty(id.Model, p.IPP.String("printer-make-and-model"), devID["MDL"])
+		if model.IsGenericModel(id.Model) {
+			// sysDescr named the print server, not the printer: IPP knows the model.
+			if m := firstNonEmpty(p.IPP.String("printer-make-and-model"), devID["MDL"]); m != "" {
+				id.Model = m
+			}
+		}
 		id.Serial = firstNonEmpty(id.Serial, p.IPP.String("printer-serial-number"), devID["SN"], devID["SERN"])
 		id.UUID = strings.TrimPrefix(p.IPP.String("printer-uuid"), "urn:uuid:")
 		id.Firmware = firstNonEmpty(p.IPP.String("printer-firmware-string-version"), p.IPP.String("printer-firmware-name"))
