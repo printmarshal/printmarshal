@@ -29,7 +29,7 @@
       <a class="brand" href="/" aria-label="PrintMarshal home">
         <img class="brand-mark" src="/assets/mark.svg" alt="" width="32" height="32">
         <span class="brand-name">Print<span>Marshal</span></span>
-        <span class="brand-tag">Self-Hosted · Go + SQLite/PostgreSQL</span>
+        <span class="brand-tag">Open source · Self-hosted</span>
       </a>
 
       <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation-menu" aria-label="Toggle navigation menu" data-nav-toggle>
@@ -221,41 +221,64 @@ PM_TRAP_ENABLED=false \
         </div>
 
         <div class="callout warn" style="margin-bottom: 24px;">
-          <strong>Preserve and reuse <code>PM_SECRET_KEY</code> across restarts</strong>
+          <strong>Preserve the encryption key across restarts</strong>
           <p>
-            <code>PM_SECRET_KEY</code> (a base64-encoded 32-byte key generated once via <code>openssl rand -base64 32</code>, or stored automatically at <code>&lt;PM_DATA_DIR&gt;/secret.key</code>) encrypts every device credential and CA private key in the database (<code>internal/secrets/secrets.go</code>). <strong>Never generate a new random <code>PM_SECRET_KEY</code> on each container or service restart</strong>—replacing the key against an existing database makes previously encrypted credentials unreadable. Back up the key in your secrets manager separately from database snapshots.
+            The encryption key encrypts every device credential and CA private key in the database (<code>internal/secrets/secrets.go</code>). It is either <code>PM_SECRET_KEY</code> (base64 of 32 bytes, e.g. <code>openssl rand -base64 32</code>) or, when that is unset, <code>&lt;PM_DATA_DIR&gt;/secret.key</code>, which PrintMarshal creates once and then reuses. <b>Never start against an existing database with a new key</b>: previously encrypted credentials become unreadable. Back up the key separately from database snapshots, and never paste it into logs or tickets.
           </p>
         </div>
 
         <div class="grid-2">
           <div class="panel-card">
-            <h3>Option A: Docker container (<code>UID 10001</code>)</h3>
+            <h3>Option A: Docker container with a named volume</h3>
             <p style="font-size: 0.88rem;">
-              Generate <code>secret.key</code> once if it does not already exist, then pass that persisted key into the container alongside a mounted <code>/data</code> volume:
+              The image runs as user <code>pm</code> (<code>UID 10001</code>) with <code>PM_DATA_DIR=/data</code>. With no <code>PM_SECRET_KEY</code> set, PrintMarshal creates <code>/data/secret.key</code> itself on first start (mode <code>0600</code>, owned by <code>pm</code>) and reuses it on every later start. A named volume keeps it, so no <code>chown</code>, <code>sudo</code> or host-side key file is needed:
             </p>
             <div class="code-block">
               <div class="code-header">
-                <span>Build &amp; run Docker container (reuses existing key)</span>
+                <span>Build &amp; run (no root on the host)</span>
                 <button class="copy-btn" type="button" data-copy-target="cmd-docker">Copy</button>
               </div>
-              <pre id="cmd-docker"><code>mkdir -p ./pm-data
-[ -f ./pm-data/secret.key ] || (umask 077 &amp;&amp; openssl rand -base64 32 &gt; ./pm-data/secret.key)
-chown -R 10001:10001 ./pm-data
-
-docker build -t printmarshal:local .
+              <pre id="cmd-docker"><code>docker build -t printmarshal:local .
+docker volume create pm-data
 
 docker run -d \
   --name printmarshal \
   --restart unless-stopped \
   -p 127.0.0.1:8080:8080 \
-  -v "$(pwd)/pm-data:/data" \
-  -e PM_DATA_DIR=/data \
-  -e PM_SECRET_KEY="$(cat ./pm-data/secret.key)" \
-  printmarshal:local</code></pre>
+  -v pm-data:/data \
+  printmarshal:local
+
+# Bootstrap password for the "admin" account (first start only):
+docker exec printmarshal cat /data/initial-admin-password</code></pre>
             </div>
             <p style="font-size: 0.82rem; color: var(--text-muted);">
-              If <code>PM_ADMIN_PASSWORD</code> is omitted on first boot, PrintMarshal generates a random initial password and writes it to <code>/data/initial-admin-password</code> (<code>0600</code>).
+              Open <code>http://127.0.0.1:8080</code> and sign in as <code>admin</code>. The generated password goes to <code>/data/initial-admin-password</code> (<code>0600</code>), not to the log. Change it after signing in, then remove the file: <code>docker exec printmarshal rm /data/initial-admin-password</code>. Setting <code>PM_ADMIN_PASSWORD</code> on first start instead skips the file. The command is safe to repeat: an existing <code>secret.key</code> is never replaced, and one that exists but cannot be read stops startup instead.
             </p>
+            <div class="code-block">
+              <div class="code-header">
+                <span>Upgrade or recreate &amp; back up the key</span>
+                <button class="copy-btn" type="button" data-copy-target="cmd-docker-keep">Copy</button>
+              </div>
+              <pre id="cmd-docker-keep"><code># Recreate (e.g. after a rebuild): same volume, same key and data
+docker rm -f printmarshal
+docker run -d --name printmarshal --restart unless-stopped \
+  -p 127.0.0.1:8080:8080 -v pm-data:/data printmarshal:local
+
+# Owner-only copy of the key; keep it apart from database backups
+(umask 077 &amp;&amp; docker run --rm --entrypoint cat \
+  -v pm-data:/data:ro printmarshal:local /data/secret.key \
+  &gt; printmarshal-secret.key.backup)</code></pre>
+            </div>
+            <details class="disclosure host-notes">
+              <summary>Host differences: bind mounts, own key, host networking</summary>
+              <div class="disclosure-body">
+              <ul>
+                <li><strong>Host directory instead of a volume.</strong> It must be writable by <code>UID 10001</code>, which normally means a privileged <code>sudo chown 10001:10001 &lt;dir&gt;</code>; afterwards your own user may no longer read it. Rootless Docker and Podman remap UIDs, so check your runtime’s documentation. The named volume avoids this.</li>
+                <li><strong>Key in your own secrets manager.</strong> Pass it as <code>-e PM_SECRET_KEY=…</code> (base64 of 32 bytes, <code>openssl rand -base64 32</code>) and supply the <em>same</em> value on every start; no file is then written. Environment values are visible to anyone who can run <code>docker inspect</code>. Never switch to a new key against an existing database.</li>
+                <li><strong>Discovery and traps.</strong> Multicast discovery and SNMP traps need <code>--network host</code> on a Linux host instead of <code>-p</code> (see the README). The <code>-p 127.0.0.1</code> form above keeps the console local to the host.</li>
+              </ul>
+              </div>
+            </details>
           </div>
 
           <div class="panel-card">
@@ -451,7 +474,7 @@ PM_DATA_DIR=/var/lib/printmarshal ./deploy/scripts/backup.sh /var/backups/printm
         </div>
       </div>
       <div class="footer-bottom">
-        <span>© PrintMarshal Contributors. Released under open-source license.</span>
+        <span>© PrintMarshal Contributors. Released under the <a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>.</span>
         <span class="mono" style="font-size: 0.76rem;">No external analytics · Zero telemetry · Simulator-verified captures</span>
       </div>
     </div>
