@@ -58,6 +58,12 @@ Duration strings use Go duration syntax: `30s`, `5m`, `720h`; `30d` is not suppo
 | `discovery.scanWorkers` | `int` | — | 64 | Concurrent active-scan liveness probes. |
 | `discovery.maxAddresses` | `int` | — | 4096 | Scan expansion cap unless the request sets allowLarge. |
 | `discovery.targets` | `[]string` | `PM_DISCOVERY_TARGETS` | empty | Default scheduled active-scan IPs, ranges or IPv4 CIDRs. |
+| `discovery.reverseDns.enabled` | `bool` | `PM_REVERSE_DNS_ENABLED` | true | Run PTR lookups to fill `Device.Hostname` when the device has no mDNS hostname. |
+| `discovery.reverseDns.server` | `string` | `PM_REVERSE_DNS_SERVER` | empty → system resolver | Custom DNS server (`host` or `host:port`, port 53 added if omitted). |
+| `discovery.reverseDns.shortNames` | `bool` | `PM_REVERSE_DNS_SHORT_NAMES` | true | Store only the first DNS label (strip domain suffix). |
+| `discovery.reverseDns.timeout` | `Duration` | `PM_REVERSE_DNS_TIMEOUT` | 1s | Context timeout per reverse/forward lookup. |
+| `discovery.reverseDns.refreshInterval` | `Duration` | `PM_REVERSE_DNS_REFRESH_INTERVAL` | 24h | Minimum interval between automatic refreshes on successful polls. |
+| `discovery.reverseDns.forwardConfirm` | `bool` | `PM_REVERSE_DNS_FORWARD_CONFIRM` | true | Resolve the PTR name back and accept it only when an answer matches the device's address. |
 
 ## trap
 

@@ -3,14 +3,18 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"printmarshal/internal/alerts"
 	"printmarshal/internal/config"
+	"printmarshal/internal/discovery"
 	"printmarshal/internal/driver/snmp"
 	"printmarshal/internal/engine"
 	"printmarshal/internal/jobs"
@@ -18,6 +22,50 @@ import (
 	"printmarshal/internal/secrets"
 	"printmarshal/internal/store"
 )
+
+type fakeResolver struct {
+	ptrs  map[string][]string
+	hosts map[string][]string
+	delay time.Duration
+	calls atomic.Int64
+}
+
+func (f *fakeResolver) LookupAddr(ctx context.Context, addr string) ([]string, error) {
+	f.calls.Add(1)
+	if f.delay > 0 {
+		select {
+		case <-time.After(f.delay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	if f.ptrs == nil {
+		return nil, errors.New("nxdomain")
+	}
+	names, ok := f.ptrs[addr]
+	if !ok {
+		return nil, errors.New("nxdomain")
+	}
+	return names, nil
+}
+
+func (f *fakeResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
+	if f.delay > 0 {
+		select {
+		case <-time.After(f.delay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	if f.hosts == nil {
+		return nil, errors.New("nxdomain")
+	}
+	addrs, ok := f.hosts[host]
+	if !ok {
+		return nil, errors.New("nxdomain")
+	}
+	return addrs, nil
+}
 
 func newTestService(t *testing.T, fixture string) (*Service, store.Store) {
 	t.Helper()
@@ -45,6 +93,7 @@ func newTestService(t *testing.T, fixture string) (*Service, store.Store) {
 	runner := jobs.New(st, log, 2, func(e model.Event) {})
 	t.Cleanup(runner.Stop)
 	svc := New(st, eng, runner, cfg, log, func(e model.Event) {}, func(ctx context.Context, a string) bool { return true })
+	svc.Resolver = &fakeResolver{}
 	return svc, st
 }
 
@@ -312,5 +361,206 @@ func TestPartialPollKeepsFaults(t *testing.T) {
 	}
 	if m := active(); m["trap:device-cold-start"] {
 		t.Fatalf("trap alert not reconciled after the hold: %v", m)
+	}
+}
+
+func TestReverseDNSLookupAndShortNames(t *testing.T) {
+	svc, st := newTestService(t, "generic-laser.snmp")
+	svc.Resolver = &fakeResolver{
+		ptrs:  map[string][]string{"10.0.0.5": {"printer-7.corp.example.com."}},
+		hosts: map[string][]string{"printer-7.corp.example.com": {"10.0.0.5"}},
+	}
+	ctx := context.Background()
+	dev, created, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	if err != nil || !created {
+		t.Fatalf("identify: %v created=%v", err, created)
+	}
+	if dev.Hostname != "printer-7" || dev.HostnameSource != "dns" {
+		t.Fatalf("hostname=%q source=%q, want printer-7 / dns", dev.Hostname, dev.HostnameSource)
+	}
+	if dev.Name() != "printer-7" {
+		t.Errorf("dev.Name() = %q, want printer-7 (DNS hostname before advertised sysName)", dev.Name())
+	}
+	stored, err := st.GetDevice(ctx, dev.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Hostname != "printer-7" || stored.HostnameSource != "dns" {
+		t.Errorf("stored hostname=%q source=%q", stored.Hostname, stored.HostnameSource)
+	}
+
+	// ShortNames=false keeps the FQDN (without trailing dot).
+	svc.Cfg.Discovery.ReverseDNS.ShortNames = false
+	upd, err := svc.RefreshHostname(ctx, stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if upd.Hostname != "printer-7.corp.example.com" || upd.HostnameSource != "dns" {
+		t.Errorf("ShortNames=false: hostname=%q source=%q", upd.Hostname, upd.HostnameSource)
+	}
+}
+
+func TestReverseDNSMDNSHostnameNotOverwritten(t *testing.T) {
+	svc, _ := newTestService(t, "generic-laser.snmp")
+	fake := &fakeResolver{
+		ptrs:  map[string][]string{"10.0.0.5": {"dns-name.corp.example.com."}},
+		hosts: map[string][]string{"dns-name.corp.example.com": {"10.0.0.5"}},
+	}
+	svc.Resolver = fake
+	ctx := context.Background()
+
+	cand := discovery.Candidate{Address: "10.0.0.5", Hostname: "mdns-printer.local"}
+	dev, _, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"mdns"}, cand)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.Hostname != "mdns-printer.local" || dev.HostnameSource != "mdns" {
+		t.Fatalf("mDNS hostname must win: hostname=%q source=%q", dev.Hostname, dev.HostnameSource)
+	}
+	if fake.calls.Load() != 0 {
+		t.Errorf("expected 0 reverse DNS lookups when mDNS hostname is present, got %d", fake.calls.Load())
+	}
+
+	// Polling or on-demand refresh must not overwrite the mDNS hostname either.
+	polled, _, err := svc.PollDevice(ctx, dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if polled.Hostname != "mdns-printer.local" || polled.HostnameSource != "mdns" {
+		t.Errorf("poll overwrote mDNS hostname: %q (%q)", polled.Hostname, polled.HostnameSource)
+	}
+	refreshed, err := svc.RefreshHostname(ctx, polled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refreshed.Hostname != "mdns-printer.local" || refreshed.HostnameSource != "mdns" {
+		t.Errorf("RefreshHostname overwrote mDNS hostname: %q (%q)", refreshed.Hostname, refreshed.HostnameSource)
+	}
+}
+
+func TestReverseDNSForwardConfirmRejectsMismatch(t *testing.T) {
+	svc, st := newTestService(t, "generic-laser.snmp")
+	fake := &fakeResolver{
+		ptrs:  map[string][]string{"10.0.0.5": {"spoofed.corp.example.com."}},
+		hosts: map[string][]string{"spoofed.corp.example.com": {"10.0.0.99"}}, // mismatch!
+	}
+	svc.Resolver = fake
+	ctx := context.Background()
+
+	dev, _, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.Hostname != "" || dev.HostnameSource != "" {
+		t.Fatalf("forward-confirm mismatch should be rejected, got hostname=%q source=%q", dev.Hostname, dev.HostnameSource)
+	}
+
+	// Pre-populate an existing DNS hostname; a later mismatched PTR lookup must keep the old value.
+	prev, err := st.SetDeviceHostname(ctx, dev.ID, "good-name", "dns")
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := svc.RefreshHostname(ctx, prev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Hostname != "good-name" || after.HostnameSource != "dns" {
+		t.Errorf("expected old value good-name to be kept on mismatch, got %q (%q)", after.Hostname, after.HostnameSource)
+	}
+
+	// Disabling ForwardConfirm accepts the PTR name without checking LookupHost.
+	svc.Cfg.Discovery.ReverseDNS.ForwardConfirm = false
+	accepted, err := svc.RefreshHostname(ctx, prev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if accepted.Hostname != "spoofed" || accepted.HostnameSource != "dns" {
+		t.Errorf("ForwardConfirm=false: got %q (%q), want spoofed / dns", accepted.Hostname, accepted.HostnameSource)
+	}
+}
+
+func TestReverseDNSTimeoutReturnsQuickly(t *testing.T) {
+	svc, _ := newTestService(t, "generic-laser.snmp")
+	svc.Cfg.Discovery.ReverseDNS.Timeout = config.Duration(30 * time.Millisecond)
+	svc.Resolver = &fakeResolver{
+		delay: 5 * time.Second,
+		ptrs:  map[string][]string{"10.0.0.5": {"slow.corp.example.com."}},
+		hosts: map[string][]string{"slow.corp.example.com": {"10.0.0.5"}},
+	}
+	ctx := context.Background()
+	start := time.Now()
+	dev, _, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elapsed > 500*time.Millisecond {
+		t.Errorf("lookup blocked for %v, expected ~30ms timeout", elapsed)
+	}
+	if dev.Hostname != "" {
+		t.Errorf("timed-out lookup should leave hostname empty, got %q", dev.Hostname)
+	}
+}
+
+func TestReverseDNSPollRefreshIntervalAndRetry(t *testing.T) {
+	svc, _ := newTestService(t, "generic-laser.snmp")
+	fake := &fakeResolver{
+		ptrs:  map[string][]string{},
+		hosts: map[string][]string{},
+	}
+	svc.Resolver = fake
+	ctx := context.Background()
+
+	// Initial identify fails PTR lookup (no record yet).
+	dev, _, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dev.Hostname != "" || fake.calls.Load() != 1 {
+		t.Fatalf("after failed identify: hostname=%q calls=%d", dev.Hostname, fake.calls.Load())
+	}
+
+	// DNS record appears; next poll retries because the previous lookup failed.
+	fake.ptrs["10.0.0.5"] = []string{"printer-5.corp.example.com."}
+	fake.hosts["printer-5.corp.example.com"] = []string{"10.0.0.5"}
+	polled, _, err := svc.PollDevice(ctx, dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if polled.Hostname != "printer-5" || polled.HostnameSource != "dns" || fake.calls.Load() != 2 {
+		t.Fatalf("poll retry: hostname=%q source=%q calls=%d", polled.Hostname, polled.HostnameSource, fake.calls.Load())
+	}
+
+	// Second poll within refreshInterval (24h) does not re-query DNS.
+	polled2, _, err := svc.PollDevice(ctx, polled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fake.calls.Load() != 2 || polled2.Hostname != "printer-5" {
+		t.Errorf("expected poll within refreshInterval to skip DNS, calls=%d hostname=%q", fake.calls.Load(), polled2.Hostname)
+	}
+
+	// Once refreshInterval has elapsed, the next poll refreshes the hostname.
+	fake.ptrs["10.0.0.5"] = []string{"printer-5-renamed.corp.example.com."}
+	fake.hosts["printer-5-renamed.corp.example.com"] = []string{"10.0.0.5"}
+	svc.dnsMu.Lock()
+	svc.dnsRefreshed[polled.ID] = time.Now().Add(-25 * time.Hour)
+	svc.dnsMu.Unlock()
+	polled3, _, err := svc.PollDevice(ctx, polled2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if polled3.Hostname != "printer-5-renamed" || fake.calls.Load() != 3 {
+		t.Errorf("expected poll after refreshInterval to update hostname, got %q (calls=%d)", polled3.Hostname, fake.calls.Load())
+	}
+}
+
+func TestNewResolverCustomServer(t *testing.T) {
+	if r := NewResolver(""); r != net.DefaultResolver {
+		t.Error("empty server should return net.DefaultResolver")
+	}
+	r := NewResolver("192.0.2.53")
+	if r == net.DefaultResolver || !r.PreferGo || r.Dial == nil {
+		t.Error("custom server should construct a PreferGo resolver with custom Dial")
 	}
 }

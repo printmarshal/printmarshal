@@ -218,10 +218,28 @@ Results are merged per key; a key no driver serves is `skipped` with a reason.
 | GET | `/api/config/writes` | viewer | `?device=&profile=&job=&limit=` | `{writes, total}` |
 | GET | `/api/config/writes/{id}` | viewer | | `{write, reversible}` |
 | POST | `/api/config/writes/{id}/revert` | operator | `{dryRun}` (omitted = dry run) | 202 `{job}` |
+| POST | `/api/devices/{id}/refresh-hostname` | operator | | updated `Device` |
 
 Jobs are read through the existing `GET /api/jobs/{id}`; each per-device result
 carries `data.writeId`, `data.results[]` (the per-setting status and, for real
 applies, `outcome` / `readBack`) and `data.verified` / `data.diverged`.
+
+## Reverse DNS hostname lookup (`discovery.reverseDns`)
+
+When a device has no mDNS hostname (`HostnameSource != "mdns"`), PrintMarshal runs a
+PTR lookup on the device's address after identification, on successful polls at most
+once per `refreshInterval`, and on demand via `POST /api/devices/{id}/refresh-hostname`
+(operator role). Display names follow the precedence: operator `displayName` →
+DNS/mDNS `hostname` → advertised `sysName` → `model` → `address`.
+
+| JSON | Env | Default | Meaning |
+| --- | --- | --- | --- |
+| `discovery.reverseDns.enabled` | `PM_REVERSE_DNS_ENABLED` | `true` | Enable reverse DNS (PTR) lookups after identification and during polling. |
+| `discovery.reverseDns.server` | `PM_REVERSE_DNS_SERVER` | `""` | Custom DNS server (`host` or `host:port`, default port `53`); empty uses the system resolver. |
+| `discovery.reverseDns.shortNames` | `PM_REVERSE_DNS_SHORT_NAMES` | `true` | Store only the first DNS label (e.g. `printer-7` instead of `printer-7.corp.example.com`). |
+| `discovery.reverseDns.timeout` | `PM_REVERSE_DNS_TIMEOUT` | `1s` | Per-lookup context timeout so slow or unreachable DNS never blocks discovery or polling. |
+| `discovery.reverseDns.refreshInterval` | `PM_REVERSE_DNS_REFRESH_INTERVAL` | `24h` | Minimum interval between automatic refreshes on successful polls. |
+| `discovery.reverseDns.forwardConfirm` | `PM_REVERSE_DNS_FORWARD_CONFIRM` | `true` | Resolve the PTR name back (`LookupHost`) and accept it only when an answer matches the device's address. |
 
 Setting values are coerced to the catalogue type (`model.CoerceValue`): numbers may
 arrive as JSON floats, booleans as `"true"`, lists as arrays or comma-separated

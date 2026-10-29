@@ -78,19 +78,20 @@ type Device struct {
 	ID string `json:"id"`
 
 	// Identity — automatic fields, refreshed by scans.
-	Address      string `json:"address"`
-	Hostname     string `json:"hostname,omitempty"`
-	MAC          string `json:"mac,omitempty"`
-	Serial       string `json:"serial,omitempty"`
-	UUID         string `json:"uuid,omitempty"`
-	Make         string `json:"make,omitempty"`
-	Model        string `json:"model,omitempty"`
-	DeviceType   string `json:"deviceType,omitempty"` // printer | mfp | scanner | unknown
-	Firmware     string `json:"firmware,omitempty"`
-	SysDescr     string `json:"sysDescr,omitempty"`
-	SysName      string `json:"sysName,omitempty"`
-	EnterpriseID int    `json:"enterpriseId,omitempty"` // raw IANA enterprise from sysObjectID; interpreted only by plugins
-	AdminURL     string `json:"adminUrl,omitempty"`
+	Address        string `json:"address"`
+	Hostname       string `json:"hostname,omitempty"`
+	HostnameSource string `json:"hostnameSource,omitempty"` // mdns | dns | advertised | ""
+	MAC            string `json:"mac,omitempty"`
+	Serial         string `json:"serial,omitempty"`
+	UUID           string `json:"uuid,omitempty"`
+	Make           string `json:"make,omitempty"`
+	Model          string `json:"model,omitempty"`
+	DeviceType     string `json:"deviceType,omitempty"` // printer | mfp | scanner | unknown
+	Firmware       string `json:"firmware,omitempty"`
+	SysDescr       string `json:"sysDescr,omitempty"`
+	SysName        string `json:"sysName,omitempty"`
+	EnterpriseID   int    `json:"enterpriseId,omitempty"` // raw IANA enterprise from sysObjectID; interpreted only by plugins
+	AdminURL       string `json:"adminUrl,omitempty"`
 
 	// Resolved capability profile: capability -> driver that serves it.
 	Capabilities     map[Capability]string `json:"capabilities"`
@@ -123,10 +124,10 @@ func (d *Device) Name() string {
 	switch {
 	case d.DisplayName != "":
 		return d.DisplayName
-	case d.SysName != "":
-		return d.SysName
 	case d.Hostname != "":
 		return d.Hostname
+	case d.SysName != "":
+		return d.SysName
 	case d.Model != "":
 		return d.Model
 	}
@@ -199,20 +200,21 @@ type Counters struct {
 
 // Identity is what the identify capability produces for an address.
 type Identity struct {
-	Address      string
-	Hostname     string
-	MAC          string
-	Serial       string
-	UUID         string
-	Make         string
-	Model        string
-	DeviceType   string
-	Firmware     string
-	SysDescr     string
-	SysName      string
-	SysLocation  string
-	EnterpriseID int
-	AdminURL     string
+	Address        string
+	Hostname       string
+	HostnameSource string
+	MAC            string
+	Serial         string
+	UUID           string
+	Make           string
+	Model          string
+	DeviceType     string
+	Firmware       string
+	SysDescr       string
+	SysName        string
+	SysLocation    string
+	EnterpriseID   int
+	AdminURL       string
 	// Capabilities this driver can serve for the device it just identified.
 	Capabilities []Capability
 	Method       string // driver name

@@ -86,6 +86,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PATCH /api/devices/{id}", s.require(model.RoleOperator, s.patchDevice))
 	mux.Handle("DELETE /api/devices/{id}", s.require(model.RoleAdmin, s.deleteDevice))
 	mux.Handle("POST /api/devices/{id}/poll", s.require(model.RoleOperator, s.pollDevice))
+	mux.Handle("POST /api/devices/{id}/refresh-hostname", s.require(model.RoleOperator, s.refreshDeviceHostname))
 	mux.Handle("POST /api/devices/{id}/state", s.require(model.RoleOperator, s.setDeviceState))
 	mux.Handle("GET /api/devices/{id}/alerts", s.require(model.RoleViewer, s.deviceAlerts))
 	mux.Handle("GET /api/devices/{id}/telemetry", s.require(model.RoleViewer, s.deviceTelemetry))
@@ -561,6 +562,25 @@ func (s *Server) pollDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"device": upd, "servedBy": res.ServedBy, "errors": res.Errors, "reachable": res.Reachable})
+}
+
+func (s *Server) refreshDeviceHostname(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	before, err := s.Store.GetDevice(r.Context(), id)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	d, err := s.Fleet.RefreshHostname(r.Context(), before)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.audit(r.Context(), r, "device.refresh_hostname", id,
+		map[string]any{"hostname": before.Hostname, "hostnameSource": before.HostnameSource},
+		map[string]any{"hostname": d.Hostname, "hostnameSource": d.HostnameSource}, "ok")
+	s.publish(r, model.Event{Type: "device.updated", Data: d})
+	writeJSON(w, http.StatusOK, d)
 }
 
 func (s *Server) pollAll(w http.ResponseWriter, r *http.Request) {

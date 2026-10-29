@@ -368,6 +368,20 @@ PM_ADMIN_PASSWORD=change-me ./bin/printmarshal
 | `discovery.wsdWait` | — | `3s` | How long to collect WS-Discovery answers |
 | `discovery.scanWorkers` | — | `64` | Parallel probes during an active scan |
 | `discovery.maxAddresses` | — | `4096` | Largest scan accepted without the explicit "allow large" flag |
+| `discovery.reverseDns.enabled` | `PM_REVERSE_DNS_ENABLED` | `true` | Run PTR lookups to populate `Device.Hostname` when mDNS did not supply one |
+| `discovery.reverseDns.server` | `PM_REVERSE_DNS_SERVER` | system resolver | Custom DNS server (`host` or `host:port`, port `53` added when omitted) |
+| `discovery.reverseDns.shortNames` | `PM_REVERSE_DNS_SHORT_NAMES` | `true` | Store only the first DNS label (e.g. `printer-7`) |
+| `discovery.reverseDns.timeout` | `PM_REVERSE_DNS_TIMEOUT` | `1s` | Context timeout per reverse/forward lookup |
+| `discovery.reverseDns.refreshInterval` | `PM_REVERSE_DNS_REFRESH_INTERVAL` | `24h` | Minimum interval between automatic refreshes on successful polls |
+| `discovery.reverseDns.forwardConfirm` | `PM_REVERSE_DNS_FORWARD_CONFIRM` | `true` | Resolve the PTR name back and accept it only when an answer matches the device's address |
+
+**Container note (reverse DNS):** when running in a container or Kubernetes pod, the
+default resolver is the container's (`/etc/resolv.conf`). Internal DNS zones (and
+their reverse zones) must be reachable from that resolver — on Kubernetes with
+`hostNetwork: true`, keep `dnsPolicy: ClusterFirstWithHostNet` or ensure the node's
+`/etc/resolv.conf` reaches your internal nameserver — or set
+`discovery.reverseDns.server` / `PM_REVERSE_DNS_SERVER` explicitly to your internal
+DNS server.
 
 ### Trap listener (`trap`)
 

@@ -21,6 +21,19 @@ import (
 	"printmarshal/internal/store"
 )
 
+type testResolver struct {
+	ptrs  map[string][]string
+	hosts map[string][]string
+}
+
+func (r *testResolver) LookupAddr(_ context.Context, addr string) ([]string, error) {
+	return r.ptrs[addr], nil
+}
+
+func (r *testResolver) LookupHost(_ context.Context, host string) ([]string, error) {
+	return r.hosts[host], nil
+}
+
 func newTestServer(t *testing.T) (*httptest.Server, *Server) {
 	t.Helper()
 	box, _ := secrets.New(make([]byte, 32))
@@ -36,6 +49,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *Server) {
 	t.Cleanup(runner.Stop)
 	eng := engine.New(engine.NewRegistry(), log, 2)
 	fl := fleet.New(st, eng, runner, cfg, log, hub.Publish, nil)
+	fl.Resolver = &testResolver{}
 	a := auth.New(st, time.Hour, false, log)
 	if err := a.Bootstrap(context.Background(), "adminpass123"); err != nil {
 		t.Fatal(err)
@@ -168,5 +182,36 @@ func TestDevicePatchAndState(t *testing.T) {
 	code, body = do(t, ts, admin, "GET", "/api/devices.csv", "")
 	if code != 200 || !strings.Contains(body, "Lobby printer") || !strings.Contains(body, "active") {
 		t.Errorf("csv: %d %s", code, body)
+	}
+}
+
+func TestRefreshDeviceHostname(t *testing.T) {
+	ts, s := newTestServer(t)
+	s.Fleet.Resolver = &testResolver{
+		ptrs:  map[string][]string{"10.0.0.5": {"printer-7.corp.example.com."}},
+		hosts: map[string][]string{"printer-7.corp.example.com": {"10.0.0.5"}},
+	}
+	admin := login(t, ts, "admin", "adminpass123")
+	viewer := login(t, ts, "viewer", "viewerpass1")
+
+	d, _, err := s.Store.UpsertDevice(context.Background(), &model.Identity{Address: "10.0.0.5", Serial: "S1", Model: "Acme 1", Method: "snmp"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code, _ := do(t, ts, "", "POST", "/api/devices/"+d.ID+"/refresh-hostname", ""); code != 401 {
+		t.Errorf("unauthenticated refresh-hostname = %d", code)
+	}
+	if code, _ := do(t, ts, viewer, "POST", "/api/devices/"+d.ID+"/refresh-hostname", ""); code != 403 {
+		t.Errorf("viewer refresh-hostname = %d, want 403", code)
+	}
+	if code, _ := do(t, ts, admin, "POST", "/api/devices/nope/refresh-hostname", ""); code != 404 {
+		t.Errorf("unknown device refresh-hostname = %d, want 404", code)
+	}
+	code, body := do(t, ts, admin, "POST", "/api/devices/"+d.ID+"/refresh-hostname", "")
+	if code != 200 || !strings.Contains(body, `"hostname":"printer-7"`) || !strings.Contains(body, `"hostnameSource":"dns"`) {
+		t.Fatalf("refresh-hostname: %d %s", code, body)
+	}
+	if code, body := do(t, ts, admin, "GET", "/api/audit", ""); code != 200 || !strings.Contains(body, "device.refresh_hostname") {
+		t.Errorf("audit after refresh-hostname: %d %s", code, body)
 	}
 }
