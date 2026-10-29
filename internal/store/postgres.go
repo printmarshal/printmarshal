@@ -98,7 +98,8 @@ func (s *Postgres) migrate(ctx context.Context) error {
 	// They are recorded so later migrations number the same on both backends.
 	// 4 = users.external_issuer/external_subject (the ALTER ... IF NOT EXISTS above).
 	// 5 = SQLite's fixed-width timestamp rewrite (nothing to do here: timestamptz).
-	for _, v := range []int{1, 2, 3, 4, 5} {
+	// 7 = devices.web_url_probed/web_url_override (the ALTER ... IF NOT EXISTS above).
+	for _, v := range []int{1, 2, 3, 4, 5, 7} {
 		if _, err := conn.ExecContext(ctx, `INSERT INTO schema_migrations(version, applied_at) VALUES ($1, $2) ON CONFLICT DO NOTHING`, v, nowUTC()); err != nil {
 			return err
 		}
