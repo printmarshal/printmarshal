@@ -88,6 +88,24 @@ Recorded by the build session that implemented phases 1–2.
 | A10/A11 identity | API tokens with role + group scope; optional OIDC (code flow with PKCE) with claim-to-role mapping | Machine clients and SSO without a third-party auth library. |
 | A12/A15 export | Syslog (RFC 5424, CEF or JSON) / file / HTTP sinks for security events; incremental sync API with `(updatedAt, id)` cursors and tombstones; printer syslog ingestion | SIEM and CMDB integrations need push and a resumable pull, not screen-scraping the REST API. |
 | A19/A20 writes | Credentials carry a purpose (read / write / both); write paths resolve write credentials only; after a real write the setting is read back and recorded as verified / diverged / unverifiable | A read-only community string must never be able to write, and "accepted" is not "in effect". |
+## Decisions from the independent code review (29 Oct 2026)
+
+The review in `research/code-review-harry-2026-10-29.md` raised 20 findings;
+the response in `research/code-review-response-2026-10-29.md` records each
+verdict. The decisions that changed behaviour:
+
+| Finding | Decision | Why |
+|---|---|---|
+| H-001 identity | External accounts bind by (issuer, subject); a first sign-in whose username is taken is refused; `email_verified: false` fails the domain check | A provider must not be able to hand a local administrator's name to someone else. |
+| H-002/H-003 scope | Nested targets, group ids and device-owned resource ids are resolved and checked; scoped principals cannot change groups, users or tokens; API tokens cannot manage users | The boundary has to hold on every path, and a principal must not be able to widen its own boundary or mint an unscoped one. |
+| H-004/H-012 polls | A reachable poll without a status read leaves the stored status alone and only the observed sources (offline / poll / supply) reconcile alerts; poll goroutines recover from panics | A flaky endpoint must neither crash the server nor clear faults it did not look at. |
+| H-013 traps | Trap alerts live at least `fleet.TrapAlertHold` (5 min) and are cleared by the next successful status poll; link-up clears link-down immediately | Traps describe moments, polls describe state; the poll is the source of truth once it has seen the device. |
+| H-007 dry run | Omitted `dryRun` means dry run on every device-changing endpoint; only `"dryRun": false` writes | The README promises dry-run-by-default, so the API must too. |
+| H-008 campaigns | Lifecycle transitions are serialised in-process and the campaign row names the one job allowed to run it | Two overlapping starts must not deliver the same image twice. In-process serialisation is enough because the deployment runs one replica. |
+| H-009 rotation | The new secret is stored (and audited as `staged`) before the device is told; it is removed on a clean refusal, kept on an ambiguous failure, and SNMP communities are verified by a read | Losing the only copy of a device's new admin password is worse than keeping a possibly-wrong credential an operator can delete. |
+| H-017 IPP writes | Writes try IPPS/HTTPS first, pin the device certificate on first TLS contact (in memory) and can be made TLS-only with `poll.ippWriteRequireTLS` | Trust-on-first-use is what is achievable with self-signed printer certificates; full CA validation remains a deployment choice. |
+| H-020 timestamps | SQLite timestamps are fixed-width (nine fractional digits, `Z`) and migration 5 rewrites older rows at millisecond precision | Lexical comparison must match chronological order. |
+
 ## Decisions from the application-integration audit (A19, A20)
 
 | Decision | Choice | Why |

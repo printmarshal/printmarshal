@@ -355,6 +355,7 @@ PM_ADMIN_PASSWORD=change-me ./bin/printmarshal
 | `poll.snmpRetries` | — | `1` | SNMP retries after a timeout |
 | `poll.ippTimeout` | — | `4s` | HTTP timeout for IPP and eSCL requests |
 | `poll.ippInsecureTls` | — | `true` | Accept printers' self-signed certificates for IPPS/eSCL over HTTPS |
+| `poll.ippWriteRequireTLS` | `PM_IPP_WRITE_REQUIRE_TLS` | `false` | Refuse IPP `Set-Printer-Attributes` over plaintext; writes always try IPPS/HTTPS first and pin the device certificate on first contact (docs/security.md) |
 
 ### Discovery (`discovery`)
 
