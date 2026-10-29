@@ -36,17 +36,29 @@ type Service struct {
 	Consumables *consumables.Service
 	// Probe is the cheap liveness check used by active scans.
 	Probe discovery.Prober
+	// Resolver performs reverse and forward DNS lookups for device hostnames.
+	Resolver Resolver
 	// WebClient performs the device web-page probe (weburl.go); nil means a
 	// default client with short timeouts and no certificate verification.
 	WebClient *http.Client
 
 	pollMu  sync.Mutex
 	polling map[string]bool
+
+	dnsMu        sync.Mutex
+	dnsRefreshed map[string]time.Time
 }
 
 // New builds a service and registers its job types.
 func New(st store.Store, eng *engine.Engine, runner *jobs.Runner, cfg *config.Config, log *slog.Logger, events func(model.Event), probe discovery.Prober) *Service {
-	s := &Service{Store: st, Engine: eng, Jobs: runner, Cfg: cfg, Log: log, Events: events, Probe: probe, polling: map[string]bool{},
+	var res Resolver
+	if cfg != nil {
+		res = NewResolver(cfg.Discovery.ReverseDNS.Server)
+	} else {
+		res = NewResolver("")
+	}
+	s := &Service{Store: st, Engine: eng, Jobs: runner, Cfg: cfg, Log: log, Events: events, Probe: probe, Resolver: res,
+		polling: map[string]bool{}, dnsRefreshed: map[string]time.Time{},
 		Consumables: consumables.New(st, log)}
 	runner.Register("discovery", s.runDiscovery)
 	runner.Register("poll", s.runPoll)
@@ -105,6 +117,7 @@ func (s *Service) IdentifyAndUpsert(ctx context.Context, address string, methods
 	if err != nil {
 		return nil, false, err
 	}
+	dev = s.refreshHostname(ctx, dev)
 	s.ensureWebURL(ctx, dev, true)
 	if created {
 		s.emit("device.discovered", dev)
@@ -172,6 +185,7 @@ func (s *Service) PollDevice(ctx context.Context, dev *model.Device) (*model.Dev
 		if err := s.Store.AddSamples(ctx, samples(updated, res)); err != nil {
 			s.Log.Warn("telemetry write", "device", dev.ID, "err", err)
 		}
+		updated = s.maybeRefreshHostname(ctx, updated)
 	} else {
 		_ = s.Store.AddSamples(ctx, []model.TelemetrySample{{DeviceID: dev.ID, Metric: "status.online", Value: 0, At: res.At}})
 	}

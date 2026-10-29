@@ -78,19 +78,22 @@ type Device struct {
 	ID string `json:"id"`
 
 	// Identity — automatic fields, refreshed by scans.
-	Address      string `json:"address"`
-	Hostname     string `json:"hostname,omitempty"`
-	MAC          string `json:"mac,omitempty"`
-	Serial       string `json:"serial,omitempty"`
-	UUID         string `json:"uuid,omitempty"`
-	Make         string `json:"make,omitempty"`
-	Model        string `json:"model,omitempty"`
-	DeviceType   string `json:"deviceType,omitempty"` // printer | mfp | scanner | unknown
-	Firmware     string `json:"firmware,omitempty"`
-	SysDescr     string `json:"sysDescr,omitempty"`
-	SysName      string `json:"sysName,omitempty"`
-	EnterpriseID int    `json:"enterpriseId,omitempty"` // raw IANA enterprise from sysObjectID; interpreted only by plugins
-	AdminURL     string `json:"adminUrl,omitempty"`
+	Address        string     `json:"address"`
+	Hostname       string     `json:"hostname,omitempty"`
+	DNSName        string     `json:"dnsName,omitempty"`
+	DNSNameSuspect bool       `json:"dnsNameSuspect,omitempty"`
+	DNSCheckedAt   *time.Time `json:"dnsCheckedAt,omitempty"`
+	MAC            string     `json:"mac,omitempty"`
+	Serial         string     `json:"serial,omitempty"`
+	UUID           string     `json:"uuid,omitempty"`
+	Make           string     `json:"make,omitempty"`
+	Model          string     `json:"model,omitempty"`
+	DeviceType     string     `json:"deviceType,omitempty"` // printer | mfp | scanner | unknown
+	Firmware       string     `json:"firmware,omitempty"`
+	SysDescr       string     `json:"sysDescr,omitempty"`
+	SysName        string     `json:"sysName,omitempty"`
+	EnterpriseID   int        `json:"enterpriseId,omitempty"` // raw IANA enterprise from sysObjectID; interpreted only by plugins
+	AdminURL       string     `json:"adminUrl,omitempty"`
 	// WebURL is the device's web page to open (see weburl.go); filled from
 	// WebURLOverride, AdminURL and WebURLProbed when the device is read.
 	WebURL         string `json:"webUrl,omitempty"`
@@ -103,10 +106,13 @@ type Device struct {
 	IdentifyMethods  []string              `json:"identifyMethods"`
 
 	// Operator fields — never overwritten by a scan.
-	DisplayName string `json:"displayName"`
-	Location    string `json:"location"`
-	AssetTag    string `json:"assetTag"`
-	Notes       string `json:"notes"`
+	DisplayName       string `json:"displayName"`
+	DisplayNameSource string `json:"displayNameSource,omitempty"`
+	DNSSync           bool   `json:"dnsSync,omitempty"`
+	DNSNameChanged    bool   `json:"dnsNameChanged,omitempty"`
+	Location          string `json:"location"`
+	AssetTag          string `json:"assetTag"`
+	Notes             string `json:"notes"`
 
 	State LifecycleState `json:"state"`
 
@@ -136,6 +142,22 @@ func (d *Device) Name() string {
 		return d.Model
 	}
 	return d.Address
+}
+
+// NameWith returns the preferred name according to source ("advertised" |
+// "dns" | "display"), falling back to the original precedence order.
+func (d *Device) NameWith(source string) string {
+	switch source {
+	case "dns":
+		if d.DNSName != "" && !d.DNSNameSuspect {
+			return d.DNSName
+		}
+	case "display":
+		if d.DisplayName != "" {
+			return d.DisplayName
+		}
+	}
+	return d.Name()
 }
 
 // Status is a device's current state as read from it.
