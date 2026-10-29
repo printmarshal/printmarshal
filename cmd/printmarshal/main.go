@@ -127,6 +127,7 @@ func run(cfgPath string) error {
 	ippOpts.Timeout = cfg.Poll.IPPTimeout.D()
 	ippOpts.InsecureTLS = cfg.Poll.IPPInsecureTLS
 	ippOpts.Endpoints = cfg.Poll.IPPEndpoints
+	ippOpts.WriteRequireTLS = cfg.Poll.IPPWriteRequireTLS
 	reg.Register(ipp.New(ipp.NewTransport(ippOpts), ippOpts))
 	esclOpts := escl.DefaultOptions()
 	esclOpts.Timeout = cfg.Poll.IPPTimeout.D()

@@ -35,6 +35,16 @@ func (t *recordingTransport) Do(_ context.Context, _ string, body []byte) ([]byt
 	return t.resp, nil
 }
 
+// DoAuth implements AuthTransport; the fake never challenges, so it behaves
+// like Do and reports a plaintext exchange.
+func (t *recordingTransport) DoAuth(ctx context.Context, url string, body []byte, _ Auth) (*Response, error) {
+	b, err := t.Do(ctx, url, body)
+	if err != nil {
+		return nil, err
+	}
+	return &Response{Body: b}, nil
+}
+
 func (t *recordingTransport) count(op uint16) int {
 	t.mu.Lock()
 	defer t.mu.Unlock()

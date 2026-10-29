@@ -28,6 +28,9 @@ type Config struct {
 		SNMPRetries    int      `json:"snmpRetries"`
 		IPPTimeout     Duration `json:"ippTimeout"`
 		IPPInsecureTLS bool     `json:"ippInsecureTls"`
+		// IPPWriteRequireTLS refuses to send Set-Printer-Attributes over
+		// plaintext; writes then need an IPPS (or HTTPS) endpoint on the device.
+		IPPWriteRequireTLS bool `json:"ippWriteRequireTLS"`
 	} `json:"poll"`
 
 	Discovery struct {
@@ -284,6 +287,7 @@ func Load(path string) (*Config, error) {
 	if v := os.Getenv("PM_IPP_ENDPOINTS"); v != "" {
 		c.Poll.IPPEndpoints = strings.Split(v, ",")
 	}
+	envBool("PM_IPP_WRITE_REQUIRE_TLS", &c.Poll.IPPWriteRequireTLS)
 	envBool("PM_DISCOVERY_ENABLED", &c.Discovery.Enabled)
 	envDur("PM_DISCOVERY_INTERVAL", &c.Discovery.Interval)
 	if v := os.Getenv("PM_DISCOVERY_TARGETS"); v != "" {
