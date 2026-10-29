@@ -422,9 +422,18 @@ type User struct {
 	Username  string    `json:"username"`
 	Role      Role      `json:"role"`
 	CreatedAt time.Time `json:"createdAt"`
-	Kind      string    `json:"kind,omitempty"`  // "" = session user (local or OIDC); "token" = API token principal
+	Kind      string    `json:"kind,omitempty"`  // "" = session user (local or external); "token" = API token principal
 	Scope     []string  `json:"scope,omitempty"` // group ids the principal is limited to; empty = every device
+	// ExternalIssuer / ExternalSubject bind an account to one identity at one
+	// identity provider ("" for local accounts). External sign-ins resolve the
+	// account by this pair, never by the username, so a provider cannot hand a
+	// local administrator's name to someone else.
+	ExternalIssuer  string `json:"externalIssuer,omitempty"`
+	ExternalSubject string `json:"externalSubject,omitempty"`
 }
+
+// IsExternal reports whether the account is bound to an identity provider.
+func (u *User) IsExternal() bool { return u != nil && u.ExternalIssuer != "" }
 
 // ConsumableType classifies a stock-kept consumable (consumables spec §2).
 type ConsumableType string

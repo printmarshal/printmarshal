@@ -502,54 +502,58 @@ func (s *Postgres) CreateUser(ctx context.Context, u *model.User, passwordHash s
 	}
 	n := nowUTC()
 	u.CreatedAt = n
-	_, err := pgExec(ctx, s.db, `INSERT INTO users(id,username,password_hash,role,created_at) VALUES(?,?,?,?,?)`, u.ID, u.Username, passwordHash, string(u.Role), n)
+	_, err := pgExec(ctx, s.db, `INSERT INTO users(id,username,password_hash,role,created_at,external_issuer,external_subject) VALUES(?,?,?,?,?,?,?)`,
+		u.ID, u.Username, passwordHash, string(u.Role), n, u.ExternalIssuer, u.ExternalSubject)
 	return err
 }
 
-func (s *Postgres) GetUserByName(ctx context.Context, username string) (*model.User, string, error) {
+const userColsPG = `id,username,password_hash,role,created_at,external_issuer,external_subject`
+
+func scanUserPG(r interface{ Scan(...any) error }) (*model.User, string, error) {
 	var u model.User
 	var hash string
 	var created time.Time
-	err := pgRow(ctx, s.db, `SELECT id,username,password_hash,role,created_at FROM users WHERE username=?`, username).Scan(&u.ID, &u.Username, &hash, &u.Role, &created)
-	if err == sql.ErrNoRows {
-		return nil, "", ErrNotFound
-	}
-	if err != nil {
+	if err := r.Scan(&u.ID, &u.Username, &hash, &u.Role, &created, &u.ExternalIssuer, &u.ExternalSubject); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, "", ErrNotFound
+		}
 		return nil, "", err
 	}
 	u.CreatedAt = created.UTC()
 	return &u, hash, nil
 }
 
-func (s *Postgres) GetUser(ctx context.Context, id string) (*model.User, error) {
-	var u model.User
-	var created time.Time
-	err := pgRow(ctx, s.db, `SELECT id,username,role,created_at FROM users WHERE id=?`, id).Scan(&u.ID, &u.Username, &u.Role, &created)
-	if err == sql.ErrNoRows {
+func (s *Postgres) GetUserByName(ctx context.Context, username string) (*model.User, string, error) {
+	return scanUserPG(pgRow(ctx, s.db, `SELECT `+userColsPG+` FROM users WHERE username=?`, username))
+}
+
+// GetUserByExternal implements Store.
+func (s *Postgres) GetUserByExternal(ctx context.Context, issuer, subject string) (*model.User, error) {
+	if issuer == "" || subject == "" {
 		return nil, ErrNotFound
 	}
-	if err != nil {
-		return nil, err
-	}
-	u.CreatedAt = created.UTC()
-	return &u, nil
+	u, _, err := scanUserPG(pgRow(ctx, s.db, `SELECT `+userColsPG+` FROM users WHERE external_issuer=? AND external_subject=?`, issuer, subject))
+	return u, err
+}
+
+func (s *Postgres) GetUser(ctx context.Context, id string) (*model.User, error) {
+	u, _, err := scanUserPG(pgRow(ctx, s.db, `SELECT `+userColsPG+` FROM users WHERE id=?`, id))
+	return u, err
 }
 
 func (s *Postgres) ListUsers(ctx context.Context) ([]*model.User, error) {
-	rows, err := pgQuery(ctx, s.db, `SELECT id,username,role,created_at FROM users ORDER BY username`)
+	rows, err := pgQuery(ctx, s.db, `SELECT `+userColsPG+` FROM users ORDER BY username`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []*model.User{}
 	for rows.Next() {
-		var u model.User
-		var created time.Time
-		if err := rows.Scan(&u.ID, &u.Username, &u.Role, &created); err != nil {
+		u, _, err := scanUserPG(rows)
+		if err != nil {
 			return nil, err
 		}
-		u.CreatedAt = created.UTC()
-		out = append(out, &u)
+		out = append(out, u)
 	}
 	return out, rows.Err()
 }

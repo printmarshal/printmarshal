@@ -94,7 +94,47 @@ func (s *SQLite) migrate() error {
 	if err := s.migrateCredentialPurpose(); err != nil {
 		return fmt.Errorf("migrate credential purpose: %w", err)
 	}
-	_, err = s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, ?)`, now())
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, ?)`, now()); err != nil {
+		return err
+	}
+	// Migration 4: external identities are bound by (issuer, subject), never
+	// by username (code review H-001).
+	for _, col := range []string{"external_issuer", "external_subject"} {
+		if err := s.addColumn("users", col, col+" TEXT NOT NULL DEFAULT ''"); err != nil {
+			return fmt.Errorf("migrate users.%s: %w", col, err)
+		}
+	}
+	if _, err := s.db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS users_external ON users(external_issuer, external_subject) WHERE external_issuer <> ''`); err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (4, ?)`, now())
+	return err
+}
+
+// addColumn adds a column with ALTER TABLE unless PRAGMA table_info already
+// lists it, so migrations stay idempotent on fresh and existing databases.
+func (s *SQLite) addColumn(table, column, ddl string) error {
+	rows, err := s.db.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notnull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
+			return err
+		}
+		if name == column {
+			return rows.Err()
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + ddl)
 	return err
 }
 

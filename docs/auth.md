@@ -154,11 +154,21 @@ provider (`redirectUrl` must match it character for character). Flow:
 
 ### Users and roles
 
-- Username = `preferred_username`, else `email`, else the subject.
+- Accounts are bound to the identity, not the name: the user row stores the
+  issuer and the token's `sub`, and every sign-in resolves the account by
+  that pair (`externalIssuer` / `externalSubject` in `GET /api/users`). A
+  provider that lets someone choose the username `admin` therefore cannot
+  sign them in as the local administrator, and a username change at the
+  provider cannot move an account to another person.
+- Username = `preferred_username`, else `email`, else the subject. On the
+  first sign-in the username must be free: if a local account (or one bound
+  to another provider) already uses it, the sign-in is refused with a clear
+  message and an `auth.failed` event; rename or remove that account, or let
+  the person use the local login.
 - First sign-in creates a local user with a random, unknown password; the
   account can only be used through the IdP (an admin can still reset the
   password to turn it into a local account). The creation is audited with
-  `source: oidc`.
+  `source: oidc` and the subject.
 - Role: the values of `roleClaim` (a string or list; dot paths such as
   `realm_access.roles` work) are looked up in `roleMap`; the highest mapped
   role wins; otherwise `defaultRole` (viewer). When `roleClaim` and `roleMap`
@@ -166,7 +176,10 @@ provider (`redirectUrl` must match it character for character). Flow:
   from the IdP group demotes them at their next login. Without a role
   mapping, roles are assigned once and managed locally.
 - `allowedDomains` rejects sign-ins whose `email` domain is not listed (and
-  any token without an email when the list is set).
+  any token without an email when the list is set). A token whose
+  `email_verified` claim is `false` is rejected too, because the domain is
+  then not a trustworthy boundary; a token without the claim (Entra ID
+  omits it) is accepted.
 
 ### Provider notes
 

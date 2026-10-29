@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"printmarshal/internal/auth"
 	"printmarshal/internal/auth/oidc"
 )
 
@@ -161,23 +162,40 @@ func (s *Server) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := s.Cfg.Auth.OIDC
-	if len(cfg.AllowedDomains) > 0 && !domainAllowed(claims.Email, cfg.AllowedDomains) {
-		s.logins.Fail(ip)
-		s.security(r.Context(), r, "auth.failed", claims.Username(), "email domain not allowed", "denied")
-		s.oidcFail(w, r, "your account's email domain is not allowed to sign in")
-		return
+	if len(cfg.AllowedDomains) > 0 {
+		// The domain is an access boundary, so an email the provider itself
+		// marks unverified (email_verified: false) must not pass it; a token
+		// without the claim (Entra ID omits it) is accepted.
+		if v, ok := claims.Raw["email_verified"].(bool); ok && !v {
+			s.logins.Fail(ip)
+			s.security(r.Context(), r, "auth.failed", claims.Username(), "email not verified by the provider", "denied")
+			s.oidcFail(w, r, "your account's email address is not verified by the identity provider")
+			return
+		}
+		if !domainAllowed(claims.Email, cfg.AllowedDomains) {
+			s.logins.Fail(ip)
+			s.security(r.Context(), r, "auth.failed", claims.Username(), "email domain not allowed", "denied")
+			s.oidcFail(w, r, "your account's email domain is not allowed to sign in")
+			return
+		}
 	}
 	syncRole := cfg.RoleClaim != "" && len(cfg.RoleMap) > 0
 	role := oidc.MapRole(claims.Lookup(cfg.RoleClaim), cfg.RoleMap, cfg.DefaultRole)
-	u, created, err := s.Auth.ProvisionExternal(r.Context(), claims.Username(), role, syncRole)
+	u, created, err := s.Auth.ProvisionExternal(r.Context(), auth.ExternalIdentity{Issuer: p.Issuer(), Subject: claims.Subject, Username: claims.Username()}, role, syncRole)
 	if err != nil {
+		if errors.Is(err, auth.ErrUsernameTaken) {
+			s.logins.Fail(ip)
+			s.security(r.Context(), r, "auth.failed", claims.Username(), err.Error(), "denied")
+			s.oidcFail(w, r, err.Error())
+			return
+		}
 		s.Log.Error("oidc provisioning", "err", err)
 		s.security(r.Context(), r, "auth.failed", claims.Username(), "provisioning failed: "+err.Error(), "error")
 		s.oidcFail(w, r, "the account could not be provisioned")
 		return
 	}
 	if created {
-		s.auditAs(r.Context(), u.Username, ip, "user.create", u.ID, nil, map[string]any{"username": u.Username, "role": u.Role, "source": "oidc", "issuer": p.Issuer()}, "ok")
+		s.auditAs(r.Context(), u.Username, ip, "user.create", u.ID, nil, map[string]any{"username": u.Username, "role": u.Role, "source": "oidc", "issuer": p.Issuer(), "subject": claims.Subject}, "ok")
 	}
 	token, err := s.Auth.IssueSession(r.Context(), u)
 	if err != nil {

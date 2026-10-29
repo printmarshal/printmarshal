@@ -186,6 +186,9 @@ type Store interface {
 	// Users and sessions
 	CreateUser(ctx context.Context, u *model.User, passwordHash string) error
 	GetUserByName(ctx context.Context, username string) (*model.User, string, error)
+	// GetUserByExternal finds the account bound to (issuer, subject) at an
+	// identity provider, or ErrNotFound.
+	GetUserByExternal(ctx context.Context, issuer, subject string) (*model.User, error)
 	GetUser(ctx context.Context, id string) (*model.User, error)
 	ListUsers(ctx context.Context) ([]*model.User, error)
 	CountUsers(ctx context.Context) (int, error)

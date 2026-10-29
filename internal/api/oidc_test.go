@@ -138,6 +138,43 @@ func TestOIDCSignIn(t *testing.T) {
 		t.Fatalf("demoted user still admin: %d", code)
 	}
 
+	// H-001: an IdP identity whose preferred_username is "admin" must not be
+	// signed in as the local administrator (accounts bind by issuer+subject).
+	flow, state, nonce = startFlow(t, ts, is)
+	is.Nonce, is.Claims["sub"], is.Claims["email"], is.Claims["preferred_username"], is.Claims["groups"] = nonce, "subject-2", "mallory@example.com", "admin", []string{"staff"}
+	resp = callback(t, ts, flow, "code-1", state)
+	if sessionCookie(resp) != "" || !strings.Contains(resp.Header.Get("Location"), "already+exists") {
+		t.Fatalf("local admin adopted by an IdP identity: %d %q", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	// The same subject renamed to "ann" at the provider must not take over ann's account either.
+	flow, state, nonce = startFlow(t, ts, is)
+	is.Nonce, is.Claims["preferred_username"] = nonce, "ann"
+	resp = callback(t, ts, flow, "code-1", state)
+	if sessionCookie(resp) != "" || !strings.Contains(resp.Header.Get("Location"), "already+exists") {
+		t.Fatalf("ann's account transferred to another subject: %q", resp.Header.Get("Location"))
+	}
+	// With a free username the new subject gets its own account, and ann's is untouched.
+	flow, state, nonce = startFlow(t, ts, is)
+	is.Nonce, is.Claims["preferred_username"] = nonce, "mallory"
+	resp = callback(t, ts, flow, "code-1", state)
+	if sess3 := sessionCookie(resp); sess3 == "" {
+		t.Fatalf("fresh subject refused: %q", resp.Header.Get("Location"))
+	} else if code, body := do(t, ts, sess3, "GET", "/api/auth/me", ""); code != 200 || !strings.Contains(body, `"username":"mallory"`) || !strings.Contains(body, `"role":"viewer"`) {
+		t.Fatalf("me: %d %s", code, body)
+	}
+	if _, body := do(t, ts, admin, "GET", "/api/users", ""); !strings.Contains(body, `"username":"ann","role":"viewer"`) || !strings.Contains(body, `"externalSubject":"subject-1"`) {
+		t.Fatalf("users: %s", body)
+	}
+	// An explicitly unverified email cannot pass the domain boundary.
+	flow, state, nonce = startFlow(t, ts, is)
+	is.Nonce, is.Claims["sub"], is.Claims["email_verified"], is.Claims["preferred_username"] = nonce, "subject-3", false, "carol"
+	resp = callback(t, ts, flow, "code-1", state)
+	if sessionCookie(resp) != "" || !strings.Contains(resp.Header.Get("Location"), "verified") {
+		t.Fatalf("unverified email accepted: %q", resp.Header.Get("Location"))
+	}
+	delete(is.Claims, "email_verified")
+	is.Claims["sub"] = "subject-1"
+
 	// Domain restriction.
 	flow, state, nonce = startFlow(t, ts, is)
 	is.Nonce, is.Claims["email"], is.Claims["preferred_username"] = nonce, "bob@elsewhere.net", "bob"

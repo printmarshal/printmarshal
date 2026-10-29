@@ -530,53 +530,58 @@ func (s *SQLite) CreateUser(ctx context.Context, u *model.User, passwordHash str
 	}
 	n := now()
 	u.CreatedAt = parseTime(n)
-	_, err := s.db.ExecContext(ctx, `INSERT INTO users(id,username,password_hash,role,created_at) VALUES(?,?,?,?,?)`, u.ID, u.Username, passwordHash, string(u.Role), n)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO users(id,username,password_hash,role,created_at,external_issuer,external_subject) VALUES(?,?,?,?,?,?,?)`,
+		u.ID, u.Username, passwordHash, string(u.Role), n, u.ExternalIssuer, u.ExternalSubject)
 	return err
 }
 
-func (s *SQLite) GetUserByName(ctx context.Context, username string) (*model.User, string, error) {
+const userCols = `id,username,password_hash,role,created_at,external_issuer,external_subject`
+
+func scanUser(r interface{ Scan(...any) error }) (*model.User, string, error) {
 	var u model.User
 	var hash, created string
-	err := s.db.QueryRowContext(ctx, `SELECT id,username,password_hash,role,created_at FROM users WHERE username=?`, username).Scan(&u.ID, &u.Username, &hash, &u.Role, &created)
-	if err == sql.ErrNoRows {
-		return nil, "", ErrNotFound
-	}
-	if err != nil {
+	if err := r.Scan(&u.ID, &u.Username, &hash, &u.Role, &created, &u.ExternalIssuer, &u.ExternalSubject); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, "", ErrNotFound
+		}
 		return nil, "", err
 	}
 	u.CreatedAt = parseTime(created)
 	return &u, hash, nil
 }
 
-func (s *SQLite) GetUser(ctx context.Context, id string) (*model.User, error) {
-	var u model.User
-	var created string
-	err := s.db.QueryRowContext(ctx, `SELECT id,username,role,created_at FROM users WHERE id=?`, id).Scan(&u.ID, &u.Username, &u.Role, &created)
-	if err == sql.ErrNoRows {
+func (s *SQLite) GetUserByName(ctx context.Context, username string) (*model.User, string, error) {
+	return scanUser(s.db.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE username=?`, username))
+}
+
+// GetUserByExternal implements Store: the account bound to one identity at
+// one identity provider.
+func (s *SQLite) GetUserByExternal(ctx context.Context, issuer, subject string) (*model.User, error) {
+	if issuer == "" || subject == "" {
 		return nil, ErrNotFound
 	}
-	if err != nil {
-		return nil, err
-	}
-	u.CreatedAt = parseTime(created)
-	return &u, nil
+	u, _, err := scanUser(s.db.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE external_issuer=? AND external_subject=?`, issuer, subject))
+	return u, err
+}
+
+func (s *SQLite) GetUser(ctx context.Context, id string) (*model.User, error) {
+	u, _, err := scanUser(s.db.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE id=?`, id))
+	return u, err
 }
 
 func (s *SQLite) ListUsers(ctx context.Context) ([]*model.User, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,username,role,created_at FROM users ORDER BY username`)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+userCols+` FROM users ORDER BY username`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []*model.User{}
 	for rows.Next() {
-		var u model.User
-		var created string
-		if err := rows.Scan(&u.ID, &u.Username, &u.Role, &created); err != nil {
+		u, _, err := scanUser(rows)
+		if err != nil {
 			return nil, err
 		}
-		u.CreatedAt = parseTime(created)
-		out = append(out, &u)
+		out = append(out, u)
 	}
 	return out, rows.Err()
 }

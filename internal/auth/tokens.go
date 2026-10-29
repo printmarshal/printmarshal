@@ -124,19 +124,40 @@ func TokenPrincipal(t *store.APIToken) *model.User {
 // IsToken reports whether the principal is an API token.
 func IsToken(u *model.User) bool { return u != nil && u.Kind == KindToken }
 
-// ProvisionExternal returns the local user for an identity-provider subject,
-// creating it on first sign-in with a random (unusable) password. When
-// syncRole is set the role is re-applied from the provider on every sign-in,
-// so a demotion at the IdP takes effect at the next login.
-func (s *Service) ProvisionExternal(ctx context.Context, username string, role model.Role, syncRole bool) (*model.User, bool, error) {
-	username = strings.TrimSpace(username)
-	if username == "" {
+// ExternalIdentity is one identity at one identity provider. Issuer names
+// the provider (an OIDC issuer URL, "ldap:<url>", "saml:<entity id>", ...)
+// and Subject its stable, provider-assigned identifier for the person (the
+// OIDC sub, an LDAP objectGUID/entryUUID or DN, a SAML persistent NameID);
+// Username is only the display name the local account is created with.
+type ExternalIdentity struct {
+	Issuer   string
+	Subject  string
+	Username string
+}
+
+// ErrUsernameTaken is returned when an external identity signs in for the
+// first time and a different account already owns its username.
+var ErrUsernameTaken = errors.New("an account with this username already exists and is not linked to this identity provider; sign in locally or ask an administrator to rename or remove it")
+
+// ProvisionExternal returns the local account bound to an external identity,
+// creating it on first sign-in with a random (unusable) password. Accounts
+// are matched by (issuer, subject) only (code review H-001): a provider that
+// lets someone pick the username "admin" cannot sign them in as the local
+// administrator, and a username change at the provider cannot transfer an
+// account to another person. When syncRole is set the role is re-applied on
+// every sign-in, so a demotion at the provider takes effect at the next login.
+func (s *Service) ProvisionExternal(ctx context.Context, id ExternalIdentity, role model.Role, syncRole bool) (*model.User, bool, error) {
+	id.Issuer, id.Subject, id.Username = strings.TrimSpace(id.Issuer), strings.TrimSpace(id.Subject), strings.TrimSpace(id.Username)
+	if id.Issuer == "" || id.Subject == "" {
+		return nil, false, errors.New("the identity provider returned no stable subject identifier")
+	}
+	if id.Username == "" {
 		return nil, false, errors.New("the identity provider returned no usable username")
 	}
 	if !role.Allows(model.RoleViewer) {
 		return nil, false, fmt.Errorf("unknown role %q", role)
 	}
-	u, _, err := s.store.GetUserByName(ctx, username)
+	u, err := s.store.GetUserByExternal(ctx, id.Issuer, id.Subject)
 	if err == nil {
 		if syncRole && u.Role != role {
 			if ts := s.tokens(); ts != nil {
@@ -151,6 +172,14 @@ func (s *Service) ProvisionExternal(ctx context.Context, username string, role m
 	if !errors.Is(err, store.ErrNotFound) {
 		return nil, false, err
 	}
+	// First sign-in: the username must be free. Never adopt an existing
+	// account, local or bound to another identity.
+	if _, _, err := s.store.GetUserByName(ctx, id.Username); err == nil {
+		return nil, false, ErrUsernameTaken
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return nil, false, err
+	}
+	username := id.Username
 	// A random 32-byte password that nobody knows: the account can only be
 	// used through the identity provider (or after an admin reset).
 	b := make([]byte, 32)
@@ -161,7 +190,7 @@ func (s *Service) ProvisionExternal(ctx context.Context, username string, role m
 	if err != nil {
 		return nil, false, err
 	}
-	u = &model.User{Username: username, Role: role}
+	u = &model.User{Username: username, Role: role, ExternalIssuer: id.Issuer, ExternalSubject: id.Subject}
 	if err := s.store.CreateUser(ctx, u, string(hash)); err != nil {
 		return nil, false, err
 	}

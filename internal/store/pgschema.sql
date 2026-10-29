@@ -158,8 +158,13 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL
+  created_at TIMESTAMPTZ NOT NULL,
+  external_issuer TEXT NOT NULL DEFAULT '',
+  external_subject TEXT NOT NULL DEFAULT ''
 );
+ALTER TABLE users ADD COLUMN IF NOT EXISTS external_issuer TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS external_subject TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS users_external ON users(external_issuer, external_subject) WHERE external_issuer <> '';
 
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash TEXT PRIMARY KEY,
