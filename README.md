@@ -1,4 +1,19 @@
-# PrintMarshal (PM)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/logo-horizontal-on-dark.svg">
+    <img src="brand/logo-horizontal.svg" alt="PrintMarshal" width="440">
+  </picture>
+</p>
+
+<p align="center"><strong>The command-and-security console for your printer fleet.</strong></p>
+
+<p align="center">
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2E54E6"></a>
+  <img alt="Go 1.27" src="https://img.shields.io/badge/Go-1.27-2E54E6">
+  <img alt="React + TypeScript" src="https://img.shields.io/badge/UI-React%20%2B%20TypeScript-2E54E6">
+  <img alt="SQLite or PostgreSQL" src="https://img.shields.io/badge/store-SQLite%20%7C%20PostgreSQL-2A313D">
+  <a href="wiki/Home.md"><img alt="Wiki" src="https://img.shields.io/badge/docs-wiki-D7A442"></a>
+</p>
 
 **PrintMarshal** is a self-hosted, vendor-agnostic platform for managing a fleet of
 network printers across their full lifecycle: **discover, inventory, monitor,
@@ -6,7 +21,8 @@ configure, secure, update firmware, and retire.**
 
 PrintMarshal manages *devices*, not print jobs. It is **not** a print-accounting,
 quota, cost-allocation, or pull-printing tool, and it depends on no manufacturer's
-management software.
+management software. The administrator and developer documentation lives in the
+[wiki](wiki/Home.md); the brand assets are in [`brand/`](brand/README.md).
 
 ## Status
 
