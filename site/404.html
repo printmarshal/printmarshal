@@ -4,12 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Page Not Found — PrintMarshal</title>
-  <meta name="description" content="The requested page could not be found on printmarshal.app.">
-  <meta name="theme-color" content="#0D1016">
+  <meta name="robots" content="noindex">
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
@@ -20,35 +19,50 @@
       <a class="brand" href="/" aria-label="PrintMarshal home">
         <img class="brand-mark" src="/assets/mark.svg" alt="" width="32" height="32">
         <span class="brand-name">Print<span>Marshal</span></span>
-        <span class="brand-tag">Self-Hosted · Apache-2.0</span>
+        <span class="brand-tag">Self-Hosted · Go + SQLite/PostgreSQL</span>
       </a>
-      <nav class="site-nav" aria-label="Primary">
-        <a href="/">Overview</a>
-        <a href="/features/">Features</a>
-        <a href="/security/">Security</a>
-        <a href="/get-started/">Get started</a>
-        <a href="/faq/">FAQ</a>
-      </nav>
-      <div class="header-actions">
-        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
-        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub ↗</a>
-        <a class="btn btn-primary btn-sm" href="/get-started/">Get started</a>
+
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation-menu" aria-label="Toggle navigation menu" data-nav-toggle>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+        <span>Menu</span>
+      </button>
+
+      <div class="header-menu" id="primary-navigation-menu" data-nav-menu>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a href="/">Overview</a>
+          <a href="/features/">Features</a>
+          <a href="/security/">Security</a>
+          <a href="/get-started/">Get started</a>
+          <a href="/faq/">FAQ</a>
+          <a class="nav-external-mobile" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki <span aria-hidden="true">↗</span></a>
+          <a class="nav-external-mobile" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+        </nav>
+
+        <div class="header-actions">
+          <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
+          <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn btn-primary btn-sm" href="/get-started/">Get started</a>
+        </div>
       </div>
     </div>
   </header>
 
   <main id="main-content">
-    <section class="section" style="border-bottom: 0; padding: 96px 0;" aria-labelledby="not-found-heading">
-      <div class="container" style="max-width: 640px;">
-        <div class="eyebrow">HTTP 404 · Not Found</div>
-        <h1 id="not-found-heading" style="margin-bottom: 14px;">That route does not exist.</h1>
-        <p class="lead" style="margin-bottom: 28px;">
-          Check the URL or return to the PrintMarshal product overview, documentation, or simulator evaluation guide.
+    <section class="section" aria-labelledby="notfound-heading">
+      <div class="container" style="max-width: 680px; text-align: center; padding: 64px 20px;">
+        <div class="eyebrow" style="justify-content: center;">HTTP 404 · Route Not Found</div>
+        <h1 id="notfound-heading" style="margin-bottom: 16px;">That page is not in the console.</h1>
+        <p class="lead" style="margin: 0 auto 28px;">
+          The link you followed does not match a page on printmarshal.app. Explore the product overview, evaluate locally with the simulator, or browse the Wiki.
         </p>
-        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;">
           <a class="btn btn-primary" href="/">Return to Overview</a>
-          <a class="btn" href="/get-started/">Get started</a>
-          <a class="btn" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Open Wiki</a>
+          <a class="btn" href="/get-started/">Get started with the simulator</a>
+          <a class="btn" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Browse the Wiki ↗</a>
         </div>
       </div>
     </section>
@@ -56,11 +70,39 @@
 
   <footer class="site-footer">
     <div class="container">
-      <div class="footer-bottom" style="border-top: 0; padding-top: 0;">
-        <span>PrintMarshal · Open source under the Apache-2.0 License.</span>
-        <span class="mono" style="font-size: 0.78rem;">Built with Go 1.27, React, SQLite/PostgreSQL · Self-hosted</span>
+      <div class="footer-bottom">
+        <span>© PrintMarshal Contributors. Released under open-source license.</span>
+        <span class="mono" style="font-size: 0.76rem;">No external analytics · Zero telemetry · Simulator-verified captures</span>
       </div>
     </div>
   </footer>
+
+  <script>
+    (function () {
+      var navToggle = document.querySelector('[data-nav-toggle]');
+      var navMenu = document.querySelector('[data-nav-menu]');
+      if (navToggle && navMenu) {
+        function closeMenu(returnFocus) {
+          navToggle.setAttribute('aria-expanded', 'false');
+          navMenu.classList.remove('is-open');
+          if (returnFocus) navToggle.focus();
+        }
+        navToggle.addEventListener('click', function () {
+          var expanded = navToggle.getAttribute('aria-expanded') === 'true';
+          if (expanded) closeMenu(false);
+          else {
+            navToggle.setAttribute('aria-expanded', 'true');
+            navMenu.classList.add('is-open');
+          }
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && navToggle.getAttribute('aria-expanded') === 'true') closeMenu(true);
+        });
+        document.addEventListener('click', function (e) {
+          if (navToggle.getAttribute('aria-expanded') === 'true' && !navMenu.contains(e.target) && !navToggle.contains(e.target)) closeMenu(false);
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

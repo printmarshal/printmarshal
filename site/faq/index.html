@@ -3,17 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FAQ — PrintMarshal</title>
-  <meta name="description" content="Direct answers on PrintMarshal's supported printer protocols, vendor driver boundaries, security assessments, certificate enrollment, firmware simulator, and self-hosting.">
-  <meta name="theme-color" content="#0D1016">
-  <meta property="og:title" content="FAQ — PrintMarshal">
-  <meta property="og:description" content="Direct answers on supported printer protocols, vendor driver boundaries, security assessments, certificate enrollment, and self-hosting.">
+  <title>Technical FAQ &amp; Operational Boundaries — PrintMarshal</title>
+  <meta name="description" content="Answers to technical questions about PrintMarshal printer support, unknown compliance evidence, configuration writes, certificate enrollment, firmware staging, and the optional local CUPS queue add-on.">
+  <link rel="canonical" href="https://printmarshal.app/faq/">
+
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PrintMarshal">
+  <meta property="og:title" content="Technical FAQ &amp; Operational Boundaries — PrintMarshal">
+  <meta property="og:description" content="Clear answers on what works over standard SNMP and IPP today, and where hardware or vendor drivers apply.">
   <meta property="og:url" content="https://printmarshal.app/faq/">
+  <meta property="og:image" content="https://printmarshal.app/assets/og-card.png">
+  <meta name="twitter:card" content="summary_large_image">
+
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
@@ -24,19 +29,34 @@
       <a class="brand" href="/" aria-label="PrintMarshal home">
         <img class="brand-mark" src="/assets/mark.svg" alt="" width="32" height="32">
         <span class="brand-name">Print<span>Marshal</span></span>
-        <span class="brand-tag">Self-Hosted · Apache-2.0</span>
+        <span class="brand-tag">Self-Hosted · Go + SQLite/PostgreSQL</span>
       </a>
-      <nav class="site-nav" aria-label="Primary">
-        <a href="/">Overview</a>
-        <a href="/features/">Features</a>
-        <a href="/security/">Security</a>
-        <a href="/get-started/">Get started</a>
-        <a href="/faq/" aria-current="page">FAQ</a>
-      </nav>
-      <div class="header-actions">
-        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
-        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub ↗</a>
-        <a class="btn btn-primary btn-sm" href="/get-started/">Get started</a>
+
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation-menu" aria-label="Toggle navigation menu" data-nav-toggle>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+        <span>Menu</span>
+      </button>
+
+      <div class="header-menu" id="primary-navigation-menu" data-nav-menu>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a href="/">Overview</a>
+          <a href="/features/">Features</a>
+          <a href="/security/">Security</a>
+          <a href="/get-started/">Get started</a>
+          <a href="/faq/" aria-current="page">FAQ</a>
+          <a class="nav-external-mobile" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki <span aria-hidden="true">↗</span></a>
+          <a class="nav-external-mobile" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+        </nav>
+
+        <div class="header-actions">
+          <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
+          <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn btn-primary btn-sm" href="/get-started/">Get started</a>
+        </div>
       </div>
     </div>
   </header>
@@ -44,115 +64,131 @@
   <main id="main-content">
     <section class="page-hero" aria-labelledby="faq-heading">
       <div class="container">
-        <div class="eyebrow">Frequently Asked Questions</div>
-        <h1 id="faq-heading">Direct answers on scope, drivers, and operational boundaries.</h1>
+        <div class="eyebrow">Technical FAQ</div>
+        <h1 id="faq-heading">Direct answers on protocol scope and boundaries.</h1>
         <p class="lead">
-          Every answer below reflects the current shipped implementation in the repository and the <a href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">PrintMarshal Wiki</a>.
+          How PrintMarshal interacts with network printers, evaluates security compliance, handles configuration changes, and defines the scope of its optional add-ons.
         </p>
       </div>
     </section>
 
-    <section class="section" style="border-bottom: 0;" aria-label="Questions and answers">
+    <section class="section" aria-label="Frequently asked questions">
       <div class="container" style="max-width: 920px;">
+
         <details class="disclosure" open>
-          <summary>Which printers work with PrintMarshal today?</summary>
+          <summary>1. Does discovery or polling ever write to my printers?</summary>
           <div class="disclosure-body">
             <p>
-              Any network printer that speaks standard <strong>SNMP (v1, v2c, or v3)</strong> with <span class="mono">MIB-II</span>, <span class="mono">Host-Resources-MIB</span>, and <span class="mono">RFC 3805 Printer-MIB</span>, <strong>IPP / IPPS</strong>, or <strong>eSCL</strong> (<span class="mono">/eSCL/ScannerCapabilities</span> and <span class="mono">/eSCL/ScannerStatus</span>) works with the standards drivers for discovery, status, supply/tray/counter polling, and baseline configuration reads.
+              <strong>No.</strong> Active CIDR/IP discovery, passive multicast listeners (<code>mDNS / DNS-SD</code> and <code>WS-Discovery</code>), and scheduled background polling are strictly read-only. They issue SNMP <code>GET</code> / <code>GETNEXT</code> / <code>GETBULK</code> requests and IPP <code>Get-Printer-Attributes</code> queries.
             </p>
             <p>
-              In addition, 13 compiled-in vendor plugins normalise model/serial strings across major enterprise brands: <strong>HP</strong> adds read-only PML and LEDM XML enrichment, and <strong>Ricoh</strong> and <strong>Canon</strong> add probe-gated private MIB total impression counters.
+              PrintMarshal only sends write commands when an authenticated <code>admin</code> or <code>operator</code> explicitly triggers a configuration apply, security remediation, credential rotation, certificate install, or simulator firmware job.
             </p>
           </div>
         </details>
 
         <details class="disclosure" open>
-          <summary>Does appearing in the 126-family Device Model Catalogue mean a printer is validated?</summary>
+          <summary>2. Which printer brands and models work today?</summary>
           <div class="disclosure-body">
             <p>
-              <strong>No.</strong> The embedded catalog (<span class="mono">internal/catalog/enterprise_printers.json</span>) is a structured research inventory of 126 enterprise printer families (495 base model identifiers across 15 brands) compiled from vendor documentation. Every family ships as <span class="mono">research_candidate_unvalidated</span> (<span class="mono">0</span> physically validated in the shipped catalog).
+              Any network printer that implements standard <strong>SNMP v1/v2c/v3</strong> (<code>RFC 1213 MIB-II</code>, <code>RFC 2790 Host-Resources-MIB</code>, <code>RFC 3805 Printer-MIB</code>) or <strong>IPP / IPPS</strong> works out of the box for discovery, supply/tray/counter monitoring, alert collection, and port/TLS security probing.
             </p>
             <p>
-              PrintMarshal keeps three states strictly separate on every device page: <strong>Documented</strong> (described in vendor documentation), <strong>Observed</strong> (a PrintMarshal driver actually answered on that device), and <strong>Unknown</strong> (neither).
+              PrintMarshal also ships an enterprise research catalog covering <strong>15 brands, 126 model families, and 495 base model identifiers</strong>. The catalog explicitly marks <strong><code>0 physically validated</code></strong> out of the box until an operator records lab qualification (<code>PUT /api/catalog/qualifications/{familyId}</code>), keeping vendor documentation separate from live device observations.
             </p>
           </div>
         </details>
 
         <details class="disclosure" open>
-          <summary>Why do some security policy checks show "unknown" instead of pass or fail?</summary>
+          <summary>3. Why do some Baseline security policy checks show <code>Unknown</code>?</summary>
           <div class="disclosure-body">
             <p>
-              Standard Printer-MIB and IPP attributes do not expose every security setting on every printer (for example, whether an admin password is set or whether WSD/SLP/LLMNR are enabled). Treating an unreadable setting as a passing check creates false compliance confidence.
+              PrintMarshal's canonical settings catalog defines <strong>84 setting keys across 10 areas</strong> (<code>internal/model/settings_catalog.go</code>), including 43 security-tagged keys. Standard SNMP and IPP expose protocol reachability, SNMPv1/v2c state, IPPS support, and TLS certificates, but do not standardize vendor-specific settings like <code>security.adminPasswordSet</code> or <code>protocols.https.redirectFromHttp</code>.
             </p>
             <p>
-              PrintMarshal records unreadable checks as <span class="status-pill status-unknown" style="padding: 1px 7px;">? Unknown</span>, lists them explicitly on the device's Security tab, and excludes them from the weighted compliance score denominator.
+              When no driver reports a setting, the policy evaluator (<code>internal/security/policy.go</code>) records <code>status: "unknown"</code> and excludes that rule's weight from the score denominator rather than silently counting it as <code>pass</code>.
             </p>
           </div>
         </details>
 
-        <details class="disclosure">
-          <summary>Which settings can PrintMarshal actually write to a printer today?</summary>
+        <details class="disclosure" open>
+          <summary>4. What is the difference between <code>accepted</code> and <code>verified</code> configuration writes?</summary>
           <div class="disclosure-body">
             <p>
-              Configuration writes use the highest-priority driver advertising <span class="mono">CapWriteConfig</span> on the target device:
+              Many printers return an SNMP <code>NoError</code> or IPP <code>successful-ok</code> response even when a setting is ignored by firmware or write-only. After applying a change (<code>internal/configmgmt/service.go</code>), PrintMarshal performs an immediate read-back poll:
             </p>
-            <ul class="walkthrough-points">
-              <li><strong>Standards SNMP (<span class="mono">snmp</span>):</strong> Writes <span class="mono">sysName</span> (<span class="mono">identity.hostname</span>), <span class="mono">sysLocation</span> (<span class="mono">identity.location</span>), <span class="mono">sysContact</span> (<span class="mono">identity.contact</span>), <span class="mono">prtGeneralPrinterName</span> (<span class="mono">identity.printerName</span>), <span class="mono">prtInputDefaultIndex</span>, and <span class="mono">prtMarkerDefaultIndex</span> using a credential with <span class="mono">write</span> or <span class="mono">both</span> purpose.</li>
-              <li><strong>Standards IPP (<span class="mono">ipp</span>):</strong> Writes <span class="mono">printer-location</span>, <span class="mono">printer-info</span>, <span class="mono">printer-organization</span>, <span class="mono">printer-organizational-unit</span>, and <span class="mono">*-default</span> print/media attributes when the printer supports IPP <span class="mono">Set-Printer-Attributes</span> (<span class="mono">0x0013</span>).</li>
+            <ul>
+              <li><strong><code>verified</code> (<code>verified: true</code>):</strong> The read-back value matches the desired value written.</li>
+              <li><strong><code>accepted</code> (<code>verified: false</code>):</strong> The driver write succeeded without error, but the key is write-only (such as passwords/communities) or could not be confirmed on read-back.</li>
             </ul>
+          </div>
+        </details>
+
+        <details class="disclosure" open>
+          <summary>5. Can PrintMarshal enroll and install TLS certificates on printers?</summary>
+          <div class="disclosure-body">
             <p>
-              No real-vendor <span class="mono">ConfigWriter</span>, <span class="mono">SecurityWriter</span>, <span class="mono">CertManager</span>, or <span class="mono">FirmwareUpdater</span> ships today.
+              PrintMarshal implements <strong>CSR generation (<code>RSA-2048</code>) and certificate enrollment</strong> via its built-in encrypted root CA, EST (<code>/.well-known/est/simpleenroll</code>), or SCEP, and raises expiry warnings at <code>≤ 30</code> days and critical alerts at <code>≤ 7</code> days (<code>internal/security/certs.go</code>).
+            </p>
+            <p>
+              <strong>Installing</strong> an enrolled certificate onto physical printer hardware (<code>POST /api/devices/{id}/certificates/{issuedId}/install</code>) requires a model-specific driver implementing <code>driver.CertificateInstaller</code>. Without a vendor installer driver, operators download the enrolled certificate/bundle and upload it through the printer's web console.
             </p>
           </div>
         </details>
 
-        <details class="disclosure">
-          <summary>What is the difference between certificate enrollment and certificate installation?</summary>
+        <details class="disclosure" open>
+          <summary>6. Does PrintMarshal push firmware updates to physical printers?</summary>
           <div class="disclosure-body">
             <p>
-              <strong>Certificate enrollment</strong> is implemented in PrintMarshal: the server generates an RSA-2048 or ECDSA-P256 keypair and CSR and requests a signed certificate from your CA via <strong>SCEP</strong>, <strong>EST</strong>, or <strong>ACME DNS-01</strong> (with manual DNS TXT record creation), storing the issued certificate and AES-256-GCM encrypted private key.
-            </p>
-            <p>
-              <strong>Certificate installation</strong> pushes that issued certificate and key onto the printer's TLS listener and requires a driver implementing <span class="mono">CertManager</span> (<span class="mono">CapInstallCert</span>). No shipped real-vendor driver implements <span class="mono">CertManager</span> today, and background auto-renewal is not implemented.
+              <strong>Not without a vendor firmware driver.</strong> PrintMarshal includes a SHA-256 verified firmware repository, version-compliance rules, and campaign scheduling. Out of the box, end-to-end HTTP firmware delivery (<code>POST /fw-sim</code>) is wired strictly for loopback simulator targets (<code>127.0.0.1</code> / <code>localhost</code> running <code>pm-sim</code>). Delivering firmware to physical printers requires implementing <code>driver.FirmwareDriver</code>.
             </p>
           </div>
         </details>
 
-        <details class="disclosure">
-          <summary>Does PrintMarshal update firmware on physical printers?</summary>
+        <details class="disclosure" open>
+          <summary>7. Is PrintMarshal a print server, pull-print queue, or print accounting tool?</summary>
           <div class="disclosure-body">
             <p>
-              <strong>Not with the shipped drivers.</strong> PrintMarshal implements the firmware artifact repository (with SHA-256 digest verification and signature status metadata) and the canary → staged wave campaign engine, but the only shipped <span class="mono">FirmwareUpdater</span> is <span class="mono">fwsim</span>, which is restricted to opt-in simulator targets (<span class="mono">PM_FIRMWARE_SIM_TARGETS</span>). Physical printer firmware delivery requires a vendor driver implementing <span class="mono">FirmwareUpdater</span>.
+              <strong>No. PrintMarshal manages devices, not print jobs.</strong> Print job accounting, page quotas, cost allocation, secure badge release, and pull printing are outside PrintMarshal (<code>README.md</code>, <code>docs/print-provider.md</code>, <code>internal/printprovider/settings.go</code>).
+            </p>
+            <p>
+              For small Linux sites that want host print queues to follow PrintMarshal's device inventory, PrintMarshal includes an <strong>optional, off-by-default local CUPS queue add-on</strong> (<code>internal/printprovider/</code>). When enabled (<code>enabled: true</code>), it runs in one of two modes:
+            </p>
+            <ul>
+              <li><strong><code>ipp-everywhere-list</code>:</strong> Publishes discovered IPP Everywhere / driverless URIs (<code>ipp://</code> or <code>ipps://</code>) for workstations without changing the host.</li>
+              <li><strong><code>cups</code>:</strong> On a Linux host with <code>lpadmin</code>, <code>lpstat</code>, <code>cupsenable</code>, and <code>cupsaccept</code> installed, it plans (<code>GET /api/print-provider/plan</code>), previews (<code>POST /api/print-provider/sync</code> with <code>dryRun: true</code> by default), creates/updates, and removes (<code>DELETE /api/print-provider/queues/{deviceId}</code>) local CUPS queues carrying its prefix (<code>pm-</code> by default). On non-Linux hosts or when CUPS CLI tools are absent, it falls back to <code>DryBackend</code> (recording commands only). It <strong>never modifies a printer</strong>.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="disclosure" open>
+          <summary>8. How are printer credentials and encryption keys protected?</summary>
+          <div class="disclosure-body">
+            <p>
+              All stored SNMP community strings, SNMPv3 passphrases, IPP credentials, and CA/CSR private keys are encrypted at rest using <strong>AES-256-GCM</strong> (<code>internal/secrets/secrets.go</code>) keyed by <code>PM_SECRET_KEY</code> (a base64-encoded 32-byte key generated via <code>openssl rand -base64 32</code> or persisted at <code>&lt;PM_DATA_DIR&gt;/secret.key</code>).
+            </p>
+            <p>
+              <strong>Preserve <code>PM_SECRET_KEY</code> across restarts:</strong> if you replace <code>PM_SECRET_KEY</code> against an existing database, previously stored credentials cannot be decrypted. Always back up <code>secret.key</code> in your secrets manager alongside database backups (<code>deploy/scripts/backup.sh</code>).
             </p>
           </div>
         </details>
 
-        <details class="disclosure">
-          <summary>Is PrintMarshal a print server or virtual print queue?</summary>
-          <div class="disclosure-body">
-            <p>
-              <strong>No.</strong> PrintMarshal is a fleet operations, security assessment, and configuration console—not a CUPS replacement or Windows print driver host. It includes an optional pull-print hold/release workflow (<span class="mono">/api/print/jobs</span> and <span class="mono">/api/print/release/card</span>) that submits held PDF/PostScript/PWG-Raster jobs over IPP/IPPS to printers supporting RFC 3998, plus CSV/JSON job accounting import for PaperCut and uniFLOW.
-            </p>
-          </div>
-        </details>
+      </div>
+    </section>
 
-        <details class="disclosure">
-          <summary>Can I run multiple PrintMarshal server replicas for high availability?</summary>
-          <div class="disclosure-body">
-            <p>
-              Run a <strong>single active PrintMarshal server process</strong> per database. Whether you use embedded SQLite (WAL) or external PostgreSQL, background discovery, polling schedules, and job workers run in-process without a distributed cluster lock.
-            </p>
+    <section class="section section-tight" aria-labelledby="faq-cta-heading">
+      <div class="container">
+        <div class="closing-cta">
+          <div style="max-width: 620px;">
+            <div class="eyebrow">Ready to Test?</div>
+            <h2 id="faq-cta-heading" style="margin-bottom: 10px;">Evaluate locally with the built-in simulator.</h2>
+            <p>Run <code>pm-sim</code> and PrintMarshal on <code>127.0.0.1</code> to verify discovery, compliance scoring, and dry-run diffs firsthand.</p>
           </div>
-        </details>
-
-        <details class="disclosure">
-          <summary>How can I test PrintMarshal without touching real office printers?</summary>
-          <div class="disclosure-body">
-            <p>
-              Use the built-in printer simulator (<span class="mono">cmd/pm-sim</span>) on loopback (<span class="mono">127.0.0.1</span>). It replays real SNMP walk fixtures (<span class="mono">testdata/fixtures/*.snmp</span>) and speaks SNMPv2c/v3, IPP/IPPS, and eSCL so you can evaluate discovery, security policy assessments, and dry-run configuration writes locally. Follow the <a href="/get-started/">Get Started guide</a>.
-            </p>
+          <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+            <a class="btn btn-primary" href="/get-started/">Get started with the simulator</a>
+            <a class="btn" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Browse the Wiki ↗</a>
           </div>
-        </details>
+        </div>
       </div>
     </section>
   </main>
@@ -163,19 +199,19 @@
         <div class="footer-col">
           <a class="brand" href="/" style="margin-bottom: 12px;">
             <img class="brand-mark" src="/assets/mark.svg" alt="" width="28" height="28">
-            <span class="brand-name" style="font-size: 1.1rem;">Print<span>Marshal</span></span>
+            <span class="brand-name">Print<span>Marshal</span></span>
           </a>
-          <p style="font-size: 0.84rem; color: var(--text-muted); max-width: 34ch;">
-            Open source, self-hosted printer fleet discovery, security posture assessment, and configuration management.
+          <p style="max-width: 36ch; font-size: 0.84rem; color: var(--text-muted);">
+            Self-hosted network printer security, compliance, and fleet configuration console. Open-source Go + React single-binary deployment.
           </p>
         </div>
         <div class="footer-col">
           <h4>Product</h4>
           <ul>
             <li><a href="/">Overview</a></li>
-            <li><a href="/features/">Features &amp; Capability Status</a></li>
-            <li><a href="/security/">Security &amp; Architecture</a></li>
-            <li><a href="/get-started/">Get Started</a></li>
+            <li><a href="/features/">Features &amp; Capability Matrix</a></li>
+            <li><a href="/security/">Security &amp; Boundaries</a></li>
+            <li><a href="/get-started/">Get Started &amp; Simulator</a></li>
             <li><a href="/faq/">FAQ</a></li>
           </ul>
         </div>
@@ -184,26 +220,55 @@
           <ul>
             <li><a href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki Home</a></li>
             <li><a href="https://github.com/printmarshal/printmarshal/wiki/Installation-and-deployment" target="_blank" rel="noopener">Installation &amp; Deployment</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Security &amp; Policies</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Security &amp; Compliance</a></li>
             <li><a href="https://github.com/printmarshal/printmarshal/wiki/Configuration-management" target="_blank" rel="noopener">Configuration Management</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Vendor Plugins &amp; Drivers</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/API-reference" target="_blank" rel="noopener">REST API Reference</a></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h4>Project</h4>
+          <h4>Operations &amp; Source</h4>
           <ul>
             <li><a href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub Repository</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/API-reference" target="_blank" rel="noopener">REST &amp; WebSocket API</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Development" target="_blank" rel="noopener">Contributing &amp; Simulator</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0 License</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Identity-and-access" target="_blank" rel="noopener">Identity &amp; Access</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Vendor Plugins &amp; Drivers</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Print-provider" target="_blank" rel="noopener">Local CUPS Print Provider</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Troubleshooting-and-FAQ" target="_blank" rel="noopener">Troubleshooting</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
-        <span>PrintMarshal · Open source under the Apache-2.0 License.</span>
-        <span class="mono" style="font-size: 0.78rem;">Built with Go 1.27, React, SQLite/PostgreSQL · Self-hosted</span>
+        <span>© PrintMarshal Contributors. Released under open-source license.</span>
+        <span class="mono" style="font-size: 0.76rem;">No external analytics · Zero telemetry · Simulator-verified captures</span>
       </div>
     </div>
   </footer>
+
+  <script>
+    (function () {
+      var navToggle = document.querySelector('[data-nav-toggle]');
+      var navMenu = document.querySelector('[data-nav-menu]');
+      if (navToggle && navMenu) {
+        function closeMenu(returnFocus) {
+          navToggle.setAttribute('aria-expanded', 'false');
+          navMenu.classList.remove('is-open');
+          if (returnFocus) navToggle.focus();
+        }
+        navToggle.addEventListener('click', function () {
+          var expanded = navToggle.getAttribute('aria-expanded') === 'true';
+          if (expanded) closeMenu(false);
+          else {
+            navToggle.setAttribute('aria-expanded', 'true');
+            navMenu.classList.add('is-open');
+          }
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && navToggle.getAttribute('aria-expanded') === 'true') closeMenu(true);
+        });
+        document.addEventListener('click', function (e) {
+          if (navToggle.getAttribute('aria-expanded') === 'true' && !navMenu.contains(e.target) && !navToggle.contains(e.target)) closeMenu(false);
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

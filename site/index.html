@@ -3,17 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PrintMarshal — Self-Hosted Printer Fleet Security, Discovery &amp; Configuration</title>
-  <meta name="description" content="Know where your printer fleet is exposed. Discover network printers, evaluate security policies against live SNMP, IPP, and TLS evidence, and preview supported configuration changes from one self-hosted console.">
-  <meta name="theme-color" content="#0D1016">
-  <meta property="og:title" content="PrintMarshal — Know where your printer fleet is exposed">
-  <meta property="og:description" content="Open source, self-hosted console for discovering network printers, assessing security policies, and managing supported configuration changes with dry-run previews and read-back verification.">
+  <title>PrintMarshal — Printer Fleet Security, Compliance &amp; Configuration</title>
+  <meta name="description" content="Self-hosted network printer security, compliance, and fleet management. Discover printers over SNMP and IPP, audit security posture with explicit unknown states, and preview changes before writing.">
+  <link rel="canonical" href="https://printmarshal.app/">
+
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PrintMarshal">
+  <meta property="og:title" content="PrintMarshal — Know where your printer fleet is exposed">
+  <meta property="og:description" content="Self-hosted printer fleet security and configuration management over SNMP v1/v2c/v3 and IPP/IPPS. Built-in simulator included.">
   <meta property="og:url" content="https://printmarshal.app/">
+  <meta property="og:image" content="https://printmarshal.app/assets/og-card.png">
+  <meta name="twitter:card" content="summary_large_image">
+
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/site.css">
 </head>
 <body>
@@ -24,801 +29,831 @@
       <a class="brand" href="/" aria-label="PrintMarshal home">
         <img class="brand-mark" src="/assets/mark.svg" alt="" width="32" height="32">
         <span class="brand-name">Print<span>Marshal</span></span>
-        <span class="brand-tag">Self-Hosted · Apache-2.0</span>
+        <span class="brand-tag">Self-Hosted · Go + SQLite/PostgreSQL</span>
       </a>
-      <nav class="site-nav" aria-label="Primary">
-        <a href="/" aria-current="page">Overview</a>
-        <a href="/features/">Features</a>
-        <a href="/security/">Security</a>
-        <a href="/get-started/">Get started</a>
-        <a href="/faq/">FAQ</a>
-      </nav>
-      <div class="header-actions">
-        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
-        <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub ↗</a>
-        <a class="btn btn-primary btn-sm" href="/get-started/">Get started</a>
+
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation-menu" aria-label="Toggle navigation menu" data-nav-toggle>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+        <span>Menu</span>
+      </button>
+
+      <div class="header-menu" id="primary-navigation-menu" data-nav-menu>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a href="/" aria-current="page">Overview</a>
+          <a href="/features/">Features</a>
+          <a href="/security/">Security</a>
+          <a href="/get-started/">Get started</a>
+          <a href="/faq/">FAQ</a>
+          <a class="nav-external-mobile" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki <span aria-hidden="true">↗</span></a>
+          <a class="nav-external-mobile" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
+        </nav>
+
+        <div class="header-actions">
+          <a class="quiet-link" href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki</a>
+          <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn btn-primary btn-sm" href="/get-started/">Get started</a>
+        </div>
       </div>
     </div>
   </header>
 
   <main id="main-content">
-    <!-- 1. SECURITY-FOCUSED HERO WITH SUBSTANTIAL PRODUCT VISUAL -->
+    <!-- ====================================================================
+         1. HERO SHOWCASE (Simplified & Product-First)
+         ==================================================================== -->
     <section class="hero" aria-labelledby="hero-heading">
       <div class="container">
         <div class="hero-top">
-          <div>
-            <div class="eyebrow">Printer Fleet Security &amp; Operations</div>
-            <h1 id="hero-heading" class="hero-title">Know where your printer fleet is exposed.</h1>
-            <p class="lead">
-              Discover network printers, evaluate security policies against live SNMP, IPP, and TLS evidence, and preview supported configuration changes from one self-hosted console.
-            </p>
-            <div class="hero-actions">
-              <a class="btn btn-primary" href="#walkthrough">Explore the product</a>
-              <a class="btn" href="/get-started/">Get started</a>
-              <a class="quiet-link" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">
-                View source on GitHub (<span class="mono">Apache-2.0</span>) →
-              </a>
-            </div>
+          <div class="eyebrow">Printer Fleet Security &amp; Configuration Console</div>
+          <h1 id="hero-heading" class="hero-title">Know where your printer fleet is exposed.</h1>
+          <p class="lead">
+            Printers hold network credentials, TLS certificates, and open management ports, yet most teams only notice them when toner runs out. PrintMarshal discovers your fleet over standard SNMP and IPP, audits device security without treating unreadable settings as passing, and previews configuration changes before writing.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#walkthrough">Explore the product</a>
+            <a class="btn" href="/get-started/#simulator">Evaluate with the simulator</a>
+            <a class="btn" href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">View on GitHub</a>
           </div>
-
-          <aside class="hero-meta-panel" aria-label="Operational boundaries at a glance">
-            <div class="hero-meta-title">Verified operational model</div>
-            <ul class="hero-meta-list">
-              <li>
-                <span>Default posture</span>
-                <span class="status-pill status-pass">✓ Read-only discovery &amp; polling</span>
-              </li>
-              <li>
-                <span>Evidence scoring</span>
-                <span class="status-pill status-unknown">? Unknown ≠ Pass</span>
-              </li>
-              <li>
-                <span>Write gating</span>
-                <span class="status-pill status-info">Dry run → Confirm → Read-back</span>
-              </li>
-              <li>
-                <span>Hardware-free eval</span>
-                <span class="mono" style="color: var(--text-primary); font-size: 0.8rem;">Built-in <code style="padding:1px 5px;">pm-sim</code> SNMP/IPP simulator</span>
-              </li>
-            </ul>
-          </aside>
         </div>
 
-        <figure class="console-showcase" style="margin: 0;">
+        <div class="hero-reassurance" aria-label="Operational safeguards">
+          <div class="reassurance-item">
+            <span class="reassurance-icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M10 2.5L3.5 5.5v4.5c0 4.2 2.8 7.3 6.5 8.5 3.7-1.2 6.5-4.3 6.5-8.5V5.5L10 2.5z"/><path d="M7.5 10l1.8 1.8 3.4-3.6"/></svg>
+            </span>
+            <div>
+              <strong>Read-only by default</strong>
+              <span>Discovery and polling never write to devices</span>
+            </div>
+          </div>
+          <div class="reassurance-item">
+            <span class="reassurance-icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="10" cy="10" r="7.5"/><path d="M8.4 8.2a1.8 1.8 0 1 1 2.5 1.7c-.6.3-.9.7-.9 1.4"/><circle cx="10" cy="14.2" r="0.6" fill="currentColor"/></svg>
+            </span>
+            <div>
+              <strong>Explicit unknown states</strong>
+              <span>Unreadable checks are never counted as pass</span>
+            </div>
+          </div>
+          <div class="reassurance-item">
+            <span class="reassurance-icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 6h12M4 10h8M4 14h5"/><path d="M13 13l2 2 3.5-3.5"/></svg>
+            </span>
+            <div>
+              <strong>Dry-run &amp; read-back</strong>
+              <span>Preview diffs first, then verify after apply</span>
+            </div>
+          </div>
+          <div class="reassurance-item">
+            <span class="reassurance-icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M7 8l2.5 2L7 12M11 12h3"/></svg>
+            </span>
+            <div>
+              <strong>Built-in simulator</strong>
+              <span>Test workflows locally with <code>pm-sim</code></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="console-showcase" data-lightbox-src="/assets/screens/security-compliance.png" data-lightbox-caption="Fleet security overview (simulator data): 14-item Baseline policy separating passing, failing, and unknown checks across the fleet.">
           <div class="console-bar">
             <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-            <span class="console-url">http://127.0.0.1:8080/security?tab=compliance — Real PrintMarshal UI (simulator-backed fleet)</span>
-            <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/security-compliance.png" data-lightbox-caption="PrintMarshal Security Compliance view (/security?tab=compliance) evaluating 5 simulator-backed printers against the 14-item Baseline policy.">
-              ⤢ Enlarge capture
+            <div class="console-url">Fleet security overview · Simulator data</div>
+            <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge fleet security overview screenshot">
+              <span aria-hidden="true">⤢</span> Enlarge
             </button>
           </div>
-          <div class="console-media" data-lightbox-src="/assets/screens/security-compliance.png" data-lightbox-caption="PrintMarshal Security Compliance view (/security?tab=compliance) evaluating 5 simulator-backed printers against the 14-item Baseline policy.">
-            <img class="media-desktop-full" src="/assets/screens/security-compliance.png" alt="PrintMarshal Security Compliance console showing 60.0% fleet compliance across 5 assessed devices, failing SNMP v1/v2c checks, passing Telnet/FTP/HTTPS checks, and 5 unknown items." width="1440" height="960">
-            <img class="media-mobile-crop" src="/assets/screens/mobile-security-compliance.png" alt="Focused mobile detail view of PrintMarshal's policy item table showing SNMP v1/v2c failing, Telnet/FTP/HTTPS passing, and SNMPv3/TLS/Admin password marked as unknown." width="728" height="887">
+          <div class="console-media">
+            <img
+              class="media-desktop-full"
+              src="/assets/screens/security-compliance.png"
+              alt="PrintMarshal Security Compliance screen showing a 5-device simulated fleet evaluated against the 14-item Baseline policy, separating failing SNMPv1/v2c checks from unknown settings."
+              width="1440"
+              height="960"
+              fetchpriority="high">
+            <img
+              class="media-mobile-crop"
+              src="/assets/screens/mobile-security-compliance.png"
+              alt="Focused detail of PrintMarshal Security Compliance table showing failing SNMPv1/v2c checks and unknown checks excluded from the score denominator."
+              width="1092"
+              height="1331">
           </div>
-          <figcaption class="console-annotations">
+          <div class="console-annotations">
             <div class="annotation-item">
-              <strong><span class="annotation-num">1</span> Fleet posture without false greens</strong>
-              <p>Assesses devices against the built-in 14-item <span class="mono">Baseline</span> policy or custom policies, separating compliant (<span class="mono">3</span>) and non-compliant (<span class="mono">2</span>) endpoints.</p>
+              <strong><span class="annotation-num">1</span> Evidence-backed compliance</strong>
+              <p>The built-in 14-item Baseline policy scores observed settings (<span class="status-pill status-fail">× Fail</span> <span class="status-pill status-pass">✓ Pass</span>) while keeping unreadable vendor settings visible as <span class="status-pill status-unknown">? Unknown</span> rather than assuming compliance.</p>
             </div>
-            <div class="annotation-item">
-              <strong><span class="annotation-num">2</span> Unknown evidence stays visible</strong>
-              <p>Settings not readable over standards SNMP/IPP (such as admin password state or minimum TLS version on some endpoints) are recorded as <span class="mono">unknown</span> and excluded from the score denominator.</p>
-            </div>
-            <div class="annotation-item">
-              <strong><span class="annotation-num">3</span> Management-path lockout guard</strong>
-              <p>Rules tagged <span class="mgmt-tag">⚠ may cut SNMP path</span> or <span class="mgmt-tag">⚠ may cut HTTP path</span> warn operators before disabling the protocol PrintMarshal uses to reach the printer.</p>
-            </div>
-          </figcaption>
-        </figure>
-      </div>
-    </section>
-
-    <!-- 2. THE PRINTER VISIBILITY PROBLEM -->
-    <section class="section section-alt" aria-labelledby="problem-heading">
-      <div class="container">
-        <div class="section-header">
-          <div class="eyebrow">Why Printer Security Visibility Matters</div>
-          <h2 id="problem-heading">Network printers sit on trusted VLANs with opaque configurations.</h2>
-          <p class="lead">
-            Printers and MFPs speak SNMP, IPP, raw TCP 9100, and vendor-specific HTTP dialects, hold TLS certificates, and store network credentials—yet most infrastructure tools treat them as unmonitored black boxes.
-          </p>
-        </div>
-
-        <div class="problem-grid">
-          <article class="problem-card">
-            <div class="problem-card-head">
-              <h3>Silent protocol exposure</h3>
-              <span class="status-pill status-fail">× High risk</span>
-            </div>
-            <p>
-              Printers frequently ship with <span class="mono">SNMPv1/v2c</span> community strings enabled, plain-HTTP admin consoles, self-signed or expiring TLS certificates, and unauthenticated raw port <span class="mono">9100</span> open across office subnets.
-            </p>
-            <div class="problem-contrast">
-              PrintMarshal probes TCP ports (<span class="mono">21, 23, 80, 443, 515, 631, 9100</span>), inspects TLS handshakes on <span class="mono">443/631</span>, and reads live protocol state.
-            </div>
-          </article>
-
-          <article class="problem-card">
-            <div class="problem-card-head">
-              <h3>The "unknown = pass" trap</h3>
-              <span class="status-pill status-unknown">? Evidence gap</span>
-            </div>
-            <p>
-              Standard Printer-MIB and IPP attributes do not expose every security control on every vendor model. Dashboards that collapse unreadable settings into "0 issues" create false compliance confidence.
-            </p>
-            <div class="problem-contrast">
-              PrintMarshal keeps <span class="mono">pass</span>, <span class="mono">fail</span>, and <span class="mono">unknown</span> separate in every assessment and in the 126-family device catalog.
-            </div>
-          </article>
-
-          <article class="problem-card">
-            <div class="problem-card-head">
-              <h3>Unverified configuration writes</h3>
-              <span class="status-pill status-warn">⚠ Drift risk</span>
-            </div>
-            <p>
-              Printer firmware often returns <span class="mono">OK</span> to an SNMP <span class="mono">SET</span> or IPP <span class="mono">Set-Printer-Attributes</span> request while silently ignoring or truncating the value.
-            </p>
-            <div class="problem-contrast">
-              PrintMarshal runs a dry-run diff first, captures rollback values, re-reads every written key, and labels outcomes <span class="mono">verified</span>, <span class="mono">diverged</span>, or <span class="mono">unverifiable</span>.
-            </div>
-          </article>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 3. GUIDED PRODUCT WALKTHROUGH & SIGNATURE VISUAL INTERACTION -->
-    <section class="section" id="walkthrough" aria-labelledby="walkthrough-heading">
+    <!-- ====================================================================
+         2. GUIDED PRODUCT WALKTHROUGH & SIGNATURE EVIDENCE TRACE
+         ==================================================================== -->
+    <section id="walkthrough" class="section section-alt" aria-labelledby="walkthrough-heading">
       <div class="container">
         <div class="section-header">
           <div class="eyebrow">Guided Product Walkthrough</div>
           <h2 id="walkthrough-heading">From fleet discovery to verified configuration changes.</h2>
           <p class="lead">
-            Every screen below is captured directly from the shipped PrintMarshal web console running against the built-in printer simulator (<span class="mono">cmd/pm-sim</span>). Select any step to inspect the workflow, or click a screenshot to enlarge.
+            Explore how PrintMarshal discovers printers, evaluates security posture, separates research coverage from live driver evidence, and previews configuration changes. All captures come from the shipped application running against <code>pm-sim</code>.
           </p>
         </div>
 
-        <div class="walkthrough-shell">
+        <div class="walkthrough-shell" data-walkthrough>
           <div class="walkthrough-tabs" role="tablist" aria-label="Product workflow steps">
-            <button type="button" class="walkthrough-tab" role="tab" id="wt-tab-1" aria-selected="true" aria-controls="wt-panel-1" tabindex="0">
-              <span class="walkthrough-step-num">Step 01</span>
-              <span class="walkthrough-tab-title">Discover a printer fleet</span>
-              <span class="walkthrough-tab-sub">Reconcile multi-protocol identity &amp; live status</span>
+            <button class="walkthrough-tab" role="tab" id="tab-step-1" aria-selected="true" aria-controls="panel-step-1" tabindex="0" data-step-index="0" data-step-label="Step 1 of 5 · Discover fleet">
+              <span class="walkthrough-step-num">01<span class="step-mode"> · Read-Only</span></span>
+              <span class="walkthrough-tab-title">Discover fleet</span>
+              <span class="walkthrough-tab-short">Discover</span>
+              <span class="walkthrough-tab-sub">SNMP + IPP inventory</span>
             </button>
-            <button type="button" class="walkthrough-tab" role="tab" id="wt-tab-2" aria-selected="false" aria-controls="wt-panel-2" tabindex="-1">
-              <span class="walkthrough-step-num">Step 02</span>
-              <span class="walkthrough-tab-title">Identify failed &amp; unknown checks</span>
-              <span class="walkthrough-tab-sub">Fleet-wide policy scoring &amp; lockout tags</span>
+            <button class="walkthrough-tab" role="tab" id="tab-step-2" aria-selected="false" aria-controls="panel-step-2" tabindex="-1" data-step-index="1" data-step-label="Step 2 of 5 · Assess baseline">
+              <span class="walkthrough-step-num">02<span class="step-mode"> · Audit</span></span>
+              <span class="walkthrough-tab-title">Assess baseline</span>
+              <span class="walkthrough-tab-short">Assess</span>
+              <span class="walkthrough-tab-sub">Pass, fail &amp; unknown</span>
             </button>
-            <button type="button" class="walkthrough-tab" role="tab" id="wt-tab-3" aria-selected="false" aria-controls="wt-panel-3" tabindex="-1">
-              <span class="walkthrough-step-num">Step 03</span>
-              <span class="walkthrough-tab-title">Inspect a device &amp; observations</span>
-              <span class="walkthrough-tab-sub">Per-device findings, score bar &amp; certificates</span>
+            <button class="walkthrough-tab" role="tab" id="tab-step-3" aria-selected="false" aria-controls="panel-step-3" tabindex="-1" data-step-index="2" data-step-label="Step 3 of 5 · Inspect findings">
+              <span class="walkthrough-step-num">03<span class="step-mode"> · Inspect</span></span>
+              <span class="walkthrough-tab-title">Inspect findings</span>
+              <span class="walkthrough-tab-short">Inspect</span>
+              <span class="walkthrough-tab-sub">Device checks &amp; TLS certs</span>
             </button>
-            <button type="button" class="walkthrough-tab" role="tab" id="wt-tab-4" aria-selected="false" aria-controls="wt-panel-4" tabindex="-1">
-              <span class="walkthrough-step-num">Step 04</span>
-              <span class="walkthrough-tab-title">Understand capabilities &amp; evidence</span>
-              <span class="walkthrough-tab-sub">Documented vs observed vs unknown</span>
+            <button class="walkthrough-tab" role="tab" id="tab-step-4" aria-selected="false" aria-controls="panel-step-4" tabindex="-1" data-step-index="3" data-step-label="Step 4 of 5 · Check support">
+              <span class="walkthrough-step-num">04<span class="step-mode"> · Evidence</span></span>
+              <span class="walkthrough-tab-title">Check support</span>
+              <span class="walkthrough-tab-short">Support</span>
+              <span class="walkthrough-tab-sub">Observed vs research</span>
             </button>
-            <button type="button" class="walkthrough-tab" role="tab" id="wt-tab-5" aria-selected="false" aria-controls="wt-panel-5" tabindex="-1">
-              <span class="walkthrough-step-num">Step 05</span>
-              <span class="walkthrough-tab-title">Preview &amp; verify config changes</span>
-              <span class="walkthrough-tab-sub">Dry-run diff, read-back &amp; revert history</span>
+            <button class="walkthrough-tab" role="tab" id="tab-step-5" aria-selected="false" aria-controls="panel-step-5" tabindex="-1" data-step-index="4" data-step-label="Step 5 of 5 · Dry-run &amp; verify">
+              <span class="walkthrough-step-num">05<span class="step-mode"> · Change</span></span>
+              <span class="walkthrough-tab-title">Dry-run &amp; verify</span>
+              <span class="walkthrough-tab-short">Dry-run</span>
+              <span class="walkthrough-tab-sub">Preview diff &amp; read-back</span>
             </button>
           </div>
 
-          <!-- Panel 1 -->
-          <div class="walkthrough-panel" role="tabpanel" id="wt-panel-1" aria-labelledby="wt-tab-1">
-            <div class="walkthrough-copy">
-              <div class="eyebrow">Step 01 · Fleet Inventory</div>
-              <h3>Discover &amp; reconcile printers across protocols</h3>
-              <p>
-                Scan target CIDRs, IP ranges, or single hosts via SNMP (<span class="mono">v1/v2c/v3</span>), IPP/IPPS, and TCP port probes, or listen passively with mDNS, SSDP, and WS-Discovery.
-              </p>
-              <ul class="walkthrough-points">
-                <li><strong>Deterministic deduplication:</strong> Reconciles observations by <span class="mono">serial → UUID → MAC → IP address</span> so multi-homed or DHCP-reassigned printers never duplicate.</li>
-                <li><strong>Live operational telemetry:</strong> Polls CMYK/mono supply bars, lifetime page counters, input/output tray state, and Printer-MIB alerts.</li>
-                <li><strong>Table &amp; mobile card views:</strong> Switch between high-density fleet tables on desktop and supply-focused device cards on mobile.</li>
-              </ul>
-              <div class="walkthrough-boundary">
-                <strong>Boundary:</strong> Discovery and polling are strictly read-only. Operator-set display names, locations, asset tags, and notes are never overwritten by device polls.
-              </div>
-            </div>
-            <figure class="console-showcase" style="margin:0;">
-              <div class="console-bar">
-                <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-                <span class="console-url">/devices — Fleet inventory (5 discovered simulator devices)</span>
-                <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/fleet-discovery.png" data-lightbox-caption="Step 1: Devices inventory (/devices) showing 5 discovered printers with status pills, supply bars, page counts, firmware versions, and lifecycle states.">⤢ Enlarge</button>
-              </div>
-              <div class="console-media" data-lightbox-src="/assets/screens/fleet-discovery.png" data-lightbox-caption="Step 1: Devices inventory (/devices) showing 5 discovered printers with status pills, supply bars, page counts, firmware versions, and lifecycle states.">
-                <img class="media-desktop-full" src="/assets/screens/fleet-discovery.png" alt="PrintMarshal Devices page listing 5 discovered printers (Ricoh IM C3010, Acme LaserPrint 4200dn, HP Color LaserJet MFP M283fdw, Konica Minolta bizhub C300i, Acme ColorWorks MFP 7700) with status pills and supply bars." width="1440" height="900" loading="lazy">
-                <img class="media-mobile-crop" src="/assets/screens/mobile-fleet-cards.png" alt="Focused mobile card view of discovered printers showing status pills and per-colorant toner percentages." width="645" height="1170" loading="lazy">
-              </div>
-            </figure>
+          <div class="walkthrough-stepper-bar" aria-label="Mobile step navigation">
+            <button class="stepper-btn" type="button" data-step-prev aria-label="Previous walkthrough step">← Prev</button>
+            <span class="stepper-status" data-step-status aria-live="polite">Step 1 of 5 · Discover fleet</span>
+            <button class="stepper-btn" type="button" data-step-next aria-label="Next walkthrough step">Next →</button>
           </div>
 
-          <!-- Panel 2 -->
-          <div class="walkthrough-panel" role="tabpanel" id="wt-panel-2" aria-labelledby="wt-tab-2" hidden>
+          <!-- Step 1 Panel -->
+          <div class="walkthrough-panel" role="tabpanel" id="panel-step-1" aria-labelledby="tab-step-1">
             <div class="walkthrough-copy">
-              <div class="eyebrow">Step 02 · Policy Assessment</div>
-              <h3>Identify failed and unknown security checks</h3>
+              <span class="cap-badge cap-implemented">● Implemented · Read-Only</span>
+              <h3>1. Discover printers and reconcile identity</h3>
               <p>
-                Run the built-in 14-item <span class="mono">Baseline</span> policy—or build custom policies from the 17-item security catalog—against individual devices or groups.
+                Scan CIDR ranges, IP lists, or passive multicast announcements. PrintMarshal polls standard SNMP MIBs and IPP attributes for identity, supply levels, page counters, and firmware versions.
               </p>
               <ul class="walkthrough-points">
-                <li><strong>Pass / Fail / Unknown breakdown:</strong> Every policy item shows its severity (<span class="mono">Critical</span>, <span class="mono">High</span>, <span class="mono">Medium</span>, <span class="mono">Low</span>), pass rate bar, failing device count, and unknown count.</li>
-                <li><strong>Management-path awareness:</strong> Highlights items that could sever SNMP or HTTP connectivity if remediated without an alternative path.</li>
-                <li><strong>Assess-only vs remediable rules:</strong> Clearly labels which items are <span class="mono">Assess-only</span> (such as <span class="mono">Administrator password set</span> or <span class="mono">Raw port 9100</span>) versus driver-remediable.</li>
+                <li><strong>Identity matching:</strong> Reconciles by serial, UUID, MAC, and IP while flagging conflicts when another printer reuses an address.</li>
+                <li><strong>Protected operator fields:</strong> Display names, locations, and asset tags are never overwritten by polls.</li>
               </ul>
               <div class="walkthrough-boundary">
-                <strong>Boundary:</strong> Automated policy remediation requires a driver implementing <span class="mono">SecurityWriter</span> (<span class="mono">CapWriteSecurity</span>). Standards SNMP/IPP drivers do not write security settings.
+                <strong>Scope:</strong> Discovery and scheduled polling are strictly read-only.
               </div>
             </div>
-            <figure class="console-showcase" style="margin:0;">
+            <div class="console-showcase" data-lightbox-src="/assets/screens/fleet-discovery.png" data-lightbox-caption="Step 1 — Fleet inventory: 5 simulated printers discovered over SNMP and IPP with live supply levels and lifecycle state.">
               <div class="console-bar">
                 <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-                <span class="console-url">/security?tab=compliance — Fleet policy compliance</span>
-                <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/security-compliance.png" data-lightbox-caption="Step 2: Security Compliance tab showing failing SNMP v1/v2c checks, passing Telnet/FTP/HTTPS checks, and unknown counts.">⤢ Enlarge</button>
+                <div class="console-url">Fleet inventory · Simulator data</div>
+                <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge fleet inventory screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
               </div>
-              <div class="console-media" data-lightbox-src="/assets/screens/security-compliance.png" data-lightbox-caption="Step 2: Security Compliance tab showing failing SNMP v1/v2c checks, passing Telnet/FTP/HTTPS checks, and unknown counts.">
-                <img class="media-desktop-full" src="/assets/screens/security-compliance.png" alt="Security Compliance view showing 60.0% compliant devices, average score 92.7, and per-item pass/fail/unknown counts." width="1440" height="960" loading="lazy">
-                <img class="media-mobile-crop" src="/assets/screens/mobile-security-compliance.png" alt="Focused view of the By policy item table showing SNMP v1/v2c failing on 2 devices and 5 unknown items." width="728" height="887" loading="lazy">
+              <div class="console-media">
+                <img class="media-desktop-full" src="/assets/screens/fleet-discovery.png" alt="PrintMarshal Devices table listing five discovered printers with online and warning badges, toner bars, page counts, and firmware versions." width="1440" height="640" loading="lazy">
+                <img class="media-mobile-crop" src="/assets/screens/mobile-fleet-cards.png" alt="Focused view of discovered printers with status pills, model names, and toner supply bars." width="645" height="1170" loading="lazy">
               </div>
-            </figure>
+              <div class="console-annotations">
+                <div class="annotation-item">
+                  <strong><span class="annotation-num">1</span> Unified fleet table</strong>
+                  <p>Filter by status, make, model, or lifecycle state and export inventory or supply CSVs.</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Panel 3 -->
-          <div class="walkthrough-panel" role="tabpanel" id="wt-panel-3" aria-labelledby="wt-tab-3" hidden>
+          <!-- Step 2 Panel -->
+          <div class="walkthrough-panel" role="tabpanel" id="panel-step-2" aria-labelledby="tab-step-2" hidden>
             <div class="walkthrough-copy">
-              <div class="eyebrow">Step 03 · Device Security Detail</div>
-              <h3>Inspect a device and its supporting observations</h3>
+              <span class="cap-badge cap-implemented">● Implemented · Security Audit</span>
+              <h3>2. Assess fleet posture against the Baseline policy</h3>
               <p>
-                Drill into any printer's <strong>Security</strong> tab to see the exact observed values behind its compliance score alongside its TLS and certificate inventory.
+                Evaluate printers against the 14-item Baseline policy or custom rules covering legacy ports, SNMPv1/v2c exposure, TLS versions, and certificate validity.
               </p>
               <ul class="walkthrough-points">
-                <li><strong>Transparent scoring math:</strong> On <span class="mono">fin-laser-4200dn</span>, <span class="mono">4 / 5</span> readable items pass (weighted score <span class="mono">81.8</span>), while <span class="mono">SNMP v1/v2c enabled</span> fails (<span class="mono">is true, want eq false</span>).</li>
-                <li><strong>Explicit unknown listing:</strong> All <span class="mono">9 unknown</span> items are named directly on the card with the explanation: <em>"not readable on this device; counted but not scored."</em></li>
-                <li><strong>Certificate &amp; TLS probe view:</strong> Displays certificates reported by a driver, observed via TLS handshake on ports <span class="mono">443/631</span>, or issued by PrintMarshal through SCEP, EST, or ACME.</li>
+                <li><strong>Honest scoring:</strong> Unreadable settings report as <code>unknown</code> and are excluded from the score denominator rather than counted as pass.</li>
+                <li><strong>Port &amp; TLS probes:</strong> Checks management/print ports and inspects TLS handshakes on HTTPS and IPPS.</li>
               </ul>
               <div class="walkthrough-boundary">
-                <strong>Boundary:</strong> PrintMarshal can enroll certificates with SCEP, EST, or ACME DNS-01, but installing an issued certificate onto a printer requires a <span class="mono">CertManager</span> driver.
+                <strong>Scope:</strong> Policy assessment is diagnostic; remediation uses a separate dry-run or apply workflow.
               </div>
             </div>
-            <figure class="console-showcase" style="margin:0;">
+            <div class="console-showcase" data-lightbox-src="/assets/screens/security-compliance.png" data-lightbox-caption="Step 2 — Fleet policy compliance: 5 devices evaluated against the 14-item Baseline policy.">
               <div class="console-bar">
                 <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-                <span class="console-url">/devices/c50ea9fb… (Security tab) — Per-device assessment &amp; certificates</span>
-                <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/device-security-detail.png" data-lightbox-caption="Step 3: Device Security tab on fin-laser-4200dn showing 4/5 items passing, failing SNMP v1/v2c enabled, and 9 unknown items.">⤢ Enlarge</button>
+                <div class="console-url">Fleet policy compliance · Baseline policy</div>
+                <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge fleet policy compliance screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
               </div>
-              <div class="console-media" data-lightbox-src="/assets/screens/device-security-detail.png" data-lightbox-caption="Step 3: Device Security tab on fin-laser-4200dn showing 4/5 items passing, failing SNMP v1/v2c enabled, and 9 unknown items.">
-                <img class="media-desktop-full" src="/assets/screens/device-security-detail.png" alt="Device detail Security tab for fin-laser-4200dn showing 4/5 items passing, Non-compliant pill, failing SNMP v1/v2c enabled, and 9 unknown items." width="1440" height="900" loading="lazy">
-                <img class="media-mobile-crop" src="/assets/screens/mobile-device-security.png" alt="Focused crop of the Compliance · Baseline card on fin-laser-4200dn showing Fail and Unknown rows." width="576" height="301" loading="lazy">
+              <div class="console-media">
+                <img class="media-desktop-full" src="/assets/screens/security-compliance.png" alt="PrintMarshal Security Compliance screen showing 5 non-compliant devices, failing SNMPv1/v2c checks, and 9 unknown checks per device." width="1440" height="960" loading="lazy">
+                <img class="media-mobile-crop" src="/assets/screens/mobile-security-compliance.png" alt="Focused view of Fleet compliance table showing 81.8 score, 1 failing check, and 9 unknown checks per device." width="1092" height="1331" loading="lazy">
               </div>
-            </figure>
+              <div class="console-annotations">
+                <div class="annotation-item">
+                  <strong><span class="annotation-num">2</span> Explicit unknown count</strong>
+                  <p>Shows passing, failing, and unknown rule counts side by side so blind spots stay visible.</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Panel 4 -->
-          <div class="walkthrough-panel" role="tabpanel" id="wt-panel-4" aria-labelledby="wt-tab-4" hidden>
+          <!-- Step 3 Panel -->
+          <div class="walkthrough-panel" role="tabpanel" id="panel-step-3" aria-labelledby="tab-step-3" hidden>
             <div class="walkthrough-copy">
-              <div class="eyebrow">Step 04 · Support &amp; Evidence</div>
-              <h3>Understand available capabilities and next actions</h3>
+              <span class="cap-badge cap-implemented">● Implemented · Device Inspection</span>
+              <h3>3. Inspect per-device findings and certificates</h3>
               <p>
-                Every device detail page pairs live driver capabilities with the <strong>Support &amp; evidence</strong> card so operators know what works on that specific printer before attempting changes.
+                Drill into any printer to inspect failed checks, settings unreadable over standard MIBs, and TLS certificates presented by the device.
               </p>
               <ul class="walkthrough-points">
-                <li><strong>Catalog match confidence:</strong> Matches device <span class="mono">make</span>, <span class="mono">model</span>, <span class="mono">sysDescr</span>, and <span class="mono">enterpriseId</span> against 126 researched enterprise families (here, an <span class="mono">Exact</span> match to <span class="mono">Ricoh RI02 · IM C3010</span>).</li>
-                <li><strong>Documented vs Observed vs Unknown:</strong> Compares what primary vendor documentation describes (<span class="mono">documented</span>) against what PrintMarshal drivers actually answered on the live device (<span class="mono">observed · snmp, ipp</span>).</li>
-                <li><strong>Operator qualification control:</strong> Every catalog family ships as <span class="mono">Research candidate (unvalidated)</span> until an operator records lab validation or a field note.</li>
+                <li><strong>Observed vs expected:</strong> Displays the live value reported by the printer alongside the policy requirement.</li>
+                <li><strong>Certificate inventory:</strong> Tracks observed TLS certificates, expiry alerts, and certificates enrolled via PrintMarshal.</li>
               </ul>
               <div class="walkthrough-boundary">
-                <strong>Boundary:</strong> Research catalog coverage is documentation context, not validated driver support. Operations depend on the capabilities observed on the device.
+                <strong>Scope:</strong> PrintMarshal enrolls certificates via internal CA, EST, or SCEP; installing on physical hardware requires a vendor driver or printer web UI.
               </div>
             </div>
-            <figure class="console-showcase" style="margin:0;">
+            <div class="console-showcase" data-lightbox-src="/assets/screens/device-security-detail.png" data-lightbox-caption="Step 3 — Device assessment: per-device failing and unknown checks alongside certificate status.">
               <div class="console-bar">
                 <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-                <span class="console-url">/devices/5833056e… — Device Overview, Identity &amp; Support Evidence</span>
-                <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/mobile-support-evidence.png" data-lightbox-caption="Step 4: Support &amp; evidence card for copyroom-imc3010 (Ricoh IM C3010, family RI02) contrasting Documented, Observed, and Unknown operations.">⤢ Enlarge Support Card</button>
+                <div class="console-url">Device assessment · Failed and unknown checks</div>
+                <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge device security detail screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
               </div>
-              <div class="console-media" data-lightbox-src="/assets/screens/device-support-evidence.png" data-lightbox-caption="Step 4: Device Overview for copyroom-imc3010 showing Supplies, Counters, Trays, and operator vs device-reported Identity.">
-                <img class="media-desktop-full" src="/assets/screens/device-support-evidence.png" alt="Device Overview for copyroom-imc3010 showing Supplies, Counters, Trays, and Identity card distinguishing operator-set fields from device-reported fields." width="1440" height="940" loading="lazy">
-                <img class="media-mobile-crop" src="/assets/screens/mobile-support-evidence.png" alt="Support &amp; evidence card for Ricoh RI02 showing Documented vs Observed pills for Identify, Monitor, Configure, Secure, and Update." width="404" height="523" loading="lazy">
+              <div class="console-media">
+                <img class="media-desktop-full" src="/assets/screens/device-security-detail.png" alt="Device Security tab for fin-laser-4200dn showing 4 of 5 readable items passing, SNMP v1/v2c enabled failing, and 9 unknown items listed." width="1440" height="620" loading="lazy">
+                <img class="media-mobile-crop" src="/assets/screens/mobile-device-security.png" alt="Focused view of Compliance Baseline card on fin-laser-4200dn showing Fail on SNMP v1/v2c enabled and 9 Unknown items." width="1152" height="602" loading="lazy">
               </div>
-            </figure>
+              <div class="console-annotations">
+                <div class="annotation-item">
+                  <strong><span class="annotation-num">3</span> Per-rule evidence</strong>
+                  <p>Lists the failing check (<code>SNMP v1/v2c enabled: is true, want eq false</code>) separately from the 9 unknown items.</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Panel 5 -->
-          <div class="walkthrough-panel" role="tabpanel" id="wt-panel-5" aria-labelledby="wt-tab-5" hidden>
+          <!-- Step 4 Panel -->
+          <div class="walkthrough-panel" role="tabpanel" id="panel-step-4" aria-labelledby="tab-step-4" hidden>
             <div class="walkthrough-copy">
-              <div class="eyebrow">Step 05 · Dry-Run Preview &amp; Verification</div>
-              <h3>Preview a supported configuration change and inspect its result</h3>
+              <span class="cap-badge cap-implemented">● Implemented · Capability Evidence</span>
+              <h3>4. Separate live driver support from research</h3>
               <p>
-                Applying a configuration profile runs a live read-only preview first, shows exact per-setting diffs, captures rollback values, and verifies every write by reading the device back.
+                PrintMarshal includes a 15-vendor, 495-model research catalog, but never claims a model is supported solely from vendor documentation.
               </p>
               <ul class="walkthrough-points">
-                <li><strong>Dry-run preview by default:</strong> Applying <span class="mono">Standard Office Fleet Baseline</span> to <span class="mono">fin-laser-4200dn</span> shows <span class="mono">2</span> settings that <span class="mono">Would write</span> (<span class="mono">Organization</span>, <span class="mono">Default duplex</span>) and <span class="mono">2</span> settings that already match.</li>
-                <li><strong>Read-back verification:</strong> After a real apply, PrintMarshal re-reads the modified keys and records <span class="mono">verified</span> (device reports the new value), <span class="mono">diverged</span> (device reports a different value), or <span class="mono">unverifiable</span>.</li>
-                <li><strong>One-click revert flow:</strong> Every real write stores previous values so operators can preview and revert changes from the device's <strong>Write history</strong> card.</li>
+                <li><strong>Observed provenance:</strong> Shows which operations answered live on the device over SNMP or IPP.</li>
+                <li><strong>Unsupported reasons:</strong> Explains why firmware pushes or vendor security writes require a model-specific driver.</li>
               </ul>
               <div class="walkthrough-boundary">
-                <strong>Boundary:</strong> Standards drivers write a bounded set of SNMP Printer-MIB/MIB-II and IPP <span class="mono">Set-Printer-Attributes</span> keys. No vendor-private <span class="mono">ConfigWriter</span> ships today.
+                <strong>Scope:</strong> Zero physical models ship marked physically validated until an operator records lab qualification.
               </div>
             </div>
-            <figure class="console-showcase" style="margin:0;">
+            <div class="console-showcase" data-lightbox-src="/assets/screens/device-support-evidence.png" data-lightbox-caption="Step 4 — Device capability evidence: observed SNMP/IPP support vs documented vendor research.">
               <div class="console-bar">
                 <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-                <span class="console-url">/profiles/:id/apply — Step 2: Dry-run preview (no write I/O)</span>
-                <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/config-dryrun-preview.png" data-lightbox-caption="Step 5: Profile Apply dry-run preview showing 1 device that would change, 2 setting writes (Organization and Default duplex), and 2 matching settings.">⤢ Enlarge</button>
+                <div class="console-url">Device capability evidence · Research vs observed</div>
+                <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge device support and evidence screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
               </div>
-              <div class="console-media" data-lightbox-src="/assets/screens/config-dryrun-preview.png" data-lightbox-caption="Step 5: Profile Apply dry-run preview showing 1 device that would change, 2 setting writes (Organization and Default duplex), and 2 matching settings.">
-                <img class="media-desktop-full" src="/assets/screens/config-dryrun-preview.png" alt="Apply Standard Office Fleet Baseline dry-run preview showing 1 device that would change, 2 setting writes across Organization and Default duplex, and 2 already matching settings." width="1440" height="920" loading="lazy">
-                <img class="media-mobile-crop" src="/assets/screens/mobile-config-dryrun.png" alt="Focused view of Changes by setting in dry-run preview showing current vs desired values for Organization and Default duplex." width="1168" height="294" loading="lazy">
+              <div class="console-media">
+                <img class="media-desktop-full" src="/assets/screens/device-support-evidence.png" alt="Device Overview tab for copyroom-imc3010 showing Supplies, Counters, Trays, and Identity & asset fields." width="1440" height="940" loading="lazy">
+                <img class="media-mobile-crop" src="/assets/screens/mobile-support-evidence.png" alt="Focused view of Support and evidence card showing Supported via SNMP and IPP, Ricoh research profile, and Why unsupported explanations." width="808" height="1046" loading="lazy">
               </div>
-            </figure>
+              <div class="console-annotations">
+                <div class="annotation-item">
+                  <strong><span class="annotation-num">4</span> Transparent boundaries</strong>
+                  <p>Distinguishes live SNMP/IPP observations from vendor research and explains blocked operations.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 5 Panel -->
+          <div class="walkthrough-panel" role="tabpanel" id="panel-step-5" aria-labelledby="tab-step-5" hidden>
+            <div class="walkthrough-copy">
+              <span class="cap-badge cap-device">◐ Device-Dependent · Dry-Run &amp; Read-Back</span>
+              <h3>5. Preview diffs in dry-run, then verify writes</h3>
+              <p>
+                Dry-run reads live values from target printers and computes a setting-by-setting diff without writing to hardware.
+              </p>
+              <ul class="walkthrough-points">
+                <li><strong>Read-back verification:</strong> Re-reads changed keys after apply to separate <code>verified</code> outcomes from unverified <code>accepted</code> writes.</li>
+                <li><strong>One-click revert:</strong> Saves prior values before writing so verified changes can be rolled back.</li>
+              </ul>
+              <div class="walkthrough-boundary">
+                <strong>Scope:</strong> Standard drivers write MIB-II identity fields and writable IPP attributes; vendor security toggles require a vendor driver.
+              </div>
+            </div>
+            <div class="console-showcase" data-lightbox-src="/assets/screens/config-dryrun-preview.png" data-lightbox-caption="Step 5 — Configuration dry-run preview: live diff showing current vs desired values before writing.">
+              <div class="console-bar">
+                <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="console-url">Configuration dry-run preview · Simulator data</div>
+                <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge configuration dry-run preview screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
+              </div>
+              <div class="console-media">
+                <img class="media-desktop-full" src="/assets/screens/config-dryrun-preview.png" alt="Dry-run preview screen comparing current device values against desired profile settings for Contact, Organization, and Default duplex." width="1440" height="920" loading="lazy">
+                <img class="media-mobile-crop" src="/assets/screens/mobile-config-dryrun.png" alt="Focused view of Changes by setting table in Dry-run preview showing current values vs desired values." width="2336" height="588" loading="lazy">
+              </div>
+              <div class="console-annotations">
+                <div class="annotation-item">
+                  <strong><span class="annotation-num">5</span> Non-destructive preview</strong>
+                  <p>Shows which settings will change, which driver writes them, and saves prior values for rollback.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- SIGNATURE VISUAL INTERACTION: Device -> Observation -> Policy result -> Evidence -> Available next action -->
+        <!-- ==================================================================
+             SIGNATURE VISUAL SEQUENCE:
+             Device → Observation → Finding → Available next action
+             ================================================================== -->
         <div class="trace-box" aria-labelledby="trace-heading">
           <div class="trace-header">
             <div>
-              <div class="eyebrow" style="margin-bottom: 6px;">Interactive Evidence Trace</div>
-              <h3 id="trace-heading">How PrintMarshal connects observations to policy results and next actions</h3>
-              <p style="font-size: 0.9rem; margin-top: 4px;">
-                Select a check below to trace how a live device observation moves through policy evaluation without conflating unknown evidence with a passing result.
-              </p>
+              <div class="eyebrow">Evidence Trace Pipeline</div>
+              <h3 id="trace-heading">How PrintMarshal turns a printer poll into a verified action.</h3>
             </div>
-            <div class="trace-selector" role="group" aria-label="Select evidence trace">
-              <button type="button" class="trace-btn" data-trace-target="trace-fail" aria-pressed="true">× Failing check (SNMPv1/v2c)</button>
-              <button type="button" class="trace-btn" data-trace-target="trace-unknown" aria-pressed="false">? Unknown evidence (Admin password)</button>
-              <button type="button" class="trace-btn" data-trace-target="trace-pass" aria-pressed="false">✓ Passing check (Telnet &amp; HTTPS)</button>
+            <div class="trace-selector" role="group" aria-label="Select an assessment scenario to trace">
+              <button class="trace-btn" type="button" aria-pressed="true" data-trace-btn="fail">× Failing check: SNMPv1/v2c</button>
+              <button class="trace-btn" type="button" aria-pressed="false" data-trace-btn="unknown">? Unknown: Admin password</button>
+              <button class="trace-btn" type="button" aria-pressed="false" data-trace-btn="pass">✓ Passing: Telnet &amp; HTTPS</button>
             </div>
           </div>
 
-          <!-- Trace 1: Failing Check -->
-          <div class="trace-chain" id="trace-fail">
-            <div class="trace-node">
-              <div class="trace-stage"><span>01 · Device</span><span class="mono">127.0.0.1</span></div>
-              <h4>fin-laser-4200dn</h4>
-              <p>Acme LaserPrint 4200dn reconciled by serial <span class="mono">ACM4200X0917</span>.</p>
-              <div class="trace-code">drivers: snmp, ipp</div>
+          <!-- Scenario 1: FAIL -->
+          <div class="trace-scenario" id="trace-fail">
+            <div class="trace-takeaway">
+              <span><strong>Takeaway:</strong> The printer answered over SNMPv2c (<code>public</code>), proving cleartext SNMP is enabled (<code>× Fail</code>), while disabling it requires a vendor write driver.</span>
+              <span class="status-pill status-fail">× Policy Fail · High</span>
             </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>02 · Observation</span><span class="mono">CapReadConfig</span></div>
-              <h4>SNMPv2c answered</h4>
-              <p>Standards <span class="mono">snmp</span> driver queries MIB-II / Printer-MIB using read credential.</p>
-              <div class="trace-code">protocols.snmp.v1v2cEnabled = true</div>
+            <div class="trace-chain">
+              <div class="trace-node">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="2" width="10" height="4" rx="1"/><rect x="2" y="6" width="12" height="6" rx="1.5"/><path d="M5 12v2h6v-2"/></svg>
+                    01 · Device
+                  </span>
+                  <span class="mono">127.0.0.1</span>
+                </div>
+                <h4>fin-laser-4200dn</h4>
+                <p>Polled via standard SNMP and IPP drivers.</p>
+              </div>
+              <div class="trace-node">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg>
+                    02 · Observation
+                  </span>
+                  <span class="mono">snmp</span>
+                </div>
+                <h4>SNMPv2c answered</h4>
+                <p>Responded to <code>sysObjectID.0</code> over SNMPv2c (<code>v1v2cEnabled = true</code>).</p>
+              </div>
+              <div class="trace-node node-fail">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 2L2 5v4c0 3.3 2.5 5.8 6 6.8 3.5-1 6-3.5 6-6.8V5L8 2z"/><path d="M6 6l4 4M10 6l-4 4"/></svg>
+                    03 · Finding
+                  </span>
+                  <span class="status-pill status-fail">× Fail</span>
+                </div>
+                <h4>Baseline rule failed</h4>
+                <p>Observed <code>true</code> violates <code>eq false</code> (High severity, weight <code>2.0</code>).</p>
+              </div>
+              <div class="trace-node">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+                    04 · Next action
+                  </span>
+                  <span class="cap-badge cap-driver">◌ Vendor driver</span>
+                </div>
+                <h4>Rotate or disable</h4>
+                <p>Disable SNMPv1/v2c via printer web UI or vendor driver, or rotate community string.</p>
+              </div>
             </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>03 · Policy Result</span><span class="status-pill status-fail">× Fail</span></div>
-              <h4>Baseline rule fails</h4>
-              <p>High-severity rule <span class="mono">snmp-v1v2c-off</span> requires <span class="mono">equals false</span>; device score drops to <span class="mono">81.8</span>.</p>
-              <div class="trace-code">managementPath: "snmp"</div>
-            </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>04 · Evidence</span><span class="mgmt-tag">⚠ may cut SNMP path</span></div>
-              <h4>Observed &amp; path-critical</h4>
-              <p>Verified by live SNMPv2c response. Tagged because SNMP is an active management path for this printer.</p>
-              <div class="trace-code">source: snmp · fresh</div>
-            </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>05 · Next Action</span><span class="cap-badge cap-driver">Requires driver</span></div>
-              <h4>Lockout-safe handling</h4>
-              <p>Standards SNMP cannot disable itself safely. Remediation requires a vendor <span class="mono">SecurityWriter</span> and another reachable path.</p>
-              <div class="trace-code">guard: never cut last path</div>
-            </div>
+            <details class="trace-tech">
+              <summary>Technical trace details</summary>
+              <div class="trace-tech-body">
+                <span>Key: <code>protocols.snmp.v1v2cEnabled</code></span>
+                <span>Rule: <code>eq false (weight 2.0)</code></span>
+                <span>Write contract: <code>driver.SecurityWriter</code></span>
+              </div>
+            </details>
           </div>
 
-          <!-- Trace 2: Unknown Evidence -->
-          <div class="trace-chain" id="trace-unknown" hidden>
-            <div class="trace-node">
-              <div class="trace-stage"><span>01 · Device</span><span class="mono">127.0.0.1</span></div>
-              <h4>fin-laser-4200dn</h4>
-              <p>Acme LaserPrint 4200dn managed via standards SNMP and IPP drivers.</p>
-              <div class="trace-code">serial: ACM4200X0917</div>
+          <!-- Scenario 2: UNKNOWN -->
+          <div class="trace-scenario" id="trace-unknown" hidden>
+            <div class="trace-takeaway">
+              <span><strong>Takeaway:</strong> Standard SNMP and IPP do not expose whether an admin password is set, so PrintMarshal reports <code>? Unknown</code> instead of assuming compliance.</span>
+              <span class="status-pill status-unknown">? Unknown Evidence</span>
             </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>02 · Observation</span><span class="mono">No vendor MIB</span></div>
-              <h4>Key not exposed</h4>
-              <p>Standards SNMP and IPP do not expose whether the printer's web console has a non-default admin password.</p>
-              <div class="trace-code">security.adminPassword.set = nil</div>
+            <div class="trace-chain">
+              <div class="trace-node">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="2" width="10" height="4" rx="1"/><rect x="2" y="6" width="12" height="6" rx="1.5"/><path d="M5 12v2h6v-2"/></svg>
+                    01 · Device
+                  </span>
+                  <span class="mono">127.0.0.1</span>
+                </div>
+                <h4>fin-laser-4200dn</h4>
+                <p>Polled via standard SNMP and IPP without private MIBs.</p>
+              </div>
+              <div class="trace-node">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg>
+                    02 · Observation
+                  </span>
+                  <span class="mono">unreported</span>
+                </div>
+                <h4>No standard OID</h4>
+                <p>Neither RFC 3805 nor IPP exposes password status; key omitted from snapshot.</p>
+              </div>
+              <div class="trace-node node-unknown">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M6.8 6.5a1.3 1.3 0 1 1 1.8 1.2c-.4.2-.6.5-.6 1"/><circle cx="8" cy="11" r="0.5" fill="currentColor"/></svg>
+                    03 · Finding
+                  </span>
+                  <span class="status-pill status-unknown">? Unknown</span>
+                </div>
+                <h4>Excluded from score</h4>
+                <p>Marked <code>unknown</code> and excluded from the denominator—never counted as pass.</p>
+              </div>
+              <div class="trace-node">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+                    04 · Next action
+                  </span>
+                  <span class="cap-badge cap-driver">◌ Vendor driver</span>
+                </div>
+                <h4>Verify via web UI</h4>
+                <p>Check the printer console directly or add a vendor driver that reads password state.</p>
+              </div>
             </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>03 · Policy Result</span><span class="status-pill status-unknown">? Unknown</span></div>
-              <h4>Excluded from score</h4>
-              <p>Critical rule <span class="mono">admin-password-set</span> is recorded as <span class="mono">unknown</span>—never counted as a pass or a fail.</p>
-              <div class="trace-code">passed: 4 · failed: 1 · unknown: 9</div>
-            </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>04 · Evidence</span><span class="status-pill status-unknown">? Unverified</span></div>
-              <h4>Explicitly surfaced</h4>
-              <p>Listed in the device's Unknown row so operators see exactly which 9 policy checks could not be read.</p>
-              <div class="trace-code">"counted but not scored"</div>
-            </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>05 · Next Action</span><span class="cap-badge cap-implemented">Assess-only</span></div>
-              <h4>Staged rotation or driver</h4>
-              <p>Passwords are never set by policy remediation. Use staged credential rotation (with a <span class="mono">SecurityWriter</span>) or verify manually.</p>
-              <div class="trace-code">mode: assess-only</div>
-            </div>
+            <details class="trace-tech">
+              <summary>Technical trace details</summary>
+              <div class="trace-tech-body">
+                <span>Key: <code>security.adminPasswordSet</code></span>
+                <span>Rule: <code>eq true (weight 3.0)</code></span>
+                <span>Rotation key: <code>security.adminPassword (WriteOnly)</code></span>
+              </div>
+            </details>
           </div>
 
-          <!-- Trace 3: Passing Check -->
-          <div class="trace-chain" id="trace-pass" hidden>
-            <div class="trace-node">
-              <div class="trace-stage"><span>01 · Device</span><span class="mono">127.0.0.1</span></div>
-              <h4>fin-laser-4200dn</h4>
-              <p>Acme LaserPrint 4200dn evaluated during the <span class="mono">Baseline</span> policy assessment job.</p>
-              <div class="trace-code">job: security.assess</div>
+          <!-- Scenario 3: PASS -->
+          <div class="trace-scenario" id="trace-pass" hidden>
+            <div class="trace-takeaway">
+              <span><strong>Takeaway:</strong> Live port and TLS probes verified that Telnet/FTP ports are closed and HTTPS/IPPS are active (<code>✓ Pass</code>).</span>
+              <span class="status-pill status-pass">✓ Policy Pass</span>
             </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>02 · Observation</span><span class="mono">TCP / TLS Probe</span></div>
-              <h4>Port &amp; TLS inspection</h4>
-              <p><span class="mono">portprobe</span> tests TCP ports <span class="mono">21, 23, 80, 443, 515, 631, 9100</span> and performs a TLS handshake on <span class="mono">443/631</span>.</p>
-              <div class="trace-code">telnet: false · https: true</div>
+            <div class="trace-chain">
+              <div class="trace-node">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="2" width="10" height="4" rx="1"/><rect x="2" y="6" width="12" height="6" rx="1.5"/><path d="M5 12v2h6v-2"/></svg>
+                    01 · Device
+                  </span>
+                  <span class="mono">127.0.0.1</span>
+                </div>
+                <h4>fin-laser-4200dn</h4>
+                <p>Evaluated during an active security assessment.</p>
+              </div>
+              <div class="trace-node">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg>
+                    02 · Observation
+                  </span>
+                  <span class="mono">port + tls</span>
+                </div>
+                <h4>Ports &amp; TLS probed</h4>
+                <p>Telnet (<code>23</code>) and FTP (<code>21</code>) refused connections; HTTPS (<code>443</code>) and IPPS (<code>631</code>) answered.</p>
+              </div>
+              <div class="trace-node node-pass">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M8 2L2 5v4c0 3.3 2.5 5.8 6 6.8 3.5-1 6-3.5 6-6.8V5L8 2z"/><path d="M5.5 8l1.8 1.8 3.2-3.4"/></svg>
+                    03 · Finding
+                  </span>
+                  <span class="status-pill status-pass">✓ Pass</span>
+                </div>
+                <h4>4 of 5 readable pass</h4>
+                <p>Telnet/FTP disabled and HTTPS/IPPS enabled match the Baseline policy.</p>
+              </div>
+              <div class="trace-node">
+                <div class="trace-stage">
+                  <span class="trace-stage-label">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+                    04 · Next action
+                  </span>
+                  <span class="cap-badge cap-implemented">● Continuous</span>
+                </div>
+                <h4>Monitor drift &amp; expiry</h4>
+                <p>Tracks configuration drift across snapshots and alerts on approaching TLS expiry.</p>
+              </div>
             </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>03 · Policy Result</span><span class="status-pill status-pass">✓ Pass</span></div>
-              <h4>4 of 5 readable items pass</h4>
-              <p>Telnet disabled (<span class="mono">Critical</span>), FTP disabled (<span class="mono">Critical</span>), HTTPS enabled (<span class="mono">High</span>), and Raw 9100 disabled (<span class="mono">Medium</span>) all pass.</p>
-              <div class="trace-code">4 / 5 evaluated pass</div>
-            </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>04 · Evidence</span><span class="status-pill status-pass">✓ Observed</span></div>
-              <h4>Direct network proof</h4>
-              <p>Backed by live TCP connection refusal on port <span class="mono">23</span> and active TLS listener on port <span class="mono">443</span>.</p>
-              <div class="trace-code">probe: 127.0.0.1:23 / :443</div>
-            </div>
-            <div class="trace-node">
-              <div class="trace-stage"><span>05 · Next Action</span><span class="cap-badge cap-implemented">Implemented</span></div>
-              <h4>Continuous monitoring</h4>
-              <p>Re-evaluated on subsequent assessments; certificate expiry is tracked on the <span class="mono">30 / 14 / 7</span> day alert timeline.</p>
-              <div class="trace-code">history: /api/compliance/history</div>
-            </div>
+            <details class="trace-tech">
+              <summary>Technical trace details</summary>
+              <div class="trace-tech-body">
+                <span>Keys: <code>protocols.telnet.enabled</code>, <code>protocols.https.enabled</code></span>
+                <span>Probes: <code>security/portprobe</code>, <code>security/tlsprobe</code></span>
+              </div>
+            </details>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- 4. THREE VISUAL CAPABILITY SECTIONS -->
-    <section class="section section-alt" aria-labelledby="capabilities-heading">
+    <!-- ====================================================================
+         3. THREE CONCISE CAPABILITY SECTIONS
+         ==================================================================== -->
+    <section id="capabilities" class="section" aria-labelledby="capabilities-heading">
       <div class="container">
         <div class="section-header">
           <div class="eyebrow">Core Capabilities</div>
-          <h2 id="capabilities-heading">One console for fleet discovery, security posture, and controlled configuration.</h2>
+          <h2 id="capabilities-heading">Discover printers. Investigate risk. Review changes.</h2>
           <p class="lead">
-            PrintMarshal separates read-only observation from state-changing operations, keeping driver boundaries and verification outcomes visible at every step.
+            Every workflow is built on standard network protocols, explicit evidence tracking, and non-destructive previews. Explore the full <a href="/features/">Features</a> and <a href="/security/">Security</a> breakdown for protocol and catalog details.
           </p>
         </div>
 
-        <!-- 4.1 Discover the fleet -->
+        <!-- Capability 1 -->
         <div class="capability-split">
           <div class="capability-copy">
             <div class="capability-meta">
-              <span class="cap-badge cap-implemented">✓ Implemented</span>
-              <span class="cap-badge cap-device">◐ Device-dependent depth</span>
+              <span class="cap-badge cap-implemented">● Implemented</span>
+              <span class="mono" style="font-size: 0.76rem; color: var(--text-muted);">SNMP v1/v2c/v3 · IPP/IPPS · mDNS · WS-Discovery</span>
             </div>
-            <h3>1. Discover the fleet &amp; monitor live health</h3>
+            <h3>1. Discover printers and monitor fleet health</h3>
             <p>
-              Combine active CIDR/range scans (<span class="mono">SNMPv1/v2c/v3</span>, <span class="mono">IPP/IPPS</span>, <span class="mono">eSCL</span>, TCP port probes) with zero-configuration listeners (<span class="mono">mDNS/Bonjour</span>, <span class="mono">WS-Discovery</span>, <span class="mono">SSDP</span>) and live <span class="mono">SNMPv1/v2c</span> trap ingestion.
+              Build an accurate inventory without agents. PrintMarshal combines active CIDR/IP scanning with passive mDNS and WS-Discovery listeners, polling standard Printer-MIB, Host-Resources-MIB, and IPP attributes.
             </p>
-            <dl class="spec-dl">
-              <dt>Reconciliation</dt>
-              <dd>Matches <span class="mono">serial → UUID → MAC → IP</span> so printers keep their history, groups, and audit trail when IPs change.</dd>
-              <dt>Health &amp; consumables</dt>
-              <dd>Tracks toner/drum/waste levels, 14-day burn-rate forecasts, stock rooms, and lifetime page counters (<span class="mono">total</span>, <span class="mono">mono</span>, <span class="mono">color</span>).</dd>
-              <dt>Operator metadata</dt>
-              <dd>Display name, location, asset tag, and notes are stored in operator-owned fields that device polling never overwrites.</dd>
-            </dl>
+            <p>
+              Track toner and drum levels with 30-day sparklines, page counters, tray status, and rate-limited SNMP traps while keeping operator-assigned names, locations, and asset tags separate from device-reported fields.
+            </p>
+            <div>
+              <a class="btn btn-sm" href="/features/#discovery">Discovery &amp; monitoring details →</a>
+            </div>
           </div>
-          <figure class="console-showcase" style="margin:0;">
+          <div class="console-showcase" data-lightbox-src="/assets/screens/fleet-discovery.png" data-lightbox-caption="Fleet inventory: multi-vendor printers with live status, toner bars, page counters, and CSV export.">
             <div class="console-bar">
               <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-              <span class="console-url">/devices — Multi-vendor inventory &amp; supply bars</span>
-              <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/fleet-discovery.png" data-lightbox-caption="Fleet inventory showing Ricoh, HP, Konica Minolta, and Acme simulator devices with supply levels and page counters.">⤢ Enlarge</button>
+              <div class="console-url">Fleet inventory · Focused view</div>
+              <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge full fleet inventory screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
             </div>
-            <div class="console-media" data-lightbox-src="/assets/screens/fleet-discovery.png" data-lightbox-caption="Fleet inventory showing Ricoh, HP, Konica Minolta, and Acme simulator devices with supply levels and page counters.">
-              <img class="media-desktop-full" src="/assets/screens/fleet-discovery.png" alt="Devices table showing discovered printers, supply bars, page counters, and lifecycle states." width="1440" height="900" loading="lazy">
-              <img class="media-mobile-crop" src="/assets/screens/mobile-fleet-cards.png" alt="Mobile cards view of discovered printers with supply percentages." width="645" height="1170" loading="lazy">
+            <div class="console-media">
+              <img class="media-desktop-full" src="/assets/screens/crop-fleet-inventory.png" alt="Focused view of PrintMarshal Devices inventory showing five discovered printers, status badges, supply bars, and filter controls." width="1184" height="560" loading="lazy">
+              <img class="media-mobile-crop" src="/assets/screens/mobile-fleet-cards.png" alt="Mobile view of discovered printers with status pills and supply bars." width="645" height="1170" loading="lazy">
             </div>
-          </figure>
+            <div class="console-annotations">
+              <div class="annotation-item">
+                <strong><span class="annotation-num">1</span> Multi-vendor inventory</strong>
+                <p>Normalizes status, supply levels, and page counters across SNMP and IPP without overwriting operator metadata.</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- 4.2 Understand its security posture -->
+        <!-- Capability 2 -->
         <div class="capability-split reverse">
-          <figure class="console-showcase" style="margin:0;">
+          <div class="console-showcase" data-lightbox-src="/assets/screens/device-security-detail.png" data-lightbox-caption="Device security assessment: failing SNMPv1/v2c check separated from 9 unknown settings and TLS certificate status.">
             <div class="console-bar">
               <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-              <span class="console-url">/devices/c50ea9fb… — Device Security &amp; Certificates</span>
-              <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/device-security-detail.png" data-lightbox-caption="Per-device Security tab showing Baseline compliance assessment (4/5 passing, 1 failing, 9 unknown) and Certificates card.">⤢ Enlarge</button>
+              <div class="console-url">Device assessment · Failed and unknown checks</div>
+              <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge full device security screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
             </div>
-            <div class="console-media" data-lightbox-src="/assets/screens/device-security-detail.png" data-lightbox-caption="Per-device Security tab showing Baseline compliance assessment (4/5 passing, 1 failing, 9 unknown) and Certificates card.">
-              <img class="media-desktop-full" src="/assets/screens/device-security-detail.png" alt="Device Security tab showing 4/5 items passing, failing SNMP v1/v2c, and 9 unknown items." width="1440" height="900" loading="lazy">
-              <img class="media-mobile-crop" src="/assets/screens/mobile-device-security.png" alt="Mobile crop of the Device Security compliance card." width="576" height="301" loading="lazy">
+            <div class="console-media">
+              <img class="media-desktop-full" src="/assets/screens/crop-device-security.png" alt="Focused view of Device Security assessment showing 4 of 5 readable items passing, 1 failing SNMPv1/v2c check, 9 unknown items, and certificate status." width="1184" height="520" loading="lazy">
+              <img class="media-mobile-crop" src="/assets/screens/mobile-device-security.png" alt="Focused mobile view of Device Security assessment card." width="1152" height="602" loading="lazy">
             </div>
-          </figure>
+            <div class="console-annotations">
+              <div class="annotation-item">
+                <strong><span class="annotation-num">2</span> Honest risk scoring</strong>
+                <p>Separates confirmed failures from unreadable settings and inspects TLS certificates on ports 443 and 631.</p>
+              </div>
+            </div>
+          </div>
           <div class="capability-copy">
             <div class="capability-meta">
-              <span class="cap-badge cap-implemented">✓ Assessment &amp; Enrollment Implemented</span>
-              <span class="cap-badge cap-driver">⬚ Remediation &amp; Install require driver</span>
+              <span class="cap-badge cap-implemented">● Implemented</span>
+              <span class="cap-badge cap-device">◐ Device-Dependent Remediation</span>
             </div>
-            <h3>2. Understand security posture &amp; certificate lifecycle</h3>
+            <h3>2. Investigate security risk and TLS certificates</h3>
             <p>
-              Evaluate printers against the 14-item <span class="mono">Baseline</span> policy or custom rules spanning legacy protocols (<span class="mono">SNMPv1/v2c</span>, <span class="mono">Telnet</span>, <span class="mono">FTP</span>, <span class="mono">Raw 9100</span>, <span class="mono">WSD/SLP/LLMNR</span>), TLS versions, admin password state, and certificate validity.
+              Evaluate devices against the 14-item Baseline policy or custom weighted rules across PrintMarshal's 84-key canonical settings catalog (43 security-tagged keys). Active probes inspect open ports and TLS handshakes.
             </p>
-            <dl class="spec-dl">
-              <dt>Evidence integrity</dt>
-              <dd>Unreadable settings evaluate to <span class="mono">unknown</span> and are excluded from the compliance score denominator rather than assumed compliant.</dd>
-              <dt>CA enrollment</dt>
-              <dd>Issue device certificates via <span class="mono">SCEP</span>, <span class="mono">EST</span>, or <span class="mono">ACME DNS-01</span> (manual TXT challenge). Private keys are encrypted at rest and never downloadable via the API.</dd>
-              <dt>Shipped boundaries</dt>
-              <dd>Installing an enrolled certificate onto a printer requires a <span class="mono">CertManager</span> driver, and remediating security settings requires a <span class="mono">SecurityWriter</span> driver. No real-vendor <span class="mono">CertManager</span> or <span class="mono">SecurityWriter</span> ships today.</dd>
-            </dl>
+            <p>
+              Generate CSRs and enroll device certificates through the built-in CA, EST, or SCEP, with automated warnings at 30 days and critical alerts at 7 days before expiry.
+            </p>
+            <div>
+              <a class="btn btn-sm" href="/security/">Explore security &amp; certificate boundaries →</a>
+            </div>
           </div>
         </div>
 
-        <!-- 4.3 Review supported configuration changes -->
+        <!-- Capability 3 -->
         <div class="capability-split">
           <div class="capability-copy">
             <div class="capability-meta">
-              <span class="cap-badge cap-implemented">✓ Dry-run &amp; Read-back Implemented</span>
-              <span class="cap-badge cap-device">◐ Writable keys depend on driver</span>
+              <span class="cap-badge cap-device">◐ Device-Dependent</span>
+              <span class="mono" style="font-size: 0.76rem; color: var(--text-muted);">Dry-Run Diff · Read-Back Verification · Rollback</span>
             </div>
-            <h3>3. Review supported configuration changes &amp; verify outcomes</h3>
+            <h3>3. Preview configuration changes and verify writes</h3>
             <p>
-              Read device settings into versioned snapshots (up to 50 per printer), compare any two printers side-by-side, track drift against reusable profiles, and preview every change before writing.
+              Snapshots record setting values, reporting drivers, and writability. Before applying a configuration profile, dry-run reads live values from every target printer and displays the exact diff.
             </p>
-            <dl class="spec-dl">
-              <dt>Standards write scope</dt>
-              <dd>Standards <span class="mono">snmp</span> writes <span class="mono">sysName</span>, <span class="mono">sysLocation</span>, <span class="mono">sysContact</span>, <span class="mono">prtGeneralPrinterName</span>, default input tray, and marker index. Standards <span class="mono">ipp</span> writes location, info, organization, organizational unit, and <span class="mono">*-default</span> print attributes when the printer supports <span class="mono">Set-Printer-Attributes</span>.</dd>
-              <dt>Read-back proof</dt>
-              <dd>Every applied setting is re-read from the device and recorded as <span class="mono">verified</span>, <span class="mono">diverged</span> (accepted write but reports a different value), or <span class="mono">unverifiable</span>.</dd>
-              <dt>Rollback history</dt>
-              <dd>Previous values are saved automatically with each write record so operators can run a dry-run revert from the device's Write history card.</dd>
-            </dl>
+            <p>
+              When you apply changes, PrintMarshal saves prior values for one-click revert and performs a read-back poll to confirm whether the printer verified the new value or merely accepted the request.
+            </p>
+            <div>
+              <a class="btn btn-sm" href="/features/#configuration">Configuration &amp; drift details →</a>
+            </div>
           </div>
-          <figure class="console-showcase" style="margin:0;">
+          <div class="console-showcase" data-lightbox-src="/assets/screens/config-dryrun-preview.png" data-lightbox-caption="Configuration dry-run preview: live setting diff across target printers before writing.">
             <div class="console-bar">
               <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-              <span class="console-url">/devices/c50ea9fb… (Configuration tab) — Snapshots &amp; Verified Write History</span>
-              <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/config-write-history.png" data-lightbox-caption="Device Configuration tab showing writable vs read-only settings by driver source (snmp, ipp), Snapshot history, and Write history with dry-run and verified pills.">⤢ Enlarge</button>
+              <div class="console-url">Configuration diff &amp; dry-run preview · Simulator data</div>
+              <button class="console-zoom-btn" type="button" data-zoom-trigger aria-label="Enlarge full configuration dry-run screenshot"><span aria-hidden="true">⤢</span> Enlarge</button>
             </div>
-            <div class="console-media" data-lightbox-src="/assets/screens/config-write-history.png" data-lightbox-caption="Device Configuration tab showing writable vs read-only settings by driver source (snmp, ipp), Snapshot history, and Write history with dry-run and verified pills.">
-              <img class="media-desktop-full" src="/assets/screens/config-write-history.png" alt="Device Configuration tab showing live settings, driver sources (snmp, ipp), Snapshot history, and Write history with 1 verified write and Revert button." width="1440" height="940" loading="lazy">
-              <img class="media-mobile-crop" src="/assets/screens/mobile-write-history.png" alt="Focused crop of the Write history card showing dry run records and 1 verified write with Revert button." width="576" height="350" loading="lazy">
+            <div class="console-media">
+              <img class="media-desktop-full" src="/assets/screens/crop-config-dryrun.png" alt="Focused view of Configuration dry-run preview showing 1 device that would change, 3 setting writes, and current vs desired values." width="1184" height="830" loading="lazy">
+              <img class="media-mobile-crop" src="/assets/screens/mobile-config-dryrun.png" alt="Mobile view of dry-run setting diff table." width="2336" height="588" loading="lazy">
             </div>
-          </figure>
+            <div class="console-annotations">
+              <div class="annotation-item">
+                <strong><span class="annotation-num">3</span> Safe change workflow</strong>
+                <p>Every profile apply starts with a live dry-run diff and records verified or accepted write history for audit and rollback.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 5. DEVICE COVERAGE AND IMPLEMENTATION STATUS -->
-    <section class="section" id="coverage" aria-labelledby="coverage-heading">
+    <!-- ====================================================================
+         4. COMPACT CAPABILITY-STATUS SUMMARY
+         ==================================================================== -->
+    <section id="coverage" class="section section-alt" aria-labelledby="coverage-heading">
       <div class="container">
         <div class="section-header">
-          <div class="eyebrow">Device Coverage &amp; Implementation Status</div>
-          <h2 id="coverage-heading">Clear boundaries between what ships today, what depends on device support, and what requires a driver.</h2>
+          <div class="eyebrow">Transparent Scope &amp; Driver Boundaries</div>
+          <h2 id="coverage-heading">What works with your printers today.</h2>
           <p class="lead">
-            PrintMarshal never presents a research catalog entry as a validated driver, or an accepted write as a guaranteed change. Every capability is labeled by its actual implementation status in the repository.
+            PrintMarshal separates features that work out of the box over standard SNMP and IPP from operations that depend on device writability or vendor-specific drivers.
           </p>
         </div>
 
-        <div class="table-wrap" style="margin-bottom: 32px;">
-          <table class="data-table" aria-label="Capability implementation status matrix">
+        <div class="grid-4" style="margin-bottom: 24px;">
+          <div class="panel-card">
+            <div><span class="cap-badge cap-implemented">● Implemented</span></div>
+            <h4>Works via standard protocols</h4>
+            <p style="font-size: 0.85rem;">Discovery, supply and counter monitoring, policy auditing, port/TLS probing, CSR &amp; CA/EST/SCEP enrollment, RBAC, and SIEM export.</p>
+          </div>
+          <div class="panel-card">
+            <div><span class="cap-badge cap-device">◐ Device-dependent</span></div>
+            <h4>Depends on printer support</h4>
+            <p style="font-size: 0.85rem;">Writing MIB-II identity fields (<code>sysName</code>, <code>sysLocation</code>, <code>sysContact</code>) and writable IPP attributes (<code>Set-Printer-Attributes</code>) with read-back verification.</p>
+          </div>
+          <div class="panel-card">
+            <div><span class="cap-badge cap-sim">◈ Simulator-only</span></div>
+            <h4>End-to-end on <code>pm-sim</code></h4>
+            <p style="font-size: 0.85rem;">Firmware image delivery over <code>POST /fw-sim</code> is wired only for loopback simulator targets (<code>127.0.0.1</code> / <code>localhost</code>).</p>
+          </div>
+          <div class="panel-card">
+            <div><span class="cap-badge cap-driver">◌ Requires vendor driver</span></div>
+            <h4>Extension points ready</h4>
+            <p style="font-size: 0.85rem;">Physical firmware pushes, certificate installation (<code>CertificateInstaller</code>), and proprietary protocol toggles require a vendor driver.</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table" aria-label="Summary of PrintMarshal capabilities and boundaries">
             <thead>
               <tr>
-                <th>Capability Area</th>
-                <th>Status</th>
-                <th>Shipped Implementation</th>
-                <th>Boundary &amp; Driver Requirement</th>
+                <th scope="col">Capability area</th>
+                <th scope="col">Status</th>
+                <th scope="col">What ships today &amp; operational boundary</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><strong>Discovery, Polling &amp; Traps</strong></td>
-                <td><span class="cap-badge cap-implemented">✓ Implemented</span></td>
-                <td>Active CIDR/range/IP scans (<span class="mono">snmp</span>, <span class="mono">ipp</span>, <span class="mono">escl</span>, TCP probes), passive <span class="mono">mDNS/SSDP/WSD</span>, and <span class="mono">SNMPv1/v2c</span> traps.</td>
-                <td>Depth of supplies, counters, and trays depends on what each printer exposes over RFC 3805 / IPP / eSCL.</td>
+                <td><strong>Discovery, inventory &amp; health</strong></td>
+                <td><span class="cap-badge cap-implemented">● Implemented</span></td>
+                <td>Active CIDR/IP scans, passive mDNS and WS-Discovery, Printer-MIB supplies/trays/counters/alerts, and rate-limited SNMP traps. Strictly read-only.</td>
               </tr>
               <tr>
-                <td><strong>Vendor Identification &amp; Read Enrichment</strong></td>
+                <td><strong>Security assessment &amp; certificates</strong></td>
+                <td><span class="cap-badge cap-implemented">● Implemented</span></td>
+                <td>14-item Baseline policy + custom rules (<code>pass</code> / <code>fail</code> / <code>unknown</code>), TCP port &amp; TLS probes, and CSR + internal CA/EST/SCEP enrollment. Physical certificate installation requires a vendor driver or printer web UI.</td>
+              </tr>
+              <tr>
+                <td><strong>Configuration profiles &amp; rotation</strong></td>
                 <td><span class="cap-badge cap-device">◐ Device-dependent</span></td>
-                <td><span class="mono">13</span> compiled-in vendor plugins (<span class="mono">hp, ricoh, brother, canon, lexmark, xerox, epson, kyocera, konicaminolta, sharp, toshiba, oki, fujifilm</span>).</td>
-                <td>HP adds read-only PML/LEDM enrichment; Ricoh and Canon add probe-gated private MIB counters; the other 10 provide model/serial normalisation only.</td>
+                <td>84-key catalog, dry-run diff, read-back verification, rollback, and encrypted credential staging. Standard drivers write MIB-II identity and writable IPP attributes; vendor security writes require a vendor driver.</td>
               </tr>
               <tr>
-                <td><strong>Configuration Read, Diff &amp; Profile Drift</strong></td>
-                <td><span class="cap-badge cap-implemented">✓ Implemented</span></td>
-                <td>35-key canonical catalog across 7 areas, 50 snapshots per device, device-vs-device diff, and profile drift detection.</td>
-                <td>Reads settings exposed by standards <span class="mono">snmp</span> and <span class="mono">ipp</span> drivers.</td>
+                <td><strong>Firmware repository &amp; campaigns</strong></td>
+                <td><span class="cap-badge cap-sim">◈ Simulator-only</span></td>
+                <td>Stores SHA-256 verified images, evaluates version rules, and delivers to <code>pm-sim</code> on loopback. Physical printer firmware delivery requires a vendor <code>FirmwareDriver</code>.</td>
               </tr>
               <tr>
-                <td><strong>Configuration Writes &amp; Revert</strong></td>
-                <td><span class="cap-badge cap-device">◐ Device-dependent</span></td>
-                <td>Dry-run preview, blast-radius confirmation (&gt;10 devices), read-back verification (<span class="mono">verified/diverged/unverifiable</span>), and rollback records.</td>
-                <td>Standards <span class="mono">snmp</span> (6 MIB-II/Printer-MIB keys) and <span class="mono">ipp</span> (<span class="mono">Set-Printer-Attributes</span> where supported by printer). No vendor-private <span class="mono">ConfigWriter</span> ships today.</td>
-              </tr>
-              <tr>
-                <td><strong>Security Policy Assessment &amp; Port/TLS Probes</strong></td>
-                <td><span class="cap-badge cap-implemented">✓ Implemented</span></td>
-                <td>14-item <span class="mono">Baseline</span> policy, custom policy editor, TCP port probes (<span class="mono">21, 23, 80, 443, 515, 631, 9100</span>), and TLS/certificate probes on <span class="mono">443/631</span>.</td>
-                <td>Settings not exposed over standards SNMP/IPP/probes evaluate to <span class="mono">unknown</span> (excluded from score denominator).</td>
-              </tr>
-              <tr>
-                <td><strong>Security Policy Remediation &amp; Credential Rotation</strong></td>
-                <td><span class="cap-badge cap-driver">⬚ Requires additional driver</span></td>
-                <td>Dry-run remediation planner, management-path lockout safeguard, and 4-stage credential rotation workflow (<span class="mono">staged → device_written → verified → committed</span>).</td>
-                <td>Requires a driver implementing <span class="mono">SecurityWriter</span> (<span class="mono">CapWriteSecurity</span>). No real-vendor <span class="mono">SecurityWriter</span> ships today.</td>
-              </tr>
-              <tr>
-                <td><strong>Certificate Enrollment vs Installation</strong></td>
-                <td><span class="cap-badge cap-driver">⬚ Enrollment implemented · Install requires driver</span></td>
-                <td>CA profile management and enrollment via <span class="mono">SCEP</span>, <span class="mono">EST</span>, and <span class="mono">ACME DNS-01</span> (manual DNS TXT record).</td>
-                <td>Installing an issued certificate onto a printer requires a <span class="mono">CertManager</span> driver (none shipped for real vendors). Automatic renewal is not implemented.</td>
-              </tr>
-              <tr>
-                <td><strong>Firmware Artifacts, Campaigns &amp; Delivery</strong></td>
-                <td><span class="cap-badge cap-sim">◈ Delivery is Simulator-only</span></td>
-                <td>Artifact repository with SHA-256 verification, signature status metadata, and canary → wave rollout campaign state machine.</td>
-                <td>Shipped <span class="mono">fwsim</span> updater only targets opt-in simulator addresses (<span class="mono">PM_FIRMWARE_SIM_TARGETS</span>). Physical printer delivery requires a vendor <span class="mono">FirmwareUpdater</span>.</td>
+                <td><strong>Optional local CUPS queue add-on</strong></td>
+                <td><span class="cap-badge cap-device">◐ Optional Linux add-on</span></td>
+                <td>Off by default (<code>internal/printprovider/</code>). Reconciles local host CUPS queues (<code>pm-</code> prefix) or publishes IPP Everywhere URIs for discovered printers. PrintMarshal manages devices—not print jobs, quotas, or pull-print release.</td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <figure class="console-showcase" style="margin:0;">
-          <div class="console-bar">
-            <div class="console-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-            <span class="console-url">/catalog — 126 Enterprise Printer Families (0 physically validated in shipped catalog)</span>
-            <button type="button" class="console-zoom-btn" data-lightbox-src="/assets/screens/catalog-evidence.png" data-lightbox-caption="Device model catalogue (/catalog) showing 126 families, 495 base model identifiers across 15 brands, and explicit Documented vs Observed vs Unknown legend.">⤢ Enlarge</button>
-          </div>
-          <div class="console-media" data-lightbox-src="/assets/screens/catalog-evidence.png" data-lightbox-caption="Device model catalogue (/catalog) showing 126 families, 495 base model identifiers across 15 brands, and explicit Documented vs Observed vs Unknown legend.">
-            <img class="media-desktop-full" src="/assets/screens/catalog-evidence.png" alt="Device model catalogue page showing 126 families, 495 base model identifiers, 15 brands, 0 physically validated badge, and per-family documented evidence pills." width="1440" height="900" loading="lazy">
-            <img class="media-mobile-crop" src="/assets/screens/mobile-support-evidence.png" alt="Focused view of the Support &amp; evidence card contrasting Documented, Observed, and Unknown states." width="404" height="523" loading="lazy">
-          </div>
-        </figure>
+        <div style="margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+          <p style="font-size: 0.86rem;">
+            <strong>Research catalog note:</strong> PrintMarshal ships a 15-vendor, 495-model enterprise research catalog (<code>0</code> physically validated out of the box) so teams can see documented vendor management routes alongside live SNMP/IPP observations.
+          </p>
+          <a class="btn btn-sm" href="/features/#matrix">View full capability matrix →</a>
+        </div>
       </div>
     </section>
 
-    <!-- 6. SELF-HOSTING AND SECURITY ARCHITECTURE -->
-    <section class="section section-alt" aria-labelledby="arch-heading">
+    <!-- ====================================================================
+         5. SELF-HOSTING & OPEN SOURCE BENEFITS
+         ==================================================================== -->
+    <section id="open-source" class="section" aria-labelledby="opensource-heading">
       <div class="container">
         <div class="section-header">
-          <div class="eyebrow">Self-Hosting &amp; Platform Security Architecture</div>
-          <h2 id="arch-heading">Built for internal network operations—with strict credential and write controls.</h2>
+          <div class="eyebrow">Architecture &amp; Community</div>
+          <h2 id="opensource-heading">Open source. Self-hosted. Built to extend.</h2>
           <p class="lead">
-            Whereas <strong>printer security assessment</strong> inspects your fleet, PrintMarshal's <strong>security architecture</strong> governs how the server itself stores secrets, authenticates operators, and gates network traffic.
+            Deploy PrintMarshal as a single Go binary or container on your own management VLAN with zero cloud dependencies or telemetry.
           </p>
         </div>
 
         <div class="grid-3">
-          <article class="panel-card">
-            <h3><span>Purpose-bound credentials</span><span class="status-pill status-pass">AES-256-GCM</span></h3>
+          <div class="panel-card">
+            <h3>Self-hosted &amp; encrypted <span class="cap-badge cap-implemented">Single Binary</span></h3>
             <p>
-              SNMP communities, SNMPv3 auth/priv keys, HTTP credentials, CA secrets, and enrolled private keys are encrypted at rest with <span class="mono">AES-256-GCM</span> using <span class="mono">PM_SECRET_KEY</span>.
+              Embeds the React UI and runs with embedded SQLite or PostgreSQL. Device credentials and CA keys are encrypted at rest with AES-256-GCM (<code>PM_SECRET_KEY</code>), and an append-only audit log exports to RFC 5424 syslog or SIEM collectors.
             </p>
-            <p style="font-size: 0.84rem;">
-              Every credential declares a purpose—<span class="mono">read</span>, <span class="mono">write</span>, or <span class="mono">both</span>. Read-only credentials are rejected by write workflows, and secrets are never returned in API responses or logs.
-            </p>
-          </article>
+            <div style="margin-top: auto; padding-top: 8px;">
+              <a href="/security/#platform">Platform security &amp; RBAC →</a>
+            </div>
+          </div>
 
-          <article class="panel-card">
-            <h3><span>RBAC, OIDC &amp; CSRF defense</span><span class="status-pill status-info">3 Roles</span></h3>
+          <div class="panel-card">
+            <h3>Comprehensive operational Wiki <span class="cap-badge cap-info">Documentation</span></h3>
             <p>
-              Supports local <span class="mono">bcrypt</span> accounts, <span class="mono">OIDC</span> (Authorization Code + PKCE), <span class="mono">LDAP</span> bind authentication, and SHA-256 hashed <span class="mono">pmk_…</span> API tokens across <span class="mono">admin</span>, <span class="mono">operator</span>, and <span class="mono">viewer</span> roles.
+              Every API route, policy operator, environment variable, backup script, and local CUPS print-provider setting is documented directly against the repository source code.
             </p>
-            <p style="font-size: 0.84rem;">
-              Cookie-authenticated state changes enforce <span class="mono">Sec-Fetch-Site</span> and <span class="mono">Origin</span> validation. Group-scoped API tokens restrict device/group mutations (not a multi-tenant isolation boundary).
-            </p>
-          </article>
+            <div style="margin-top: auto; padding-top: 8px;">
+              <a href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Browse the PrintMarshal Wiki ↗</a>
+            </div>
+          </div>
 
-          <article class="panel-card">
-            <h3><span>Single-binary deployment</span><span class="status-pill status-unknown">Single active node</span></h3>
+          <div class="panel-card">
+            <h3>Contribute walks &amp; drivers <span class="cap-badge cap-driver">Extensible</span></h3>
             <p>
-              Ships as one Go binary with the React UI embedded and an embedded <span class="mono">SQLite</span> (WAL) database—or connects to <span class="mono">PostgreSQL</span> for external storage.
+              Help expand physical device coverage without risking production printers: contribute sanitized <code>.snmp</code> walk fixtures for <code>pm-sim</code> or implement Go driver interfaces (<code>ConfigWriter</code>, <code>SecurityWriter</code>, <code>CertificateInstaller</code>).
             </p>
-            <p style="font-size: 0.84rem;">
-              Run a <strong>single active server process</strong> per database; scheduler and job workers run in-process without distributed locking. Explore full details on the <a href="/security/">Security page</a>.
-            </p>
-          </article>
+            <div style="margin-top: auto; padding-top: 8px;">
+              <a href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">Contribute on GitHub ↗</a>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 7. OPEN SOURCE PROJECT STATUS, PROTOCOLS & CONTRIBUTION ROUTES -->
-    <section class="section" aria-labelledby="oss-heading">
-      <div class="container">
-        <div class="section-header">
-          <div class="eyebrow">Open Source &amp; Standards</div>
-          <h2 id="oss-heading">Standards-first architecture, authoritative documentation, and practical contribution paths.</h2>
-          <p class="lead">
-            PrintMarshal is licensed under <span class="mono">Apache-2.0</span> with no commercial tiers, telemetry phone-home, or external SaaS dependencies.
-          </p>
-        </div>
-
-        <div class="table-wrap" style="margin-bottom: 32px;">
-          <table class="data-table" aria-label="Protocols and integrations grouped by purpose">
-            <thead>
-              <tr>
-                <th>Operational Purpose</th>
-                <th>Protocols &amp; Interfaces</th>
-                <th>How PrintMarshal Uses Them</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>Discovery &amp; Identity</strong></td>
-                <td><span class="mono">SNMPv1/v2c/v3</span>, <span class="mono">IPP/IPPS</span>, <span class="mono">eSCL</span>, <span class="mono">mDNS</span>, <span class="mono">WS-Discovery</span>, <span class="mono">SSDP</span>, TCP Probes</td>
-                <td>Active subnet/range scanning and optional passive multicast listeners; deduplicates devices by serial, UUID, MAC, and IP.</td>
-              </tr>
-              <tr>
-                <td><strong>Monitoring &amp; Live Alerts</strong></td>
-                <td><span class="mono">RFC 3805 Printer-MIB</span>, <span class="mono">MIB-II</span>, <span class="mono">Host-Resources-MIB</span>, <span class="mono">SNMP Traps (:1162)</span>, HP PML/LEDM, Ricoh/Canon MIBs</td>
-                <td>Polls supplies, counters, trays, and alert tables; ingests live SNMPv1/v2c traps (with optional community allowlist).</td>
-              </tr>
-              <tr>
-                <td><strong>Security &amp; Certificates</strong></td>
-                <td>TLS Handshake Probe (<span class="mono">443/631</span>), <span class="mono">SCEP</span>, <span class="mono">EST (RFC 7030)</span>, <span class="mono">ACME DNS-01 (RFC 8555)</span>, IPP TLS TOFU Pinning</td>
-                <td>Inspects live TLS versions and leaf certificates, enrolls certificates against internal/public CAs, and pins IPPS leaf SHA-256 fingerprints on first use.</td>
-              </tr>
-              <tr>
-                <td><strong>Configuration &amp; Print Release</strong></td>
-                <td>SNMP <span class="mono">SET</span>, IPP <span class="mono">Set-Printer-Attributes</span>, IPPS Hold-New-Jobs / Release-Job, Card Reader Webhook</td>
-                <td>Previews and writes supported standard configuration attributes; provides optional pull-print queue release and PaperCut/uniFLOW CSV/JSON import.</td>
-              </tr>
-              <tr>
-                <td><strong>Notifications, Metrics &amp; SIEM</strong></td>
-                <td><span class="mono">Prometheus (/metrics)</span>, <span class="mono">SMTP</span>, <span class="mono">Slack</span>, Signed <span class="mono">HMAC-SHA256</span> Webhooks, <span class="mono">RFC 5424 Syslog / CEF</span></td>
-                <td>Exports Prometheus gauges/counters, dispatches alert notifications, and forwards structured audit events to syslog or SIEM collectors.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="grid-3">
-          <article class="panel-card">
-            <h3><span>Authoritative Wiki</span><span class="mono" style="font-size:0.78rem; color:var(--tint);">15 Guides</span></h3>
-            <p>
-              Detailed operator guides cover installation, discovery, configuration profiles, security policies, certificate enrollment, REST API endpoints, and troubleshooting.
-            </p>
-            <div style="margin-top: auto; padding-top: 8px;">
-              <a href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Browse the PrintMarshal Wiki →</a>
-            </div>
-          </article>
-
-          <article class="panel-card">
-            <h3><span>Contribute SNMP Fixtures</span><span class="mono" style="font-size:0.78rem; color:var(--tint);">testdata/fixtures/</span></h3>
-            <p>
-              Have access to a physical printer? Capture a sanitised numeric-OID SNMP walk with <span class="mono">scripts/snmp-Fixture.sh</span> so the simulator and regression suite can replay it.
-            </p>
-            <div style="margin-top: auto; padding-top: 8px;">
-              <a href="https://github.com/printmarshal/printmarshal/wiki/Development" target="_blank" rel="noopener">Fixture &amp; lab validation guide →</a>
-            </div>
-          </article>
-
-          <article class="panel-card">
-            <h3><span>Implement Vendor Drivers</span><span class="mono" style="font-size:0.78rem; color:var(--tint);">internal/driver/</span></h3>
-            <p>
-              Extend vendor plugins with <span class="mono">ConfigWriter</span>, <span class="mono">SecurityWriter</span>, <span class="mono">CertManager</span>, or <span class="mono">FirmwareUpdater</span> backed by real hardware verification.
-            </p>
-            <div style="margin-top: auto; padding-top: 8px;">
-              <a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Driver architecture &amp; contracts →</a>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- 8. FOCUSED CLOSING CALL TO ACTION -->
-    <section class="section" aria-labelledby="cta-heading" style="border-bottom: 0;">
+    <!-- ====================================================================
+         6. CLEAR EVALUATION ACTION
+         ==================================================================== -->
+    <section id="evaluate" class="section section-tight" aria-labelledby="cta-heading">
       <div class="container">
         <div class="closing-cta">
           <div style="max-width: 640px;">
-            <div class="eyebrow" style="margin-bottom: 8px;">Evaluate Without Physical Hardware</div>
-            <h2 id="cta-heading" style="margin-bottom: 10px;">Run PrintMarshal locally against the built-in printer simulator in two minutes.</h2>
-            <p>
-              Start <span class="mono">pm-sim</span> and <span class="mono">printmarshal</span> on loopback to test discovery, security policy assessments, certificate enrollment, and dry-run configuration previews before touching your network.
+            <div class="eyebrow">Simulator-First Onboarding</div>
+            <h2 id="cta-heading" style="margin-bottom: 10px;">Evaluate locally with the built-in simulator.</h2>
+            <p style="font-size: 1rem;">
+              Start <code>pm-sim</code> and PrintMarshal on <code>127.0.0.1</code> to test discovery, Baseline security assessments, and configuration dry runs before connecting to a lab subnet.
             </p>
           </div>
           <div style="display: flex; flex-wrap: wrap; gap: 12px;">
@@ -830,25 +865,36 @@
     </section>
   </main>
 
+  <!-- Enlargeable Screenshot Lightbox -->
+  <dialog class="lightbox" id="screenshot-lightbox" aria-label="Enlarged product screenshot">
+    <div class="lightbox-bar">
+      <div class="lightbox-caption" id="lightbox-caption">PrintMarshal product capture</div>
+      <button class="btn btn-sm" type="button" id="lightbox-close">Close (Esc)</button>
+    </div>
+    <div class="lightbox-body">
+      <img id="lightbox-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="">
+    </div>
+  </dialog>
+
   <footer class="site-footer">
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
           <a class="brand" href="/" style="margin-bottom: 12px;">
             <img class="brand-mark" src="/assets/mark.svg" alt="" width="28" height="28">
-            <span class="brand-name" style="font-size: 1.1rem;">Print<span>Marshal</span></span>
+            <span class="brand-name">Print<span>Marshal</span></span>
           </a>
-          <p style="font-size: 0.84rem; color: var(--text-muted); max-width: 34ch;">
-            Open source, self-hosted printer fleet discovery, security posture assessment, and configuration management.
+          <p style="max-width: 36ch; font-size: 0.84rem; color: var(--text-muted);">
+            Self-hosted network printer security, compliance, and fleet configuration console. Open-source Go + React single-binary deployment.
           </p>
         </div>
         <div class="footer-col">
           <h4>Product</h4>
           <ul>
             <li><a href="/">Overview</a></li>
-            <li><a href="/features/">Features &amp; Capability Status</a></li>
-            <li><a href="/security/">Security &amp; Architecture</a></li>
-            <li><a href="/get-started/">Get Started</a></li>
+            <li><a href="/features/">Features &amp; Capability Matrix</a></li>
+            <li><a href="/security/">Security &amp; Boundaries</a></li>
+            <li><a href="/get-started/">Get Started &amp; Simulator</a></li>
             <li><a href="/faq/">FAQ</a></li>
           </ul>
         </div>
@@ -857,119 +903,185 @@
           <ul>
             <li><a href="https://github.com/printmarshal/printmarshal/wiki" target="_blank" rel="noopener">Wiki Home</a></li>
             <li><a href="https://github.com/printmarshal/printmarshal/wiki/Installation-and-deployment" target="_blank" rel="noopener">Installation &amp; Deployment</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Security &amp; Policies</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Security" target="_blank" rel="noopener">Security &amp; Compliance</a></li>
             <li><a href="https://github.com/printmarshal/printmarshal/wiki/Configuration-management" target="_blank" rel="noopener">Configuration Management</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Vendor Plugins &amp; Drivers</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/API-reference" target="_blank" rel="noopener">REST API Reference</a></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h4>Project</h4>
+          <h4>Operations &amp; Source</h4>
           <ul>
             <li><a href="https://github.com/printmarshal/printmarshal" target="_blank" rel="noopener">GitHub Repository</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/API-reference" target="_blank" rel="noopener">REST &amp; WebSocket API</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Development" target="_blank" rel="noopener">Contributing &amp; Simulator</a></li>
-            <li><a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0 License</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Identity-and-access" target="_blank" rel="noopener">Identity &amp; Access</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers" target="_blank" rel="noopener">Vendor Plugins &amp; Drivers</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Print-provider" target="_blank" rel="noopener">Local CUPS Print Provider</a></li>
+            <li><a href="https://github.com/printmarshal/printmarshal/wiki/Troubleshooting-and-FAQ" target="_blank" rel="noopener">Troubleshooting</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
-        <span>PrintMarshal · Open source under the Apache-2.0 License.</span>
-        <span class="mono" style="font-size: 0.78rem;">Built with Go 1.27, React, SQLite/PostgreSQL · Self-hosted</span>
+        <span>© PrintMarshal Contributors. Released under open-source license.</span>
+        <span class="mono" style="font-size: 0.76rem;">No external analytics · Zero telemetry · Simulator-verified captures</span>
       </div>
     </div>
   </footer>
 
-  <!-- Enlargeable Screenshot Lightbox -->
-  <dialog class="lightbox" id="screen-lightbox" aria-label="Enlarged product screenshot">
-    <div class="lightbox-bar">
-      <span class="lightbox-caption" id="lightbox-caption">Product screenshot</span>
-      <button type="button" class="btn btn-sm" id="lightbox-close">Close (Esc)</button>
-    </div>
-    <div class="lightbox-body">
-      <img id="lightbox-img" src="/assets/screens/security-compliance.png" alt="Enlarged product screenshot">
-    </div>
-  </dialog>
-
   <script>
     (function () {
-      // 1. Accessible 5-step Walkthrough Tabs
+      // 1. Accessible Mobile Navigation Menu (Toggle, Click-Outside & Escape Dismissal)
+      var navToggle = document.querySelector('[data-nav-toggle]');
+      var navMenu = document.querySelector('[data-nav-menu]');
+      if (navToggle && navMenu) {
+        function closeMenu(returnFocus) {
+          navToggle.setAttribute('aria-expanded', 'false');
+          navMenu.classList.remove('is-open');
+          if (returnFocus) navToggle.focus();
+        }
+        navToggle.addEventListener('click', function () {
+          var expanded = navToggle.getAttribute('aria-expanded') === 'true';
+          if (expanded) {
+            closeMenu(false);
+          } else {
+            navToggle.setAttribute('aria-expanded', 'true');
+            navMenu.classList.add('is-open');
+          }
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && navToggle.getAttribute('aria-expanded') === 'true') {
+            closeMenu(true);
+          }
+        });
+        document.addEventListener('click', function (e) {
+          if (navToggle.getAttribute('aria-expanded') === 'true' &&
+              !navMenu.contains(e.target) &&
+              !navToggle.contains(e.target)) {
+            closeMenu(false);
+          }
+        });
+      }
+
+      // 2. Accessible 5-Step Guided Walkthrough Tabs + Mobile Stepper (Prev / Next)
       var tablist = document.querySelector('[role="tablist"]');
       if (tablist) {
         var tabs = Array.prototype.slice.call(tablist.querySelectorAll('[role="tab"]'));
         var panels = tabs.map(function (t) {
           return document.getElementById(t.getAttribute('aria-controls'));
         });
-        function activateTab(idx, focus) {
+        var prevBtn = document.querySelector('[data-step-prev]');
+        var nextBtn = document.querySelector('[data-step-next]');
+        var statusEl = document.querySelector('[data-step-status]');
+        var currentIndex = 0;
+
+        function activateTab(nextIdx, focusTab) {
+          if (nextIdx < 0) nextIdx = tabs.length - 1;
+          if (nextIdx >= tabs.length) nextIdx = 0;
+          currentIndex = nextIdx;
           tabs.forEach(function (t, i) {
-            var sel = i === idx;
-            t.setAttribute('aria-selected', sel ? 'true' : 'false');
-            t.setAttribute('tabindex', sel ? '0' : '-1');
+            var selected = i === currentIndex;
+            t.setAttribute('aria-selected', selected ? 'true' : 'false');
+            t.setAttribute('tabindex', selected ? '0' : '-1');
             if (panels[i]) {
-              if (sel) panels[i].removeAttribute('hidden');
-              else panels[i].setAttribute('hidden', '');
+              if (selected) {
+                panels[i].removeAttribute('hidden');
+              } else {
+                panels[i].setAttribute('hidden', '');
+              }
             }
           });
-          if (focus) tabs[idx].focus();
+          if (statusEl && tabs[currentIndex]) {
+            statusEl.textContent = tabs[currentIndex].getAttribute('data-step-label') || ('Step ' + (currentIndex + 1) + ' of ' + tabs.length);
+          }
+          if (focusTab && tabs[currentIndex]) {
+            tabs[currentIndex].focus();
+          }
         }
-        tabs.forEach(function (t, idx) {
-          t.addEventListener('click', function () { activateTab(idx, false); });
-          t.addEventListener('keydown', function (e) {
-            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+
+        tabs.forEach(function (tab, idx) {
+          tab.addEventListener('click', function () {
+            activateTab(idx, false);
+          });
+          tab.addEventListener('keydown', function (e) {
+            var next = null;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % tabs.length;
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + tabs.length) % tabs.length;
+            if (e.key === 'Home') next = 0;
+            if (e.key === 'End') next = tabs.length - 1;
+            if (next !== null) {
               e.preventDefault();
-              activateTab((idx + 1) % tabs.length, true);
-            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-              e.preventDefault();
-              activateTab((idx - 1 + tabs.length) % tabs.length, true);
-            } else if (e.key === 'Home') {
-              e.preventDefault();
-              activateTab(0, true);
-            } else if (e.key === 'End') {
-              e.preventDefault();
-              activateTab(tabs.length - 1, true);
+              activateTab(next, true);
             }
           });
         });
+
+        if (prevBtn) {
+          prevBtn.addEventListener('click', function () {
+            activateTab(currentIndex - 1, false);
+          });
+        }
+        if (nextBtn) {
+          nextBtn.addEventListener('click', function () {
+            activateTab(currentIndex + 1, false);
+          });
+        }
       }
 
-      // 2. Interactive Evidence Trace Selector
-      var traceBtns = Array.prototype.slice.call(document.querySelectorAll('[data-trace-target]'));
-      var traceChains = ['trace-fail', 'trace-unknown', 'trace-pass'].map(function (id) {
-        return document.getElementById(id);
-      });
+      // 3. Signature Evidence Trace Switcher
+      var traceBtns = Array.prototype.slice.call(document.querySelectorAll('[data-trace-btn]'));
+      var traces = {
+        fail: document.getElementById('trace-fail'),
+        unknown: document.getElementById('trace-unknown'),
+        pass: document.getElementById('trace-pass')
+      };
       traceBtns.forEach(function (btn) {
         btn.addEventListener('click', function () {
-          var targetId = btn.getAttribute('data-trace-target');
+          var key = btn.getAttribute('data-trace-btn');
           traceBtns.forEach(function (b) {
             b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
           });
-          traceChains.forEach(function (c) {
-            if (!c) return;
-            if (c.id === targetId) c.removeAttribute('hidden');
-            else c.setAttribute('hidden', '');
+          Object.keys(traces).forEach(function (k) {
+            if (traces[k]) {
+              if (k === key) traces[k].removeAttribute('hidden');
+              else traces[k].setAttribute('hidden', '');
+            }
           });
         });
       });
 
-      // 3. Screenshot Lightbox Dialog
-      var dlg = document.getElementById('screen-lightbox');
-      var dlgImg = document.getElementById('lightbox-img');
-      var dlgCap = document.getElementById('lightbox-caption');
-      var dlgClose = document.getElementById('lightbox-close');
-      if (dlg && typeof dlg.showModal === 'function') {
-        document.querySelectorAll('[data-lightbox-src]').forEach(function (el) {
-          el.addEventListener('click', function (e) {
-            e.stopPropagation();
-            var src = el.getAttribute('data-lightbox-src');
-            var cap = el.getAttribute('data-lightbox-caption') || '';
-            dlgImg.src = src;
-            dlgImg.alt = cap;
-            dlgCap.textContent = cap;
-            dlg.showModal();
-          });
+      // 4. Screenshot Lightbox (Accessible Dialog with Escape & Focus Restoration)
+      var dialog = document.getElementById('screenshot-lightbox');
+      var dialogImg = document.getElementById('lightbox-img');
+      var dialogCap = document.getElementById('lightbox-caption');
+      var closeBtn = document.getElementById('lightbox-close');
+      var lastTrigger = null;
+
+      if (dialog && typeof dialog.showModal === 'function') {
+        document.querySelectorAll('.console-showcase[data-lightbox-src]').forEach(function (card) {
+          var src = card.getAttribute('data-lightbox-src');
+          var cap = card.getAttribute('data-lightbox-caption') || '';
+          var media = card.querySelector('.console-media');
+          var btn = card.querySelector('[data-zoom-trigger]');
+          var img = card.querySelector('img');
+          function open(triggerEl) {
+            lastTrigger = triggerEl || btn || card;
+            dialogImg.src = src;
+            dialogImg.alt = img ? img.alt : cap;
+            dialogCap.textContent = cap;
+            dialog.showModal();
+            if (closeBtn) closeBtn.focus();
+          }
+          if (btn) btn.addEventListener('click', function () { open(btn); });
+          if (media) media.addEventListener('click', function () { open(btn || media); });
         });
-        dlgClose.addEventListener('click', function () { dlg.close(); });
-        dlg.addEventListener('click', function (e) {
-          if (e.target === dlg) dlg.close();
+        if (closeBtn) {
+          closeBtn.addEventListener('click', function () { dialog.close(); });
+        }
+        dialog.addEventListener('click', function (e) {
+          if (e.target === dialog) dialog.close();
+        });
+        dialog.addEventListener('close', function () {
+          if (lastTrigger && typeof lastTrigger.focus === 'function') {
+            lastTrigger.focus();
+          }
         });
       }
     })();

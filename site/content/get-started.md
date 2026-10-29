@@ -1,18 +1,20 @@
-# PrintMarshal — Get Started (`site/get-started/index.html`)
+# Get Started & Simulator Guide (`site/get-started/index.html`)
 
-## Reconciled Prerequisites
-- **Source build:** `Go 1.27.3+` (matching `go.mod`) and `Node.js 20+` (for `make web` UI build).
-- **Container build:** Docker (`Dockerfile` uses `node:22-alpine` and `golang:1.27-alpine`, running on `alpine:3.20` as UID `65532`).
-- **Database:** Embedded pure-Go SQLite (WAL mode) or external PostgreSQL 14+.
+## H1: Evaluate locally with the built-in simulator.
 
-## Recommended Evaluation Route: Built-in Printer Simulator (`pm-sim`)
-1. Clone and build: `make web && make build`
-2. Start `bin/pm-sim` on loopback (`127.0.0.1:10161` SNMP, `127.0.0.1:10631` IPP) with `testdata/fixtures/generic-laser.snmp`.
-3. Start `bin/printmarshal` on `127.0.0.1:8080` pointed at those loopback ports.
-4. First successful outcome: sign in, discover `127.0.0.1`, run the `Baseline` security policy assessment, and preview + verify a dry-run configuration change.
+1. **Run PrintMarshal against `pm-sim` on loopback (`#simulator`)**
+   - Build with Go 1.27+ and Node 22+ (`make web && make build`).
+   - Start `pm-sim` on `127.0.0.1:19261` (SNMP) and `127.0.0.1:19231` (IPP).
+   - Persist `/tmp/pm-eval/secret.key` once (`[ -f /tmp/pm-eval/secret.key ] || (umask 077 && openssl rand -base64 32 > /tmp/pm-eval/secret.key)`) and start `printmarshal` on `127.0.0.1:19280` with `PM_DISCOVERY_ENABLED=false` and `PM_TRAP_ENABLED=false`.
+   - With both processes bound to `127.0.0.1` and zero-config multicast unchecked during discovery, discovery and polling traffic stays on loopback.
 
-## Production Deployment Options
-- Single Docker container with `/data` volume (`PM_SECRET_KEY`, `PM_ADMIN_PASSWORD`).
-- Docker Compose + PostgreSQL 16 (`deploy/docker-compose.yml`).
-- Kubernetes Helm chart (`deploy/helm/printmarshal`) and Linux `systemd` service (`deploy/systemd/printmarshal.service`).
-- Single active server process per database; always back up `PM_SECRET_KEY` (`secret.key`) alongside SQLite (`POST /api/system/backup`) or PostgreSQL backups.
+2. **First-Success Checklist (`#first-five`)**
+   - Discover `127.0.0.1` (zero-config unchecked) → Poll supplies & counters → Run Baseline assessment → Preview configuration diff in dry-run → Apply, verify read-back, and test one-click revert.
+
+3. **Docker & Single-Binary Deployment (`#deploy`)**
+   - `Dockerfile`: `node:22-alpine` → `golang:1.27-alpine` (`CGO_ENABLED=0`) → `alpine:3.23` running as `pm` (`UID 10001`).
+   - **Preserve and reuse `PM_SECRET_KEY` (`openssl rand -base64 32`):** startup examples create `secret.key` only if it does not already exist so repeating the command against existing data never replaces the encryption key.
+   - Online backups use `deploy/scripts/backup.sh` (`/usr/local/bin/pm-backup`), which runs `sqlite3 "VACUUM INTO ..."` or `pg_dump -Fc`.
+
+4. **Environment Variables & Ports (`#env-reference`)**
+   - Matches `internal/config/config.go`: `PM_LISTEN`, `PM_DATA_DIR`, `PM_DATABASE`, `PM_DSN`, `PM_SECRET_KEY`, `PM_ADMIN_PASSWORD`, `PM_SECURE_COOKIES`, `PM_DISCOVERY_ENABLED`, `PM_DISCOVERY_INTERVAL`, `PM_DISCOVERY_TARGETS`, `PM_TRAP_ENABLED`, `PM_TRAP_LISTEN`, `PM_SNMP_PORT`, `PM_IPP_ENDPOINTS`.
