@@ -87,7 +87,7 @@ func TestPostgres(t *testing.T) {
 			t.Fatalf("second migrate: %v", err)
 		}
 		var n int
-		if err := s.rawRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 3 {
+		if err := s.rawRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&n); err != nil || n != 5 {
 			t.Errorf("migrations = %d (%v)", n, err)
 		}
 	})

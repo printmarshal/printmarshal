@@ -54,6 +54,19 @@ func appendUnique(dst []string, vals ...string) []string {
 	return dst
 }
 
+// isRange reports whether spec is an address range ("10.0.0.1-50",
+// "10.0.0.1-10.0.0.50") rather than a hostname that happens to contain a
+// hyphen ("print-server-3"): the text before the first hyphen must be an
+// IPv4 address.
+func isRange(spec string) bool {
+	lo, _, ok := strings.Cut(spec, "-")
+	if !ok {
+		return false
+	}
+	a, err := netip.ParseAddr(strings.TrimSpace(lo))
+	return err == nil && a.Is4()
+}
+
 // ExpandTargets turns operator target specs — "10.0.0.5", "10.0.0.1-10.0.0.50",
 // "10.0.0.1-50", "10.0.0.0/24", or a hostname — into addresses. Expansion
 // stops at max addresses and reports how many were skipped so nothing is
@@ -106,7 +119,7 @@ func ExpandTargets(specs []string, max int) (addrs []string, skipped int, err er
 					break
 				}
 			}
-		case strings.Contains(spec, "-"):
+		case isRange(spec):
 			lo, hi, ok := strings.Cut(spec, "-")
 			start, perr := netip.ParseAddr(strings.TrimSpace(lo))
 			if perr != nil || !start.Is4() {

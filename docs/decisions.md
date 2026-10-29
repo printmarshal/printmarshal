@@ -1,6 +1,11 @@
 # Build decisions (spec §16)
 
-Recorded by the build session that implemented phases 1–2.
+Recorded by the build session that implemented phases 1–2, then extended by
+the later build, audit and review sessions below. The log is chronological:
+where a later section conflicts with an earlier one, the later one is what the
+code does (PostgreSQL is supported, vendor plugins and eSCL exist, SSO and the
+legacy identity providers are built in, and the bootstrap password is written
+to a file rather than logged).
 
 | Decision | Choice | Why |
 | --- | --- | --- |

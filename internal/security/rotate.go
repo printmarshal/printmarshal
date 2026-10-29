@@ -25,10 +25,12 @@ func (s *Service) RotateAdminPassword(ctx context.Context, t Target, opts Option
 }
 
 // Rotate queues a credential rotation. A new random secret is generated per
-// device, written through write_security (falling back to write_config) and,
-// only when the device accepted it, stored as a device-scoped credential
-// that outranks the previous one. The secret never appears in results, logs
-// or the audit log. Dry run reports which devices would change.
+// device, staged as a device-scoped credential that outranks the previous
+// one, then written through write_security (falling back to write_config).
+// The staged credential is removed again when the device cleanly refuses the
+// change and kept when the outcome is ambiguous (see the worker below). The
+// secret never appears in results, logs or the audit log. Dry run reports
+// which devices would change.
 func (s *Service) Rotate(ctx context.Context, kind string, t Target, opts Options, actor string) (*model.Job, error) {
 	if kind != model.RotateSNMPCommunity && kind != model.RotateAdminPassword {
 		return nil, fmt.Errorf("unknown rotation kind %q", kind)

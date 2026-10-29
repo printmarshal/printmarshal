@@ -124,9 +124,8 @@ keeps the old value is reported as diverged.
 issued (`issued`); add `?live=true` to probe now instead of reading the stored
 observations. Observations are stored so `CheckExpiry` needs no network I/O; it
 raises `cert:expiry` (warning â¤ 30 days, critical â¤ 7 days or expired) and runs
-at the start of every assess job. `main` should also call
-`Security.CheckExpiry(ctx)` on a schedule (e.g. daily); that wiring is a
-one-line change in `cmd/printmarshal/main.go` that this feature did not make.
+at the start of every assess job, and `cmd/printmarshal/main.go` also runs
+`Security.CheckExpiry(ctx)` at startup and then every 24 hours.
 
 ### Enrollment
 
@@ -162,15 +161,21 @@ ever handed to a driver, never returned by the API.
 
 `POST /api/security/rotate {kind: snmpCommunity | adminPassword, target,
 dryRun}` (job `security.rotate`, dry run by default). Per device a new random
-24-character secret is written as `protocols.snmp.readCommunity` or
-`security.adminPassword` through the security/config writers; **only when the
-device accepts it** is a new device-scoped credential stored, with a priority
-above the previous one so `ResolveCreds` picks it first (purpose `read` for a
-community, `both` for an admin password). The write itself needs a write
-credential bound to the device; without one the device is `failed`. The secret never
-appears in job results, events, the audit entry (`security.rotate` records
-kind, driver and credential id) or logs; dry run reports which devices would
-change and stores nothing. A write that the device rejects stores nothing.
+24-character secret is generated and **staged first**: it is encrypted and
+stored as a device-scoped credential (audited as `staged`) with a priority
+above the previous one, and only then written as `protocols.snmp.readCommunity`
+or `security.adminPassword` through the security/config writers. A crash or
+timeout between the device accepting the secret and it being stored can
+therefore never lose the only copy. When the device cleanly refuses the write
+the staged credential is deleted again; when the outcome is ambiguous
+(timeout, reset, EOF) it is kept and the result says so, because the device may
+hold the new secret; when the device accepts it, `ResolveCreds` picks the new
+credential first (purpose `read` for a community, `both` for an admin
+password) and a rotated community is verified by a read with it. The write
+itself needs a write credential bound to the device; without one the device is
+`failed` and nothing is staged. The secret never appears in job results,
+events, the audit entry (`security.rotate` records kind, driver and credential
+id) or logs; dry run reports which devices would change and stores nothing.
 
 ## Transport, sessions and trust (application hardening)
 

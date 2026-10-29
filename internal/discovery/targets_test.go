@@ -1,6 +1,9 @@
 package discovery
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestExpandTargets(t *testing.T) {
 	addrs, skipped, err := ExpandTargets([]string{"10.0.0.0/30", "10.0.1.5", "10.0.2.1-3", "10.0.3.250-10.0.3.252", "10.0.0.1"}, 0)
@@ -22,6 +25,15 @@ func TestExpandTargets(t *testing.T) {
 	}
 	if _, _, err := ExpandTargets([]string{"10.0.0.5-1"}, 0); err == nil {
 		t.Error("descending range should fail")
+	}
+	// A hostname with a hyphen is a name to resolve, not a malformed range.
+	for spec, want := range map[string]bool{"print-server-3.invalid": false, "10.0.0.1-50": true, "10.0.0.1-10.0.0.9": true, "fe80::1-5": false} {
+		if got := isRange(spec); got != want {
+			t.Errorf("isRange(%q) = %v, want %v", spec, got, want)
+		}
+	}
+	if _, _, err := ExpandTargets([]string{"print-server-3.invalid"}, 0); err == nil || strings.Contains(err.Error(), "bad range") {
+		t.Errorf("hyphenated hostname: err = %v, want a resolution error", err)
 	}
 }
 

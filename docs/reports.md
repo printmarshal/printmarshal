@@ -85,11 +85,12 @@ Tables: `devices`, `models`.
 
 ### `GET /api/reports/compliance` — hook
 
-Returns `{available: false, reason}` until the security feature stores
-assessments. The intended shape is in `internal/reports/compliance.go`: once a
-store method lists `model.Assessment` rows by range, aggregate them per policy
-and device (pass/fail counts, score trend, newest result per device) without
-touching any security logic.
+Returns `{available: false, reason}`: the aggregate has not been written yet.
+Assessments themselves exist (`/api/compliance` and `/api/compliance/history`,
+see `docs/security.md`); what is missing is the report in
+`internal/reports/compliance.go`, which should list `model.Assessment` rows by
+range and aggregate them per policy and device (pass/fail counts, score trend,
+newest result per device) without touching any security logic.
 
 ## Code layout
 
