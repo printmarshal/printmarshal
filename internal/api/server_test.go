@@ -171,6 +171,16 @@ func TestDevicePatchAndState(t *testing.T) {
 	if code != 200 || !strings.Contains(body, "Lobby printer") {
 		t.Fatalf("patch: %d %s", code, body)
 	}
+	// The device web page: an operator override is validated and resolved.
+	if code, body := do(t, ts, admin, "PATCH", "/api/devices/"+d.ID, `{"webUrl":"http://admin:pw@10.0.0.9/"}`); code != 400 {
+		t.Fatalf("web url with credentials: %d %s", code, body)
+	}
+	if code, body := do(t, ts, admin, "PATCH", "/api/devices/"+d.ID, `{"webUrl":"https://printer-9.example.net/admin"}`); code != 200 || !strings.Contains(body, `"webUrl":"https://printer-9.example.net/admin"`) {
+		t.Fatalf("web url override: %d %s", code, body)
+	}
+	if code, body := do(t, ts, admin, "PATCH", "/api/devices/"+d.ID, `{"webUrl":""}`); code != 200 || strings.Contains(body, `"webUrlOverride"`) {
+		t.Fatalf("web url cleared: %d %s", code, body)
+	}
 	if code, body := do(t, ts, admin, "PATCH", "/api/devices/"+d.ID, `{"serial":"HACK"}`); code != 400 {
 		t.Errorf("automatic fields must not be patchable: %d %s", code, body)
 	}

@@ -37,6 +37,7 @@ type DevicePatch struct {
 	Location          *string
 	AssetTag          *string
 	Notes             *string
+	WebURLOverride    *string // "" clears; validated by the API with model.ValidWebURL
 }
 
 // PollUpdate is what a poll writes back onto a device (automatic fields only).
@@ -137,6 +138,9 @@ type Store interface {
 	CountDevices(ctx context.Context, f DeviceFilter) (int, error)
 	PatchDevice(ctx context.Context, id string, p DevicePatch) (*model.Device, error)
 	SetDeviceDNS(ctx context.Context, id, dnsName string, suspect bool, checkedAt time.Time) (*model.Device, error)
+	// SetDeviceWebURLProbed records what the web-page probe found (a URL or
+	// model.WebURLNone) without touching operator fields.
+	SetDeviceWebURLProbed(ctx context.Context, id, url string) error
 	SetDeviceState(ctx context.Context, id string, state model.LifecycleState) (*model.Device, error)
 	ApplyPoll(ctx context.Context, id string, u PollUpdate) (*model.Device, error)
 	DeviceFailures(ctx context.Context, id string) (int, error)
@@ -231,4 +235,8 @@ type Store interface {
 	// Settings (small JSON values)
 	GetSetting(ctx context.Context, key string, dst any) error
 	SetSetting(ctx context.Context, key string, v any) error
+	// Secret settings: sealed with the master key, write-only from the
+	// outside (secret_settings.go). "" clears; Get returns ErrNotFound then.
+	SetSecretSetting(ctx context.Context, key, plain string) error
+	GetSecretSetting(ctx context.Context, key string) (string, error)
 }

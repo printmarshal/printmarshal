@@ -26,7 +26,8 @@ func scanDevicePG(r rowScanner) (*model.Device, error) {
 	)
 	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.DNSName, &dnsNameSuspect, &dnsCheckedAt, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
 		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.DisplayNameSource, &dnsSync, &d.Location, &d.AssetTag,
-		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd)
+		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd,
+		&d.WebURLProbed, &d.WebURLOverride)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +53,7 @@ func scanDevicePG(r rowScanner) (*model.Device, error) {
 		d.Counters = &model.Counters{}
 		fromJSON(counters, d.Counters)
 	}
+	d.WebURL = model.ResolveWebURL(&d)
 	d.FirstSeen, d.LastSeen = firstSeen.UTC(), lastSeen.UTC()
 	d.LastPolled = timeOf(lastPolled)
 	d.CreatedAt, d.UpdatedAt = created.UTC(), upd.UTC()
@@ -114,10 +116,10 @@ func (s *Postgres) UpsertDevice(ctx context.Context, id *model.Identity, caps ma
 	n := nowUTC()
 	if existing == nil {
 		d := &model.Device{ID: newID()}
-		_, err := pgExec(ctx, s.db, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(38)+`)`,
+		_, err := pgExec(ctx, s.db, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(40)+`)`,
 			d.ID, id.Address, id.Hostname, "", 0, nil, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
 			id.SysDescr, id.SysName, id.EnterpriseID, id.AdminURL, toJSON(caps), toJSON(discoveryMethods), toJSON(identMethods),
-			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n)
+			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "")
 		if err != nil {
 			return nil, false, err
 		}
@@ -269,12 +271,15 @@ func (s *Postgres) PatchDevice(ctx context.Context, id string, p DevicePatch) (*
 	if p.Notes != nil {
 		d.Notes = *p.Notes
 	}
+	if p.WebURLOverride != nil {
+		d.WebURLOverride = strings.TrimSpace(*p.WebURLOverride)
+	}
 	dnsSync := 0
 	if d.DNSSync {
 		dnsSync = 1
 	}
-	_, err = pgExec(ctx, s.db, `UPDATE devices SET display_name=?, display_name_source=?, dns_sync=?, location=?, asset_tag=?, notes=?, updated_at=? WHERE id=?`,
-		d.DisplayName, d.DisplayNameSource, dnsSync, d.Location, d.AssetTag, d.Notes, nowUTC(), id)
+	_, err = pgExec(ctx, s.db, `UPDATE devices SET display_name=?, display_name_source=?, dns_sync=?, location=?, asset_tag=?, notes=?, web_url_override=?, updated_at=? WHERE id=?`,
+		d.DisplayName, d.DisplayNameSource, dnsSync, d.Location, d.AssetTag, d.Notes, d.WebURLOverride, nowUTC(), id)
 	if err != nil {
 		return nil, err
 	}
@@ -563,4 +568,16 @@ func (s *Postgres) GroupsForDevice(ctx context.Context, deviceID string) ([]stri
 		out = append(out, id)
 	}
 	return out, rows.Err()
+}
+
+// SetDeviceWebURLProbed records the web-page probe result (see model.ResolveWebURL).
+func (s *Postgres) SetDeviceWebURLProbed(ctx context.Context, id, url string) error {
+	res, err := pgExec(ctx, s.db, `UPDATE devices SET web_url_probed=?, updated_at=? WHERE id=?`, url, nowUTC(), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

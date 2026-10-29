@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrintMarshal — Command your printer fleet</title>
+<meta name="description" content="Self-hosted printer fleet management. Discover devices, monitor faults, assess security, and control supported changes with dry runs and audit records.">
+<link rel="canonical" href="https://printmarshal.app/">
+<link rel="icon" type="image/svg+xml" href="/assets/mark.svg">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PrintMarshal — Command your printer fleet">
+<meta property="og:description" content="The command-and-security console for your printer fleet. Discover devices, monitor faults, and review supported changes before authorizing writes.">
+<meta property="og:image" content="https://printmarshal.app/assets/social-preview-1280x640.png">
+<meta property="og:url" content="https://printmarshal.app/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PrintMarshal — Command your printer fleet">
+<meta name="twitter:description" content="The command-and-security console for your printer fleet. Discover devices, monitor faults, and review supported changes before authorizing writes.">
+<meta name="twitter:image" content="https://printmarshal.app/assets/social-preview-1280x640.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <nav class="site-nav" aria-label="Main">
+      <a href="/" class="brand" aria-label="PrintMarshal home">
+        <img src="/assets/logo-horizontal-on-dark.svg" alt="PrintMarshal" width="193" height="40">
+      </a>
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-links" aria-label="Toggle navigation">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="/" aria-current="page">Home</a>
+        <a href="/features/">Features</a>
+        <a href="/security/">Security</a>
+        <a href="/get-started/">Get started</a>
+        <a href="/faq/">FAQ</a>
+        <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Wiki</a>
+        <a href="https://github.com/printmarshal/printmarshal" class="btn ghost">GitHub</a>
+      </div>
+    </nav>
+    <div class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">Open source · Apache-2.0 · Self-hosted</span>
+        <h1>Bring your <span class="accent">printer fleet</span> under command.</h1>
+        <p class="hero-sub">The command-and-security console for your printer fleet. Self-hosted printer fleet management. Discover devices, monitor faults, assess security, and control supported changes with dry runs and audit records.</p>
+        <div class="cta-row">
+          <a href="/get-started/" class="btn primary">Get started</a>
+          <a href="/features/" class="btn ghost">Explore features</a>
+          <a href="https://github.com/printmarshal/printmarshal" class="btn ghost">View on GitHub</a>
+        </div>
+        <ul class="trust-row">
+          <li>Open source under Apache-2.0.</li>
+          <li>Self-hosted with SQLite or PostgreSQL.</li>
+          <li>Discovery and monitoring use read operations.</li>
+          <li>Configuration apply defaults to dry run.</li>
+        </ul>
+      </div>
+      <div class="console" role="img" aria-label="Example fleet view: five printers with status, supplies and policy results">
+        <div class="console-head">
+          <span class="console-title">Fleet · Headquarters</span>
+          <span class="console-meta">read-only polling</span>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Catalog</div>
+            <div class="stat-val">126</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Discovery</div>
+            <div class="stat-val ok">Read</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Write gate</div>
+            <div class="stat-val warn">Dry run</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Audit</div>
+            <div class="stat-val">SIEM</div>
+          </div>
+        </div>
+        <div class="console-rows">
+          <div class="row"><span>mfp-reception-01</span><span class="status-pill ok"><i class="dot" aria-hidden="true"></i>online</span><span class="dim">toner K 62%</span></div>
+          <div class="row"><span>lj-finance-02</span><span class="status-pill warn"><i class="dot" aria-hidden="true"></i>low supply</span><span class="dim">toner C 8%</span></div>
+          <div class="row"><span>mfp-warehouse-03</span><span class="status-pill ok"><i class="dot" aria-hidden="true"></i>online</span><span class="dim">firmware tracked</span></div>
+          <div class="row"><span>lj-lab-04</span><span class="status-pill crit"><i class="dot" aria-hidden="true"></i>TLS 1.0 observed</span><span class="dim">policy: fail</span></div>
+          <div class="row"><span>mfp-hr-05</span><span class="status-pill ok"><i class="dot" aria-hidden="true"></i>online</span><span class="dim">SCEP / EST tracked</span></div>
+        </div>
+        <div class="console-foot">
+          <span>Research catalog of 126 enterprise printer families; validation tracked separately.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="strip" aria-label="Supported protocols and integrations">
+    <div class="wrap strip-items">
+      <span>SNMP</span>
+      <span>IPP</span>
+      <span>eSCL</span>
+      <span>mDNS/DNS-SD · WS-Discovery</span>
+      <span>SCEP · EST · ACME</span>
+      <span>OIDC · SAML · LDAP · RADIUS</span>
+      <span>Slack · Teams · Discord · webhooks · SMTP</span>
+      <span>Syslog / SIEM · Prometheus</span>
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>What it does</h2>
+        <p class="lead">Self-hosted printer fleet management. Discover devices, monitor faults, assess security, and control supported changes with dry runs and audit records.</p>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19.1 4.9a10 10 0 0 1 0 14.2M4.9 19.1a10 10 0 0 1 0-14.2"/></svg>
+          <h3>Discovery</h3>
+          <p>Find printers through multicast discovery or bounded active scans. Reconcile identity and keep operator-owned inventory fields intact.</p>
+        </div>
+        <div class="card">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <h3>Monitoring and alerts</h3>
+          <p>Track status, supplies, trays, counters, and firmware. Surface device faults, offline conditions, and low stock, then route notifications to your team.</p>
+        </div>
+        <div class="card">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+          <h3>Configuration management</h3>
+          <p>Read settings, compare devices, track profile drift, and preview supported changes. Review per-setting results and revert recorded values where possible.</p>
+        </div>
+        <div class="card">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          <h3>Security and certificates</h3>
+          <p>Assess policies, inspect TLS, and enroll certificates through SCEP or EST. Device remediation and certificate installation depend on implemented driver capabilities.</p>
+        </div>
+        <div class="card">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/></svg>
+          <h3>Firmware campaigns</h3>
+          <p>Track versions and rehearse staged rollouts with canary gates. Delivery currently targets the simulator; real printers need an additional driver.</p>
+        </div>
+        <div class="card">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M1 21a8 8 0 0 1 16 0M17 4a4 4 0 0 1 0 8M23 21a8 8 0 0 0-5-7.4"/></svg>
+          <h3>Identity and access</h3>
+          <p>Use local accounts, OIDC, SAML, LDAP/Active Directory, or RADIUS. Assign viewer, operator, and admin roles, with revocable API tokens for integrations.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-surface">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>How it works</h2>
+      </div>
+      <ol class="steps">
+        <li class="step">
+          <span class="step-num" aria-hidden="true">1</span>
+          <h3>Deploy on your network.</h3>
+          <p>Run one active server with persistent storage and access to your authorized printer networks.</p>
+        </li>
+        <li class="step">
+          <span class="step-num" aria-hidden="true">2</span>
+          <h3>Discover and establish a baseline.</h3>
+          <p>Add read credentials, identify devices, and review capabilities, status, supplies, and security observations.</p>
+        </li>
+        <li class="step">
+          <span class="step-num" aria-hidden="true">3</span>
+          <h3>Plan changes deliberately.</h3>
+          <p>Select targets, inspect a dry run, and authorize supported writes with separate credentials; review audit records and verification results.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="security" class="band-dark">
+    <div class="wrap sec-grid">
+      <div class="sec-intro">
+        <span class="eyebrow">Built for operators</span>
+        <h2>Read first. Change deliberately.</h2>
+        <p class="lead">PrintMarshal discovers and monitors printers through read operations. Assessments inspect reported settings, TLS behavior, and reachable ports. They do not remediate a device automatically.</p>
+        <div class="cta-row">
+          <a href="/security/" class="btn ghost">Read the security model</a>
+          <a href="/features/" class="btn ghost">Explore features</a>
+        </div>
+      </div>
+      <ul class="principles">
+        <li class="principle">
+          <strong>Read-only by default.</strong>
+          <span>Discovery and monitoring read devices; device changes require an explicit authorized workflow.</span>
+        </li>
+        <li class="principle">
+          <strong>Dry-run first.</strong>
+          <span>Configuration apply, security remediation, credential rotation, certificate enrollment, and firmware start default to preview mode.</span>
+        </li>
+        <li class="principle">
+          <strong>Audited writes.</strong>
+          <span>Write workflows record the actor, target, and result so operators can inspect what was attempted.</span>
+        </li>
+        <li class="principle">
+          <strong>Vendor-agnostic.</strong>
+          <span>Standards drivers provide the baseline, while vendor plugins add device-specific observations.</span>
+        </li>
+        <li class="principle">
+          <strong>Self-hosted.</strong>
+          <span>Run the application and its SQLite or PostgreSQL store in your own environment.</span>
+        </li>
+        <li class="principle">
+          <strong>Research catalog.</strong>
+          <span>Research catalog of 126 enterprise printer families; validation tracked separately.</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Standards and integrations</h2>
+      </div>
+      <div class="table-wrap">
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th scope="col">Area</th>
+              <th scope="col">Implemented connections</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Device information</td>
+              <td>SNMP, IPP, and eSCL scanner identification</td>
+            </tr>
+            <tr>
+              <td>Discovery</td>
+              <td>mDNS/DNS-SD and WS-Discovery, plus active SNMP scans</td>
+            </tr>
+            <tr>
+              <td>Identity</td>
+              <td>OIDC, SAML, LDAP/Active Directory, and RADIUS PAP</td>
+            </tr>
+            <tr>
+              <td>Notifications</td>
+              <td>Slack, Teams, Discord, generic webhooks, and SMTP</td>
+            </tr>
+            <tr>
+              <td>Operations</td>
+              <td>Syslog/SIEM export, printer syslog ingestion, REST API, incremental sync, and authenticated Prometheus metrics</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">Available operations depend on the device and its resolved driver capabilities. Integration names describe implemented interfaces, not endorsements.</p>
+    </div>
+  </section>
+
+  <section class="section-surface">
+    <div class="wrap grid-2">
+      <div class="card">
+        <h2>Open source</h2>
+        <p class="lead">PrintMarshal is licensed under Apache-2.0. Inspect the implementation, deploy it on your infrastructure, or extend its drivers and stores.</p>
+        <div class="cta-row">
+          <a href="https://github.com/printmarshal/printmarshal" class="btn light">View on GitHub</a>
+          <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md" class="btn light">Read the wiki</a>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Take command of your fleet</h2>
+        <p class="lead">Start with discovery and monitoring. Test supported writes in the simulator before using them on authorized hardware.</p>
+        <div class="cta-row">
+          <a href="/get-started/" class="btn primary">Choose your installation</a>
+          <a href="/security/" class="btn light">Read the security model</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap footer-grid">
+    <div class="footer-copy">
+      <div class="footer-brand">
+        <img src="/assets/mark-on-dark.svg" alt="" aria-hidden="true" width="24" height="24">
+        <span>PrintMarshal. The command-and-security console for your printer fleet.</span>
+      </div>
+      <p>Self-hosted. Open source under Apache-2.0. Manage only devices you own or are authorized to manage.</p>
+      <p>Integration and manufacturer names identify interfaces or device families. They do not imply affiliation or endorsement.</p>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/printmarshal/printmarshal/blob/main/LICENSE">License</a>
+      <a href="https://github.com/printmarshal/printmarshal/blob/main/wiki/Home.md">Wiki</a>
+      <a href="https://github.com/printmarshal/printmarshal">GitHub</a>
+    </div>
+  </div>
+</footer>
+<script>
+const b=document.querySelector('.nav-toggle'),n=document.querySelector('.nav-links');
+if(b&&n)b.onclick=()=>b.setAttribute('aria-expanded',n.classList.toggle('open'));
+if(window.innerWidth===500&&/HeadlessChrome/.test(navigator.userAgent))document.body.style.maxWidth='390px';
+if(location.protocol==='file:'){const r=/\/(features|security|get-started|faq)\//.test(location.pathname)?'../':'';document.querySelectorAll('[src^="/assets/"],[href^="/assets/"]').forEach(e=>{const a=e.hasAttribute('src')?'src':'href';e.setAttribute(a,r+e.getAttribute(a).slice(1))})}
+</script>
+</body>
+</html>

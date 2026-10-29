@@ -94,6 +94,11 @@ type Device struct {
 	SysName        string     `json:"sysName,omitempty"`
 	EnterpriseID   int        `json:"enterpriseId,omitempty"` // raw IANA enterprise from sysObjectID; interpreted only by plugins
 	AdminURL       string     `json:"adminUrl,omitempty"`
+	// WebURL is the device's web page to open (see weburl.go); filled from
+	// WebURLOverride, AdminURL and WebURLProbed when the device is read.
+	WebURL         string `json:"webUrl,omitempty"`
+	WebURLProbed   string `json:"webUrlProbed,omitempty"`
+	WebURLOverride string `json:"webUrlOverride,omitempty"` // operator field
 
 	// Resolved capability profile: capability -> driver that serves it.
 	Capabilities     map[Capability]string `json:"capabilities"`

@@ -131,7 +131,7 @@ export default function Devices({ user }: { user: User }) {
                       </td>
                       <td className="mono">{d.model}</td>
                       <td>
-                        <div className="mono">{d.address}</div>
+                        <div className="mono" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{d.address}{d.webUrl && <a href={d.webUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open the web page of ${deviceName(d)}`} title="Open the device web page" onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}><Ic.external size={14} /></a>}</div>
                         {(d.dnsName || d.hostname) && (
                           <div className="cap" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                             {d.dnsName || d.hostname}

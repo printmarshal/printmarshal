@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -150,5 +151,30 @@ func testUsersSessionsOutboxAudit(t *testing.T, s testStore) {
 	}
 	if _, err := s.GetJob(ctx, "nope"); err != ErrNotFound {
 		t.Errorf("missing job: %v", err)
+	}
+}
+
+// Secret settings are sealed with the master key: the plaintext round-trips,
+// the stored value is not the plaintext, and clearing returns ErrNotFound.
+func testSecretSettings(t *testing.T, s testStore) {
+	ctx := context.Background()
+	if _, err := s.GetSecretSetting(ctx, "auth.test.secret"); err != ErrNotFound {
+		t.Fatalf("unset: %v", err)
+	}
+	if err := s.SetSecretSetting(ctx, "auth.test.secret", "hunter2"); err != nil {
+		t.Fatal(err)
+	}
+	if v, err := s.GetSecretSetting(ctx, "auth.test.secret"); err != nil || v != "hunter2" {
+		t.Fatalf("round trip: %q %v", v, err)
+	}
+	var raw map[string]string
+	if err := s.GetSetting(ctx, "auth.test.secret", &raw); err != nil || raw["sealed"] == "" || strings.Contains(raw["sealed"], "hunter2") {
+		t.Fatalf("stored form: %v %v", raw, err)
+	}
+	if err := s.SetSecretSetting(ctx, "auth.test.secret", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.GetSecretSetting(ctx, "auth.test.secret"); err != ErrNotFound {
+		t.Fatalf("cleared: %v", err)
 	}
 }

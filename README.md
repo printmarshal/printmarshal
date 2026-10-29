@@ -91,6 +91,9 @@ What works today:
   to acknowledge and clear) and firmware version distribution, over any date
   range, scoped to a group or device, as JSON or CSV; compliance reporting is a
   documented hook awaiting the security feature.
+- **Device web page** — one click from a device to its own administration UI: an
+  operator override, the URL the device advertises when it is a real web page, or a
+  probe of https/http on the device, in that order.
 - **Inventory** — operator fields (display name, location, asset tag, notes) that scans
   never overwrite, lifecycle states with validated transitions, static and rule-based
   groups, search/sort/filter, CSV export of devices and supplies.
