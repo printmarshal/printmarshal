@@ -247,3 +247,7 @@ See [`docs/decisions.md`](docs/decisions.md) for the stack decisions and
 - **Secrets encrypted; least-privilege access; full audit trail.**
 
 Only discover and manage printers you own or are authorised to manage.
+
+## License
+
+Apache License 2.0; see [LICENSE](LICENSE).
