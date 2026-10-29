@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS devices (
   id TEXT PRIMARY KEY,
   address TEXT NOT NULL,
   hostname TEXT NOT NULL DEFAULT '',
+  hostname_source TEXT NOT NULL DEFAULT '',
   mac TEXT NOT NULL DEFAULT '',
   serial TEXT NOT NULL DEFAULT '',
   uuid TEXT NOT NULL DEFAULT '',
@@ -45,6 +46,7 @@ CREATE INDEX IF NOT EXISTS devices_uuid ON devices(uuid);
 CREATE INDEX IF NOT EXISTS devices_mac ON devices(mac);
 CREATE INDEX IF NOT EXISTS devices_address ON devices(address);
 CREATE INDEX IF NOT EXISTS devices_state ON devices(state);
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS hostname_source TEXT NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS groups (
   id TEXT PRIMARY KEY,

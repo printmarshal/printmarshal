@@ -48,6 +48,29 @@ func testOperatorFieldsSurviveScan(t *testing.T, s testStore) {
 	if len(d2.DiscoveryMethods) != 2 || len(d2.IdentifyMethods) != 2 {
 		t.Errorf("methods = %v / %v", d2.DiscoveryMethods, d2.IdentifyMethods)
 	}
+	// Hostname and HostnameSource round-trip through SetDeviceHostname and UpsertDevice.
+	dDNS, err := s.SetDeviceHostname(ctx, d.ID, "printer-lobby", "dns")
+	if err != nil {
+		t.Fatalf("SetDeviceHostname: %v", err)
+	}
+	if dDNS.Hostname != "printer-lobby" || dDNS.HostnameSource != "dns" {
+		t.Errorf("after SetDeviceHostname: hostname=%q source=%q", dDNS.Hostname, dDNS.HostnameSource)
+	}
+	// An mDNS hostname on a later scan upgrades the DNS hostname; a subsequent non-mDNS scan does not clobber mDNS.
+	dMDNS, _, err := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.77", Serial: "SN1", Hostname: "printer-lobby.local", HostnameSource: "mdns", Method: "ipp"}, nil, []string{"mdns"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dMDNS.Hostname != "printer-lobby.local" || dMDNS.HostnameSource != "mdns" {
+		t.Errorf("mDNS upsert should win: hostname=%q source=%q", dMDNS.Hostname, dMDNS.HostnameSource)
+	}
+	dAdv, _, err := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.77", Serial: "SN1", Hostname: "NPIABE5A1", HostnameSource: "advertised", Method: "snmp"}, nil, []string{"scan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dAdv.Hostname != "printer-lobby.local" || dAdv.HostnameSource != "mdns" {
+		t.Errorf("advertised hostname should not overwrite mDNS: hostname=%q source=%q", dAdv.Hostname, dAdv.HostnameSource)
+	}
 }
 
 // Spec §14 safety test: secrets never leave the store except via ResolveCreds.

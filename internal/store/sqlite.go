@@ -115,6 +115,13 @@ func (s *SQLite) migrate() error {
 	if err := s.migrateFixedWidthTimestamps(); err != nil {
 		return fmt.Errorf("migrate timestamps: %w", err)
 	}
+	// Migration 6: record where a device's hostname came from (mdns, dns, advertised).
+	if err := s.addColumn("devices", "hostname_source", "hostname_source TEXT NOT NULL DEFAULT ''"); err != nil {
+		return fmt.Errorf("migrate devices.hostname_source: %w", err)
+	}
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (6, ?)`, now()); err != nil {
+		return err
+	}
 	return nil
 }
 

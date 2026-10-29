@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { api, ago, fmtTime } from '../api'
 import type { Device, Group, User } from '../types'
+import { deviceName } from '../types'
 import type { CampaignDevice, CampaignDeviceRow, CampaignDeviceStatus, CampaignSummary, CampaignView, FirmwarePackage } from '../types-firmware'
 import { canaryLabel, checkCompatibility, fmtBytes, isActive, isFinished, shortSha, windowLabel } from '../types-firmware'
 import { useEvents } from '../ws'
@@ -206,7 +207,7 @@ export default function FirmwareCampaign({ user }: { user: User }) {
               <div className="tw"><table className="tbl" style={{ minWidth: 640 }}>
                 <thead><tr><th>Device</th><th>Model</th><th>Installed</th><th>Preview</th></tr></thead>
                 <tbody>{targets.map((d) => { const v = verdicts.get(d.id); return (
-                  <tr key={d.id}><td><Link to={`/devices/${d.id}`} style={{ fontWeight: 500 }}>{d.displayName || d.sysName || d.hostname || d.address}</Link><div className="cap mono" style={{ fontSize: 11 }}>{d.address}</div></td><td className="mono">{d.model || '—'}</td><td className="mono">{d.firmware || <span className="cap">unknown</span>}</td>
+                  <tr key={d.id}><td><Link to={`/devices/${d.id}`} style={{ fontWeight: 500 }}>{deviceName(d)}</Link><div className="cap mono" style={{ fontSize: 11 }}>{d.address}</div></td><td className="mono">{d.model || '—'}</td><td className="mono">{d.firmware || <span className="cap">unknown</span>}</td>
                     <td className="wrap">{!pkg ? <span className="cap">—</span> : v?.compatible && !v.current ? <Pill tone="ok" xs>{v.downgrade ? 'Downgrade' : 'Will update'}</Pill> : <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><span className="pill off xs">Skip</span><span className="cap">{v?.reason}</span></span>}</td></tr>
                 ) })}</tbody>
               </table></div>

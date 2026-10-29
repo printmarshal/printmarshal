@@ -12,7 +12,7 @@ import (
 	"printmarshal/internal/model"
 )
 
-const deviceCols = `id, address, hostname, mac, serial, uuid, make, model, device_type, firmware, sys_descr, sys_name,
+const deviceCols = `id, address, hostname, hostname_source, mac, serial, uuid, make, model, device_type, firmware, sys_descr, sys_name,
  enterprise_id, admin_url, capabilities, discovery_methods, identify_methods, display_name, location, asset_tag, notes,
  state, status, supplies, trays, counters, severity, consecutive_failures, first_seen, last_seen, last_polled, created_at, updated_at`
 
@@ -28,7 +28,7 @@ func scanDevice(r rowScanner) (*model.Device, error) {
 		failures                           int
 		severity                           string
 	)
-	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
+	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.HostnameSource, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
 		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.Location, &d.AssetTag,
 		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd)
 	if err != nil {
@@ -125,8 +125,8 @@ func (s *SQLite) UpsertDevice(ctx context.Context, id *model.Identity, caps map[
 	n := now()
 	if existing == nil {
 		d := &model.Device{ID: newID()}
-		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(33)+`)`,
-			d.ID, id.Address, id.Hostname, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
+		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(34)+`)`,
+			d.ID, id.Address, id.Hostname, id.HostnameSource, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
 			id.SysDescr, id.SysName, id.EnterpriseID, id.AdminURL, toJSON(caps), toJSON(discoveryMethods), toJSON(identMethods),
 			"", id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n)
 		if err != nil {
@@ -135,12 +135,17 @@ func (s *SQLite) UpsertDevice(ctx context.Context, id *model.Identity, caps map[
 		dev, err := s.GetDevice(ctx, d.ID)
 		return dev, true, err
 	}
-	// Merge: keep existing values where the new identity is silent.
+	// Merge: keep existing values where the new identity is silent; mDNS hostnames win over non-mDNS.
 	pick := func(newv, old string) string {
 		if strings.TrimSpace(newv) != "" {
 			return newv
 		}
 		return old
+	}
+	hostname, hostnameSource := existing.Hostname, existing.HostnameSource
+	if strings.TrimSpace(id.Hostname) != "" && (existing.Hostname == "" || hostnameRank(id.HostnameSource) >= hostnameRank(existing.HostnameSource)) {
+		hostname = id.Hostname
+		hostnameSource = pick(id.HostnameSource, existing.HostnameSource)
 	}
 	merged := map[model.Capability]string{}
 	for k, v := range existing.Capabilities {
@@ -151,10 +156,10 @@ func (s *SQLite) UpsertDevice(ctx context.Context, id *model.Identity, caps map[
 	}
 	disc := appendUnique(existing.DiscoveryMethods, discoveryMethods...)
 	ident := appendUnique(existing.IdentifyMethods, identMethods...)
-	_, err = s.db.ExecContext(ctx, `UPDATE devices SET address=?, hostname=?, mac=?, serial=?, uuid=?, make=?, model=?, device_type=?,
+	_, err = s.db.ExecContext(ctx, `UPDATE devices SET address=?, hostname=?, hostname_source=?, mac=?, serial=?, uuid=?, make=?, model=?, device_type=?,
 		firmware=?, sys_descr=?, sys_name=?, enterprise_id=?, admin_url=?, capabilities=?, discovery_methods=?, identify_methods=?,
 		last_seen=?, updated_at=? WHERE id=?`,
-		id.Address, pick(id.Hostname, existing.Hostname), strings.ToLower(pick(id.MAC, existing.MAC)), pick(id.Serial, existing.Serial),
+		id.Address, hostname, hostnameSource, strings.ToLower(pick(id.MAC, existing.MAC)), pick(id.Serial, existing.Serial),
 		pick(id.UUID, existing.UUID), pick(id.Make, existing.Make), pick(id.Model, existing.Model), pick(id.DeviceType, existing.DeviceType),
 		pick(id.Firmware, existing.Firmware), pick(id.SysDescr, existing.SysDescr), pick(id.SysName, existing.SysName),
 		maxInt(id.EnterpriseID, existing.EnterpriseID), pick(id.AdminURL, existing.AdminURL), toJSON(merged), toJSON(disc), toJSON(ident),
@@ -164,6 +169,22 @@ func (s *SQLite) UpsertDevice(ctx context.Context, id *model.Identity, caps map[
 	}
 	dev, err := s.GetDevice(ctx, existing.ID)
 	return dev, false, err
+}
+
+// hostnameRank orders hostname sources: the device's own mDNS name beats a
+// DNS record, which beats a name a driver merely reported (sysName, a
+// vendor OID). A rescan never replaces a better-sourced name with a worse
+// one; an equal or better source refreshes it.
+func hostnameRank(source string) int {
+	switch source {
+	case "mdns":
+		return 3
+	case "dns":
+		return 2
+	case "advertised":
+		return 1
+	}
+	return 0
 }
 
 func maxInt(a, b int) int {
@@ -303,6 +324,18 @@ func (s *SQLite) PatchDevice(ctx context.Context, id string, p DevicePatch) (*mo
 		d.DisplayName, d.Location, d.AssetTag, d.Notes, now(), id)
 	if err != nil {
 		return nil, err
+	}
+	return s.GetDevice(ctx, id)
+}
+
+// SetDeviceHostname implements Store.
+func (s *SQLite) SetDeviceHostname(ctx context.Context, id, hostname, source string) (*model.Device, error) {
+	res, err := s.db.ExecContext(ctx, `UPDATE devices SET hostname=?, hostname_source=?, updated_at=? WHERE id=?`, hostname, source, now(), id)
+	if err != nil {
+		return nil, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil, ErrNotFound
 	}
 	return s.GetDevice(ctx, id)
 }

@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS devices (
   id TEXT PRIMARY KEY,
   address TEXT NOT NULL,
   hostname TEXT NOT NULL DEFAULT '',
+  hostname_source TEXT NOT NULL DEFAULT '',
   mac TEXT NOT NULL DEFAULT '',
   serial TEXT NOT NULL DEFAULT '',
   uuid TEXT NOT NULL DEFAULT '',

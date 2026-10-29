@@ -14,7 +14,7 @@ export interface Status {
 }
 export interface Counters { total: number; mono?: number; color?: number; duplex?: number; powerOn?: number; byMarker?: Record<string, number>; at: string }
 export interface Device {
-  id: string; address: string; hostname?: string; mac?: string; serial?: string; uuid?: string; make?: string; model?: string
+  id: string; address: string; hostname?: string; hostnameSource?: 'mdns' | 'dns' | 'advertised' | ''; mac?: string; serial?: string; uuid?: string; make?: string; model?: string
   deviceType?: string; firmware?: string; sysDescr?: string; sysName?: string; enterpriseId?: number; adminUrl?: string
   capabilities: Record<string, string>; discoveryMethods: string[]; identifyMethods: string[]
   displayName: string; location: string; assetTag: string; notes: string; state: string
@@ -75,7 +75,7 @@ export interface Dashboard {
 export interface Event { type: string; at: string; data: unknown }
 
 export function deviceName(d: Device): string {
-  return d.displayName || d.sysName || d.hostname || d.model || d.address
+  return d.displayName || d.hostname || d.sysName || d.model || d.address
 }
 
 /** Make + model without repeating the make when the model already starts with it. */

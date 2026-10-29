@@ -23,7 +23,7 @@ func scanDevicePG(r rowScanner) (*model.Device, error) {
 		failures                           int
 		severity                           string
 	)
-	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
+	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.HostnameSource, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
 		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.Location, &d.AssetTag,
 		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd)
 	if err != nil {
@@ -109,8 +109,8 @@ func (s *Postgres) UpsertDevice(ctx context.Context, id *model.Identity, caps ma
 	n := nowUTC()
 	if existing == nil {
 		d := &model.Device{ID: newID()}
-		_, err := pgExec(ctx, s.db, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(33)+`)`,
-			d.ID, id.Address, id.Hostname, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
+		_, err := pgExec(ctx, s.db, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(34)+`)`,
+			d.ID, id.Address, id.Hostname, id.HostnameSource, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
 			id.SysDescr, id.SysName, id.EnterpriseID, id.AdminURL, toJSON(caps), toJSON(discoveryMethods), toJSON(identMethods),
 			"", id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n)
 		if err != nil {
@@ -125,6 +125,11 @@ func (s *Postgres) UpsertDevice(ctx context.Context, id *model.Identity, caps ma
 		}
 		return old
 	}
+	hostname, hostnameSource := existing.Hostname, existing.HostnameSource
+	if strings.TrimSpace(id.Hostname) != "" && (existing.Hostname == "" || hostnameRank(id.HostnameSource) >= hostnameRank(existing.HostnameSource)) {
+		hostname = id.Hostname
+		hostnameSource = pick(id.HostnameSource, existing.HostnameSource)
+	}
 	merged := map[model.Capability]string{}
 	for k, v := range existing.Capabilities {
 		merged[k] = v
@@ -134,10 +139,10 @@ func (s *Postgres) UpsertDevice(ctx context.Context, id *model.Identity, caps ma
 	}
 	disc := appendUnique(existing.DiscoveryMethods, discoveryMethods...)
 	ident := appendUnique(existing.IdentifyMethods, identMethods...)
-	_, err = pgExec(ctx, s.db, `UPDATE devices SET address=?, hostname=?, mac=?, serial=?, uuid=?, make=?, model=?, device_type=?,
+	_, err = pgExec(ctx, s.db, `UPDATE devices SET address=?, hostname=?, hostname_source=?, mac=?, serial=?, uuid=?, make=?, model=?, device_type=?,
 		firmware=?, sys_descr=?, sys_name=?, enterprise_id=?, admin_url=?, capabilities=?, discovery_methods=?, identify_methods=?,
 		last_seen=?, updated_at=? WHERE id=?`,
-		id.Address, pick(id.Hostname, existing.Hostname), strings.ToLower(pick(id.MAC, existing.MAC)), pick(id.Serial, existing.Serial),
+		id.Address, hostname, hostnameSource, strings.ToLower(pick(id.MAC, existing.MAC)), pick(id.Serial, existing.Serial),
 		pick(id.UUID, existing.UUID), pick(id.Make, existing.Make), pick(id.Model, existing.Model), pick(id.DeviceType, existing.DeviceType),
 		pick(id.Firmware, existing.Firmware), pick(id.SysDescr, existing.SysDescr), pick(id.SysName, existing.SysName),
 		maxInt(id.EnterpriseID, existing.EnterpriseID), pick(id.AdminURL, existing.AdminURL), toJSON(merged), toJSON(disc), toJSON(ident),
@@ -258,6 +263,14 @@ func (s *Postgres) PatchDevice(ctx context.Context, id string, p DevicePatch) (*
 	_, err = pgExec(ctx, s.db, `UPDATE devices SET display_name=?, location=?, asset_tag=?, notes=?, updated_at=? WHERE id=?`,
 		d.DisplayName, d.Location, d.AssetTag, d.Notes, nowUTC(), id)
 	if err != nil {
+		return nil, err
+	}
+	return s.GetDevice(ctx, id)
+}
+
+// SetDeviceHostname implements Store.
+func (s *Postgres) SetDeviceHostname(ctx context.Context, id, hostname, source string) (*model.Device, error) {
+	if err := affected(pgExec(ctx, s.db, `UPDATE devices SET hostname=?, hostname_source=?, updated_at=? WHERE id=?`, hostname, source, nowUTC(), id)); err != nil {
 		return nil, err
 	}
 	return s.GetDevice(ctx, id)
