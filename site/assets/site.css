@@ -587,29 +587,55 @@ p code, li code, td code {
 }
 
 .hero-title {
-  margin-bottom: 10px;
-  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  margin-bottom: 12px;
+  max-width: 17em;
+  font-size: clamp(2.05rem, 3.9vw, 3.2rem);
+  line-height: 1.06;
+  text-wrap: balance;
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 .hero .lead {
-  font-size: clamp(0.96rem, 1.12vw, 1.06rem);
+  font-size: clamp(1rem, 1.15vw, 1.1rem);
   line-height: 1.5;
-  max-width: 74ch;
+  max-width: 62ch;
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 10px 14px;
+  margin-top: 18px;
+}
+
+.hero-actions .btn {
+  min-height: 44px;
+}
+
+.hero-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 0 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.hero-text-link:hover {
+  color: var(--text-primary);
 }
 
 .hero-reassurance {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  margin: 14px 0 16px;
+  margin: 14px 0 0;
   padding: 10px 14px;
   background: rgba(23, 28, 39, 0.85);
   border: 1px solid var(--border-default);
@@ -1194,6 +1220,93 @@ img.media-mobile-crop {
   color: var(--mist);
 }
 
+/* Evidence trace polish: scenario accent, device glyph, connected rail */
+#trace-fail { --trace-accent: var(--state-crit); --trace-accent-border: var(--state-crit-border); }
+#trace-unknown { --trace-accent: var(--state-unk); --trace-accent-border: var(--state-unk-border); }
+#trace-pass { --trace-accent: var(--state-ok); --trace-accent-border: var(--state-ok-border); }
+
+.trace-header h3 {
+  font-size: clamp(1.2rem, 1.8vw, 1.45rem);
+  max-width: 28ch;
+}
+
+.trace-btn {
+  min-height: 40px;
+}
+
+.trace-takeaway {
+  border-left: 3px solid var(--trace-accent, var(--border-default));
+}
+
+.trace-device-art {
+  width: 72px;
+  height: 44px;
+  margin: 2px 0 -2px;
+  stroke: var(--tint);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trace-device-art .tda-body {
+  fill: rgba(46, 84, 230, 0.12);
+}
+
+.trace-device-art .tda-paper,
+.trace-device-art .tda-tray {
+  fill: rgba(232, 236, 242, 0.04);
+  stroke: var(--text-muted);
+}
+
+.trace-device-art .tda-slot,
+.trace-device-art .tda-sheet {
+  stroke: var(--text-muted);
+}
+
+.trace-device-art .tda-wave {
+  stroke: var(--tint);
+  opacity: 0.7;
+}
+
+.trace-device-art .tda-led {
+  fill: var(--trace-accent, var(--tint));
+  stroke: none;
+}
+
+.trace-node.node-fail,
+.trace-node.node-unknown,
+.trace-node.node-pass {
+  box-shadow: inset 0 3px 0 var(--trace-accent);
+}
+
+.trace-node.node-fail h4,
+.trace-node.node-unknown h4,
+.trace-node.node-pass h4 {
+  font-size: 1.04rem;
+}
+
+/* Connector: short rail with a chevron head instead of a text arrow */
+.trace-node:not(:last-child)::after {
+  content: "";
+  right: -19px;
+  width: 18px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--border-strong), var(--tint));
+}
+
+.trace-node:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -19px;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid var(--tint);
+  border-right: 2px solid var(--tint);
+  transform: translate(0, -50%) rotate(45deg);
+  pointer-events: none;
+}
+
 .trace-tech {
   margin-top: 14px;
   border-top: 1px solid var(--border-subtle);
@@ -1394,7 +1507,7 @@ img.media-mobile-crop {
   border-left-color: var(--state-unk);
 }
 
-.callout strong {
+.callout > strong {
   display: block;
   margin-bottom: 6px;
   color: var(--text-primary);
@@ -1668,7 +1781,8 @@ dialog.lightbox::backdrop {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .trace-node:nth-child(2)::after {
+  .trace-node:nth-child(2)::after,
+  .trace-node:nth-child(2)::before {
     display: none;
   }
 
@@ -1767,13 +1881,37 @@ dialog.lightbox::backdrop {
   }
 
   .hero {
-    padding: 24px 0 44px;
+    padding: 20px 0 40px;
   }
 
   .hero-reassurance {
     grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .hero-top {
+    margin-bottom: 18px;
+  }
+
+  .hero .lead {
+    font-size: 1rem;
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 8px;
-    padding: 10px 12px;
+    margin-top: 16px;
+  }
+
+  .hero-actions .btn {
+    width: 100%;
+  }
+
+  .hero-text-link {
+    justify-self: start;
+    padding: 0 2px;
   }
 
   .section {
@@ -1871,16 +2009,26 @@ dialog.lightbox::backdrop {
     gap: 18px;
   }
 
-  .trace-node:nth-child(2)::after {
+  .trace-node:nth-child(2)::after,
+  .trace-node:nth-child(2)::before {
     display: block;
   }
 
   .trace-node:not(:last-child)::after {
-    content: "↓";
     top: auto;
-    bottom: -16px;
+    bottom: -18px;
     right: 50%;
+    width: 2px;
+    height: 16px;
     transform: translateX(50%);
+    background: linear-gradient(180deg, var(--border-strong), var(--tint));
+  }
+
+  .trace-node:not(:last-child)::before {
+    top: auto;
+    bottom: -17px;
+    right: 50%;
+    transform: translate(50%, 0) rotate(135deg);
   }
 
   .console-annotations,
@@ -1909,6 +2057,27 @@ dialog.lightbox::backdrop {
   .closing-cta {
     padding: 26px 20px;
   }
+}
+
+.host-notes {
+  margin-top: 16px;
+}
+
+.host-notes summary {
+  font-size: 0.95rem;
+  padding: 12px 16px;
+}
+
+.host-notes .disclosure-body {
+  padding: 14px 16px;
+  font-size: 0.85rem;
+}
+
+.host-notes ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
 }
 
 /* Reduced Motion Support */
