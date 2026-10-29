@@ -303,6 +303,11 @@ func TestPMLHelpers(t *testing.T) {
 	if got := pmlString(snmp.PDU{Value: []byte{0x01, 0x15, 'A', 'B', 0}}); got != "AB" {
 		t.Errorf("pmlString = %q", got)
 	}
+	// Newer HP firmware (E87760, E47528) sends FD E8 instead of 01 15; unstripped it
+	// is invalid UTF-8 and shows as "��" before the model name.
+	if got := pmlString(snmp.PDU{Value: []byte("\xfd\xe8HP Color LaserJet Flow E87760\x00")}); got != "HP Color LaserJet Flow E87760" {
+		t.Errorf("pmlString with FD E8 header = %q", got)
+	}
 	jd := jetdirectSysDescr("HP ETHERNET MULTI-ENVIRONMENT,SN:VNB0TEST01,FN:0000001,SVCID:10084,PID:HP Color LaserJet MFP M283fdw")
 	if jd["SN"] != "VNB0TEST01" || jd["PID"] != "HP Color LaserJet MFP M283fdw" {
 		t.Errorf("jetdirect = %v", jd)
