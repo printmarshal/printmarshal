@@ -60,6 +60,28 @@ so `security.tls.*` and `energy.*` are not produced by this driver.
 The recorded HP M283fdw (`testdata/fixtures/hp-m283fdw-full.ipp`) does **not**
 support Set-Printer-Attributes; it is identified with `read_config` only.
 
+**Write transport and authentication** (review findings H-016, H-017). Reads keep
+the `poll.ippEndpoints` order; a write (the read that precedes it, every
+Set-Printer-Attributes and the read-back) uses its own order: the `https://` form
+of every endpoint first (`ipps` on 631, then `https` on 443), then the plaintext
+forms, and all requests of one write go to the endpoint that answered the read.
+The admin credential bound with purpose `write` or `both` (`AdminUser` /
+`AdminPass`) is sent as `requesting-user-name` and presented when the device
+answers `401`: Basic (RFC 7617) or Digest (RFC 7616, MD5 and SHA-256, `qop=auth`),
+answered once, to the challenging host only, never across a redirect. A device
+that challenges while no admin credential is bound yields a **failed** setting
+with "the printer requires authentication but no admin credential is bound"; a
+refused credential yields "the printer rejected the bound admin credential (401)".
+
+| JSON | Env | Default | Meaning |
+| --- | --- | --- | --- |
+| `poll.ippWriteRequireTLS` | `PM_IPP_WRITE_REQUIRE_TLS` | `false` | Refuse to send Set-Printer-Attributes over plaintext. The write fails with "refusing to send Set-Printer-Attributes over plaintext: ippWriteRequireTLS is set …" when no TLS endpoint answers; reads are unaffected. |
+
+Independently of that flag the driver pins the certificate a device presents on
+the first TLS contact of a write and refuses later writes that see a different
+one (or that would fall back to plaintext); see "Device writes over IPP" in
+[`docs/security.md`](security.md) for what that does and does not guarantee.
+
 ### SNMP driver (`internal/driver/snmp/config.go`, priority 30)
 
 Only the standard read-write objects are mapped; anything the MIBs cannot express is
@@ -218,3 +240,12 @@ attributes, and SNMP SET for `sysName`, `sysLocation`, `sysContact`,
 `prtGeneralPrinterName`, `prtInputDefaultIndex` and `prtMarkerDefaultIndex`; later
 reads over either protocol reflect the change. Real printers are read-only in
 development: never point a write at hardware you have not been authorised to change.
+
+`-ipps 127.0.0.1:6632` adds an IPPS listener with a self-signed certificate
+generated at start-up, and `-admin-password SECRET` makes every operation other
+than Get-Printer-Attributes require HTTP Basic auth as `admin`, so the write
+path (TLS first, certificate pin, `401` challenge) can be exercised end to end:
+bind a credential with admin user `admin` and that password and purpose `write`,
+and run with `PM_IPP_ENDPOINTS='http://%s:6632/ipp/print'` — the driver tries
+`https://…:6632` for writes before that plaintext form, and
+`PM_IPP_WRITE_REQUIRE_TLS=true` makes a plaintext-only simulator refuse writes.

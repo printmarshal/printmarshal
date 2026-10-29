@@ -385,14 +385,60 @@ func NewSetPrinterAttributes(uri string, requestID uint32, user string, attrs []
 		Groups: []Group{{Tag: TagOperation, Attributes: ops}, {Tag: TagPrinter, Attributes: attrs}}}
 }
 
-// RequestingUser is the requesting-user-name sent with writes.
+// RequestingUser is the requesting-user-name sent with writes when no admin
+// user is bound to the device.
 const RequestingUser = "printmarshal"
+
+// fetchForWrite is fetchAttrs over the write path: TLS endpoints first, the
+// bound credential presented on challenge, the certificate pin enforced. The
+// URL it returns is the one the Set-Printer-Attributes requests then use, so
+// a write never goes to an endpoint other than the one that was read.
+func (d *Driver) fetchForWrite(ctx context.Context, dev *model.Device, auth Auth, requested []string) (*Message, string, error) {
+	var errs []error
+	for _, ep := range d.writeEndpoints {
+		url := endpointURL(ep, dev.Address)
+		req := NewGetPrinterAttributes(printerURI(url), d.reqID.Add(1), requested)
+		body, err := Encode(req)
+		if err != nil {
+			return nil, "", err
+		}
+		resp, err := d.writeCall(ctx, dev, url, body, auth)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", url, err))
+			// A pin mismatch must not be side-stepped by the next (plaintext)
+			// endpoint, and once TLS is required every remaining endpoint is
+			// plaintext.
+			if ctx.Err() != nil || errors.Is(err, ErrPinMismatch) || errors.Is(err, ErrPlaintextWrite) {
+				break
+			}
+			continue
+		}
+		msg, err := Decode(resp)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", url, err))
+			continue
+		}
+		if msg.StatusCode >= 0x0400 {
+			errs = append(errs, fmt.Errorf("%s: ipp status 0x%04x", url, msg.StatusCode))
+			continue
+		}
+		return msg, url, nil
+	}
+	return nil, "", errors.Join(errs...)
+}
 
 // WriteConfig implements engine.ConfigWriter. Each setting is sent in its own
 // Set-Printer-Attributes request so the outcome is per setting; a dry run
 // performs the read only and issues no Set-Printer-Attributes at all.
+//
+// The read and the writes go over the write path (driver.go): the TLS form of
+// each endpoint before its plaintext form, plaintext refused altogether when
+// WriteRequireTLS is set, the device's certificate pinned on first TLS contact,
+// and the bound admin credential (model.Creds.AdminUser / AdminPass) presented
+// when the device answers 401.
 func (d *Driver) WriteConfig(ctx context.Context, dev *model.Device, creds model.Creds, changes []model.SettingChange, opts model.WriteOptions) (*model.WriteResult, error) {
-	m, url, err := d.fetchAttrs(ctx, dev.Address, ConfigAttrs)
+	auth := Auth{User: creds.AdminUser, Password: creds.AdminPass}
+	m, url, err := d.fetchForWrite(ctx, dev, auth, ConfigAttrs)
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +491,7 @@ func (d *Driver) WriteConfig(ctx context.Context, dev *model.Device, creds model
 			res.Results = append(res.Results, r)
 			continue
 		}
-		if err := d.setAttribute(ctx, url, Attribute{Tag: s.tag, Name: s.attr, Values: []any{ippVal}}); err != nil {
+		if err := d.setAttribute(ctx, dev, url, auth, Attribute{Tag: s.tag, Name: s.attr, Values: []any{ippVal}}); err != nil {
 			r.Status, r.Error, r.After = model.SettingFailed, err.Error(), nil
 			res.Results = append(res.Results, r)
 			continue
@@ -456,7 +502,7 @@ func (d *Driver) WriteConfig(ctx context.Context, dev *model.Device, creds model
 	}
 	// Read back once so After reflects what the device now holds.
 	if !opts.DryRun && len(res.Rollback) > 0 {
-		if m2, _, err := d.fetchAttrs(ctx, dev.Address, ConfigAttrs); err == nil {
+		if m2, err := d.getAttributesAt(ctx, dev, url, auth, ConfigAttrs); err == nil {
 			after := map[string]any{}
 			for _, s := range ConfigFrom(m2) {
 				after[s.Key] = s.Value
@@ -473,16 +519,35 @@ func (d *Driver) WriteConfig(ctx context.Context, dev *model.Device, creds model
 	return res, nil
 }
 
+// getAttributesAt reads the configuration attributes from one write-path URL.
+func (d *Driver) getAttributesAt(ctx context.Context, dev *model.Device, url string, auth Auth, requested []string) (*Message, error) {
+	body, err := Encode(NewGetPrinterAttributes(printerURI(url), d.reqID.Add(1), requested))
+	if err != nil {
+		return nil, err
+	}
+	raw, err := d.writeCall(ctx, dev, url, body, auth)
+	if err != nil {
+		return nil, err
+	}
+	return Decode(raw)
+}
+
 // setAttribute sends one Set-Printer-Attributes request and interprets the
 // response (RFC 3380 §4.1.2): a status at or above 0x0400 is a failure, and an
-// attribute echoed in the unsupported-attributes group was not applied.
-func (d *Driver) setAttribute(ctx context.Context, url string, a Attribute) error {
-	req := NewSetPrinterAttributes(printerURI(url), d.reqID.Add(1), RequestingUser, []Attribute{a})
+// attribute echoed in the unsupported-attributes group was not applied. The
+// bound admin user is sent as requesting-user-name and presented when the
+// device challenges; without one a challenge yields ErrAuthRequired.
+func (d *Driver) setAttribute(ctx context.Context, dev *model.Device, url string, auth Auth, a Attribute) error {
+	user := auth.User
+	if user == "" {
+		user = RequestingUser
+	}
+	req := NewSetPrinterAttributes(printerURI(url), d.reqID.Add(1), user, []Attribute{a})
 	body, err := Encode(req)
 	if err != nil {
 		return err
 	}
-	raw, err := d.tr.Do(ctx, url, body)
+	raw, err := d.writeCall(ctx, dev, url, body, auth)
 	if err != nil {
 		return err
 	}

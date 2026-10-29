@@ -94,6 +94,10 @@ func (f fakeTransport) Do(ctx context.Context, url string, body []byte) ([]byte,
 	return f.resp, nil
 }
 
+func (f fakeTransport) DoAuth(ctx context.Context, url string, body []byte, _ Auth) (*Response, error) {
+	return &Response{Body: f.resp}, nil
+}
+
 func TestIdentifyViaTransport(t *testing.T) {
 	resp := &Message{Version: [2]byte{2, 0}, RequestID: 1, Groups: []Group{{Tag: TagPrinter, Attributes: []Attribute{
 		{Tag: TagText, Name: "printer-make-and-model", Values: []any{"Acme ColorWorks 7700"}},

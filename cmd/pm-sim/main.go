@@ -5,10 +5,18 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/subtle"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -56,6 +64,8 @@ func main() {
 	fixture := flag.String("fixture", "testdata/fixtures/generic-laser.snmp", "SNMP fixture file")
 	snmpAddr := flag.String("snmp", "127.0.0.1:1161", "SNMP agent UDP listen address")
 	ippAddr := flag.String("ipp", "127.0.0.1:6631", "IPP server TCP listen address ('' to disable)")
+	ippsAddr := flag.String("ipps", "", "IPPS (TLS, self-signed certificate) listen address, e.g. 127.0.0.1:6632 ('' to disable)")
+	adminPassword := flag.String("admin-password", "", "when set, operations other than Get-Printer-Attributes require HTTP Basic auth as user 'admin'")
 	community := flag.String("community", "public", "accepted SNMPv2c community")
 	firmware := flag.String("firmware", "2.14.7", "firmware version reported over IPP")
 	flag.Parse()
@@ -75,12 +85,19 @@ func main() {
 	}()
 	if *ippAddr != "" {
 		go func() {
-			if err := serveIPP(ctx, *ippAddr, state); err != nil && err != http.ErrServerClosed {
+			if err := serveIPP(ctx, *ippAddr, "", state, *adminPassword); err != nil && err != http.ErrServerClosed {
 				log.Fatalf("ipp server: %v", err)
 			}
 		}()
 	}
-	log.Printf("pm-sim: snmp on udp://%s (community %q), ipp on http://%s, fixture %s", *snmpAddr, *community, *ippAddr, *fixture)
+	if *ippsAddr != "" {
+		go func() {
+			if err := serveIPP(ctx, *ippsAddr, "tls", state, *adminPassword); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("ipps server: %v", err)
+			}
+		}()
+	}
+	log.Printf("pm-sim: snmp on udp://%s (community %q), ipp on http://%s, ipps on %s, fixture %s", *snmpAddr, *community, *ippAddr, *ippsAddr, *fixture)
 	<-ctx.Done()
 }
 
@@ -196,7 +213,11 @@ func toVar(p snmp.PDU) gosnmp.SnmpPDU {
 
 // --- IPP server -------------------------------------------------------------
 
-func serveIPP(ctx context.Context, addr string, state *SimState) error {
+// serveIPP serves the simulated printer's IPP endpoint on addr; mode "tls"
+// serves IPPS with a self-signed certificate generated at start-up. When
+// adminPassword is set, every operation other than Get-Printer-Attributes
+// requires HTTP Basic auth as "admin", as real printers do for writes.
+func serveIPP(ctx context.Context, addr, mode string, state *SimState, adminPassword string) error {
 	mux := http.NewServeMux()
 	for _, h := range HTTPHooks {
 		h(mux, state)
@@ -212,6 +233,14 @@ func serveIPP(ctx context.Context, addr string, state *SimState) error {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+		if adminPassword != "" && req.StatusCode != ipp.OpGetPrinterAttributes {
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != "admin" || subtle.ConstantTimeCompare([]byte(pass), []byte(adminPassword)) != 1 {
+				w.Header().Set("WWW-Authenticate", `Basic realm="pm-sim"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
 		}
 		resp := &ipp.Message{Version: [2]byte{2, 0}, RequestID: req.RequestID}
 		ops := ipp.Group{Tag: ipp.TagOperation, Attributes: []ipp.Attribute{
@@ -241,7 +270,43 @@ func serveIPP(ctx context.Context, addr string, state *SimState) error {
 		_, _ = w.Write(out)
 	})
 	go func() { <-ctx.Done(); _ = srv.Shutdown(context.Background()) }()
-	return srv.ListenAndServe()
+	if mode != "tls" {
+		return srv.ListenAndServe()
+	}
+	cert, err := selfSignedCert()
+	if err != nil {
+		return err
+	}
+	srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+	return srv.ListenAndServeTLS("", "")
+}
+
+// selfSignedCert generates an ephemeral certificate for the IPPS listener; a
+// new one each start, so a client that pinned the previous one notices.
+func selfSignedCert() (tls.Certificate, error) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 62))
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: "pm-sim", Organization: []string{"PrintMarshal simulator"}},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     []string{"localhost"},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, nil
 }
 
 // currentAttributes renders the fixture-derived attributes with any overrides applied.

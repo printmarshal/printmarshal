@@ -197,6 +197,47 @@ TLS termination is expected at a reverse proxy or ingress (see
 the same-origin check on the stream keeps working. Client addresses used for
 throttling are the TCP peer, so a proxy should apply its own sign-in rate limit.
 
+### Device writes over IPP
+
+These controls came out of the external code review (findings H-016, H-017) and
+apply to the IPP driver's write path (`Set-Printer-Attributes`, `internal/driver/ipp`).
+Reads are unchanged.
+
+What a write now guarantees:
+
+- **TLS preferred.** The write and the read that precedes it try the TLS form of
+  every configured endpoint (`ipps` on 631, `https` on 443) before any plaintext
+  form, and every request of one write goes to the endpoint that answered the read.
+  With `poll.ippWriteRequireTLS` (`PM_IPP_WRITE_REQUIRE_TLS=true`) plaintext is
+  refused outright and the write fails with a message naming the option.
+- **Certificate pinning, trust on first use.** On the first successful TLS contact
+  of a write the SHA-256 fingerprint of the leaf certificate the device presented
+  is pinned for that device. A later write that sees a different certificate is
+  refused before anything is sent, with an error naming both fingerprints; a later
+  write that would fall back to plaintext while a pin exists is refused as a
+  downgrade. Reads keep working either way.
+- **Credentials go only to the challenger.** The bound admin credential is sent
+  only in answer to a `401` challenge, once, to the host that was asked (Basic, or
+  Digest with MD5 / SHA-256 and `qop=auth`); redirects are never followed on the
+  write path, so a credential cannot be bounced to another host. A device that
+  challenges while no admin credential is bound fails the setting with a clear
+  reason and nothing is written.
+
+What it does not guarantee:
+
+- `poll.ippInsecureTls` (default `true`) still means **no CA validation**: the
+  device's certificate is not checked against any trust store, on reads or writes.
+  Pinning only detects a *change* after the first contact; the first contact
+  itself is trusted, so an attacker already in the path before PrintMarshal ever
+  wrote to the device is not detected.
+- The pin lives **in memory for the process lifetime** (the device model has no
+  field for it and persisting one would need a schema change). A restart re-pins
+  on the next write; a planned certificate change on a printer therefore needs a
+  PrintMarshal restart, and an unplanned one is only noticed between restarts.
+- Plaintext writes are still possible when the device offers no TLS endpoint and
+  `ippWriteRequireTLS` is off; the credential then travels in Basic (base64) or,
+  when the device offers it, Digest form.
+
 ## API summary
 
 | Method and path | Role | Result |

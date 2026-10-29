@@ -2,14 +2,19 @@ package ipp
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	neturl "net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -22,17 +27,51 @@ import (
 const Name = "ipp"
 
 // Transport posts an IPP request body to an HTTP(S) URL and returns the response body.
+// It is the read path: no credential is ever presented through Do.
 type Transport interface {
 	Do(ctx context.Context, url string, body []byte) ([]byte, error)
+}
+
+// Auth is the admin credential an authenticated call presents when the device
+// challenges the request (HTTP 401). An empty User means none is bound.
+type Auth struct {
+	User     string
+	Password string
+}
+
+// Response is the result of an authenticated call.
+type Response struct {
+	Body []byte
+	// TLS reports whether the exchange ran over TLS.
+	TLS bool
+	// Fingerprint is "sha256:" + the hex SHA-256 of the leaf certificate the
+	// device presented; empty over plaintext.
+	Fingerprint string
+	// Authenticated reports that the device challenged and accepted the credential.
+	Authenticated bool
+}
+
+// AuthTransport is a Transport that can also answer an HTTP authentication
+// challenge (Basic or Digest, RFC 7617 / RFC 7616) and report the TLS
+// certificate the device presented. Writes require it; the challenge is
+// answered at most once, to the host that issued it, and no redirect is followed.
+type AuthTransport interface {
+	Transport
+	DoAuth(ctx context.Context, url string, body []byte, auth Auth) (*Response, error)
 }
 
 // Options tune the driver.
 type Options struct {
 	Timeout time.Duration
-	// InsecureTLS accepts printers' self-signed certificates. Reads only.
+	// InsecureTLS accepts printers' self-signed certificates: no CA validation
+	// on reads or writes. Writes pin the presented certificate instead (see
+	// WriteRequireTLS and docs/security.md).
 	InsecureTLS bool
 	// Endpoints are candidate paths tried in order; "" means the default list.
+	// Writes try the TLS form of each endpoint before its plaintext form.
 	Endpoints []string
+	// WriteRequireTLS refuses to send Set-Printer-Attributes over plaintext.
+	WriteRequireTLS bool
 }
 
 // DefaultOptions are suitable for LAN printers.
@@ -49,44 +88,153 @@ var defaultEndpoints = []string{
 	"http://%s:80/ipp/print",
 }
 
-type httpTransport struct{ c *http.Client }
+// FingerprintPrefix prefixes certificate fingerprints reported by the driver.
+const FingerprintPrefix = "sha256:"
+
+// ErrPinMismatch is wrapped by the error a write gets when the device presents
+// a certificate other than the one pinned on first TLS contact.
+var ErrPinMismatch = errors.New("certificate pin mismatch")
+
+// ErrPlaintextWrite is wrapped by the error a write gets when it would have to
+// go over plaintext and that is not allowed.
+var ErrPlaintextWrite = errors.New("refusing to send Set-Printer-Attributes over plaintext")
+
+type httpTransport struct {
+	c *http.Client
+	// noRedirect is c without redirect following, used by DoAuth so a
+	// credential can only ever reach the host that was asked.
+	noRedirect *http.Client
+}
 
 func (t *httpTransport) Do(ctx context.Context, url string, body []byte) ([]byte, error) {
+	resp, err := t.post(ctx, t.c, url, body, "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	r, err := readResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+	return r.Body, nil
+}
+
+// DoAuth implements AuthTransport.
+func (t *httpTransport) DoAuth(ctx context.Context, rawURL string, body []byte, auth Auth) (*Response, error) {
+	target, err := neturl.Parse(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := t.post(ctx, t.noRedirect, rawURL, body, "")
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusUnauthorized {
+		defer resp.Body.Close()
+		return readResponse(resp)
+	}
+	challenges := parseChallenges(resp.Header.Values("WWW-Authenticate"))
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+	resp.Body.Close()
+	if auth.User == "" {
+		return nil, ErrAuthRequired
+	}
+	if len(challenges) == 0 {
+		return nil, fmt.Errorf("%w: 401 without a WWW-Authenticate challenge", ErrUnsupportedChallenge)
+	}
+	header, err := authorizationFor(challenges, http.MethodPost, target, body, auth)
+	if err != nil {
+		return nil, err
+	}
+	resp2, err := t.post(ctx, t.noRedirect, rawURL, body, header)
+	if err != nil {
+		return nil, err
+	}
+	defer resp2.Body.Close()
+	if resp2.Request != nil && resp2.Request.URL.Host != target.Host {
+		return nil, fmt.Errorf("authenticated request was answered by %s, not %s", resp2.Request.URL.Host, target.Host)
+	}
+	if resp2.StatusCode == http.StatusUnauthorized {
+		return nil, ErrAuthRejected
+	}
+	r, err := readResponse(resp2)
+	if err != nil {
+		return nil, err
+	}
+	r.Authenticated = true
+	return r, nil
+}
+
+func (t *httpTransport) post(ctx context.Context, c *http.Client, url string, body []byte, authorization string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/ipp")
 	req.Header.Set("Accept", "application/ipp")
-	resp, err := t.c.Do(req)
-	if err != nil {
-		return nil, err
+	if authorization != "" {
+		req.Header.Set("Authorization", authorization)
 	}
-	defer resp.Body.Close()
+	return c.Do(req)
+}
+
+// readResponse validates an HTTP response, reads the body and records the TLS
+// leaf certificate. The caller closes the body.
+func readResponse(resp *http.Response) (*Response, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http %d", resp.StatusCode)
 	}
 	if ct := resp.Header.Get("Content-Type"); ct != "" && !strings.HasPrefix(ct, "application/ipp") {
 		return nil, fmt.Errorf("unexpected content-type %q", ct)
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return nil, err
+	}
+	r := &Response{Body: b}
+	if resp.TLS != nil {
+		r.TLS = true
+		if len(resp.TLS.PeerCertificates) > 0 {
+			r.Fingerprint = Fingerprint(resp.TLS.PeerCertificates[0])
+		}
+	}
+	return r, nil
 }
 
-// NewTransport returns the production HTTP transport.
+// Fingerprint renders a certificate's SHA-256 fingerprint as the driver pins it.
+func Fingerprint(c *x509.Certificate) string {
+	sum := sha256.Sum256(c.Raw)
+	return FingerprintPrefix + hex.EncodeToString(sum[:])
+}
+
+// NewTransport returns the production HTTP transport (an AuthTransport).
 func NewTransport(opts Options) Transport {
 	tr := &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: opts.InsecureTLS}, //nolint:gosec // printers use self-signed certs; reads only
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: opts.InsecureTLS}, //nolint:gosec // printers use self-signed certs; writes pin the leaf certificate instead
 		DisableKeepAlives: true,
 		DialContext:       (&net.Dialer{Timeout: opts.Timeout}).DialContext,
 	}
-	return &httpTransport{c: &http.Client{Transport: tr, Timeout: opts.Timeout}}
+	c := &http.Client{Transport: tr, Timeout: opts.Timeout}
+	noRedirect := &http.Client{Transport: tr, Timeout: opts.Timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return &httpTransport{c: c, noRedirect: noRedirect}
 }
 
 // Driver implements engine.Driver over IPP.
 type Driver struct {
 	tr        Transport
 	endpoints []string
-	reqID     atomic.Uint32
+	// writeEndpoints is endpoints reordered so TLS forms come first.
+	writeEndpoints  []string
+	writeRequireTLS bool
+	reqID           atomic.Uint32
+
+	// pins holds the certificate pinned per device on its first TLS contact
+	// during a write (trust on first use). It lives for the process lifetime:
+	// the device model has no field for it and persisting one would need a
+	// schema change.
+	pinMu sync.Mutex
+	pins  map[string]string
 }
 
 // New returns a driver using the given transport.
@@ -95,7 +243,110 @@ func New(tr Transport, opts Options) *Driver {
 	if len(eps) == 0 {
 		eps = defaultEndpoints
 	}
-	return &Driver{tr: tr, endpoints: eps}
+	return &Driver{tr: tr, endpoints: eps, writeEndpoints: writeOrder(eps), writeRequireTLS: opts.WriteRequireTLS, pins: map[string]string{}}
+}
+
+// writeOrder returns the endpoints a write tries: the https:// form of every
+// endpoint first (an http:// template on port 80 has none; on every other
+// port the printer's IPPS listener is expected there), then the plaintext
+// forms, each list deduplicated and in the configured order.
+func writeOrder(eps []string) []string {
+	var tlsEps, plainEps []string
+	seen := map[string]bool{}
+	add := func(list *[]string, ep string) {
+		if !seen[ep] {
+			seen[ep] = true
+			*list = append(*list, ep)
+		}
+	}
+	for _, ep := range eps {
+		switch {
+		case strings.HasPrefix(ep, "https://"):
+			add(&tlsEps, ep)
+		case strings.HasPrefix(ep, "http://"):
+			if !onPort80(ep) {
+				add(&tlsEps, "https://"+strings.TrimPrefix(ep, "http://"))
+			}
+			add(&plainEps, ep)
+		default:
+			add(&plainEps, ep)
+		}
+	}
+	return append(tlsEps, plainEps...)
+}
+
+func onPort80(ep string) bool {
+	rest := strings.TrimPrefix(ep, "http://")
+	hostport, _, _ := strings.Cut(rest, "/")
+	return strings.HasSuffix(hostport, ":80")
+}
+
+// endpointURL renders an endpoint template for a device address; a template
+// without %s is used as is.
+func endpointURL(ep, address string) string {
+	if strings.Contains(ep, "%s") {
+		return fmt.Sprintf(ep, address)
+	}
+	return ep
+}
+
+// pinKey identifies the device a certificate pin belongs to.
+func pinKey(dev *model.Device) string {
+	if dev.ID != "" {
+		return dev.ID
+	}
+	return dev.Address
+}
+
+// PinnedCertificate reports the fingerprint pinned for a device, if any.
+func (d *Driver) PinnedCertificate(dev *model.Device) (string, bool) {
+	d.pinMu.Lock()
+	defer d.pinMu.Unlock()
+	fp, ok := d.pins[pinKey(dev)]
+	return fp, ok
+}
+
+// checkPin records fp on first TLS contact and afterwards refuses any other
+// certificate. A plaintext exchange (fp == "") is refused once a pin exists so
+// the pin cannot be side-stepped by blocking the TLS port.
+func (d *Driver) checkPin(dev *model.Device, url, fp string) error {
+	d.pinMu.Lock()
+	defer d.pinMu.Unlock()
+	key := pinKey(dev)
+	pinned, ok := d.pins[key]
+	switch {
+	case fp == "" && !ok:
+		return nil
+	case fp == "":
+		return fmt.Errorf("%w for %s: %s was pinned on an earlier TLS contact and %s is plaintext; refusing to downgrade the write", ErrPinMismatch, dev.Address, pinned, url)
+	case !ok:
+		d.pins[key] = fp
+		return nil
+	case pinned != fp:
+		return fmt.Errorf("%w for %s: the device at %s presented %s but %s was pinned on first contact; refusing the write (restart PrintMarshal to re-pin after a planned certificate change)", ErrPinMismatch, dev.Address, url, fp, pinned)
+	}
+	return nil
+}
+
+// writeCall sends one request over the write path: TLS required when
+// configured, certificate pin enforced, credential presented on challenge.
+func (d *Driver) writeCall(ctx context.Context, dev *model.Device, url string, body []byte, auth Auth) ([]byte, error) {
+	at, ok := d.tr.(AuthTransport)
+	if !ok {
+		return nil, errors.New("ipp transport cannot authenticate writes")
+	}
+	plaintext := !strings.HasPrefix(url, "https://")
+	if plaintext && d.writeRequireTLS {
+		return nil, fmt.Errorf("%w: ippWriteRequireTLS is set and %s is not a TLS endpoint", ErrPlaintextWrite, url)
+	}
+	resp, err := at.DoAuth(ctx, url, body, auth)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.checkPin(dev, url, resp.Fingerprint); err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
 }
 
 func (d *Driver) Name() string { return Name }
@@ -144,7 +395,7 @@ func (d *Driver) fetch(ctx context.Context, address string) (*Message, string, e
 func (d *Driver) fetchAttrs(ctx context.Context, address string, requested []string) (*Message, string, error) {
 	var errs []error
 	for _, ep := range d.endpoints {
-		url := fmt.Sprintf(ep, address)
+		url := endpointURL(ep, address)
 		uri := printerURI(url)
 		req := NewGetPrinterAttributes(uri, d.reqID.Add(1), requested)
 		body, err := Encode(req)
