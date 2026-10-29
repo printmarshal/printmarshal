@@ -113,7 +113,7 @@ export default function Devices({ user }: { user: User }) {
                       <td><DevicePill d={d} /></td>
                       <td><Link to={`/devices/${d.id}`} style={{ fontWeight: 500 }} onClick={(e) => e.stopPropagation()}>{deviceName(d)}</Link>{d.serial && <div className="cap mono" style={{ fontSize: 11 }}>{d.serial}</div>}</td>
                       <td className="mono">{d.model}</td>
-                      <td><div className="mono">{d.address}</div>{d.hostname && <div className="cap" style={{ fontSize: 11 }}>{d.hostname}</div>}</td>
+                      <td><div className="mono" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{d.address}{d.webUrl && <a href={d.webUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open the web page of ${deviceName(d)}`} title="Open the device web page" onClick={(e) => e.stopPropagation()} style={{ display: 'inline-flex' }}><Ic.external size={14} /></a>}</div>{d.hostname && <div className="cap" style={{ fontSize: 11 }}>{d.hostname}</div>}</td>
                       <td className="cap" style={{ color: 'var(--text-2)' }}>{d.location || '—'}</td>
                       <td><Msb supplies={d.supplies} /></td>
                       <td className="num r">{d.counters ? fmtInt(d.counters.total) : <span className="cap">—</span>}</td>

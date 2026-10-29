@@ -240,6 +240,33 @@ Users type their directory credentials into the ordinary login form; the
 server binds to the directory on their behalf. Implemented with
 `github.com/go-ldap/ldap/v3`.
 
+### Settings page
+
+Administrators can set the directory up without shell access under
+**Settings → Sign-in & directory** (`GET`/`PUT /api/settings/directory`,
+admin only). Every field below is there, plus a role-mapping editor, an
+allowed-groups list and two tests: **Test connection** (connect, StartTLS
+when set, service-account bind) and **Test sign-in** (a user name and
+password used for one bind and never stored), which report each step and
+show the username, stable identifier, groups and role the user would get.
+Tests run against the values on the page, saved or not. Changes are in force
+for the next sign-in, with no restart, and are written to the audit trail as
+`settings.directory.update` (the password only as `set`, `cleared` or
+`unchanged`).
+
+Precedence is **file and environment first**: a value set in the
+configuration file or by a `PM_LDAP_*` variable wins over the page, is shown
+there read-only with its source, and a `PUT` that tries to change it is
+refused. A server named in the file keeps directory sign-in on; otherwise the
+page's **Directory sign-in** switch decides.
+
+The service-account password is stored encrypted at rest with the same
+master key that protects device credentials (`secret.key` /
+`PM_SECRET_KEY`), is write-only (the API only reports whether one is set) and
+is cleared with an empty value. When the file names a `bindPasswordEnv`
+variable and it is non-empty, that variable wins and the page cannot change
+the password.
+
 ### Configuration
 
 ```json

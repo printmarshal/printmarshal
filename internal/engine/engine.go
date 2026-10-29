@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -271,8 +270,8 @@ func appendMethod(cur, name string) string {
 // mergeIdentity fills empty fields of dst from src (first driver wins, by priority).
 func mergeIdentity(dst, src *model.Identity) {
 	set := func(d *string, s string) {
-		if *d == "" && s != "" {
-			*d = strings.TrimSpace(s)
+		if s = model.CleanText(s); *d == "" && s != "" {
+			*d = s
 		}
 	}
 	set(&dst.Hostname, src.Hostname)

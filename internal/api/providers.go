@@ -27,7 +27,7 @@ type provider struct {
 	Start  string `json:"start,omitempty"`
 }
 
-func (s *Server) providers() []provider {
+func (s *Server) providers(ctx context.Context) []provider {
 	var out []provider
 	if s.oidcEnabled() {
 		out = append(out, provider{Kind: "oidc", Name: s.oidcName(), Method: "redirect", Start: "/api/auth/oidc/start"})
@@ -35,8 +35,8 @@ func (s *Server) providers() []provider {
 	if s.samlEnabled() {
 		out = append(out, provider{Kind: "saml", Name: s.samlName(), Method: "redirect", Start: "/api/auth/saml/start"})
 	}
-	if s.ldapEnabled() {
-		out = append(out, provider{Kind: "ldap", Name: s.ldapName(), Method: "password"})
+	if s.ldapEnabled(ctx) {
+		out = append(out, provider{Kind: "ldap", Name: s.ldapName(ctx), Method: "password"})
 	}
 	if s.radiusEnabled() {
 		out = append(out, provider{Kind: "radius", Name: s.radiusName(), Method: "password"})
@@ -48,7 +48,7 @@ func (s *Server) providers() []provider {
 }
 
 func (s *Server) authProviders(w http.ResponseWriter, r *http.Request) {
-	out := map[string]any{"local": true, "oidc": map[string]any{"enabled": s.oidcEnabled()}, "providers": s.providers()}
+	out := map[string]any{"local": true, "oidc": map[string]any{"enabled": s.oidcEnabled()}, "providers": s.providers(r.Context())}
 	if s.oidcEnabled() {
 		out["oidc"] = map[string]any{"enabled": true, "name": s.oidcName(), "start": "/api/auth/oidc/start"}
 	}
@@ -83,10 +83,10 @@ type passwordProvider struct {
 	authenticate func(ctx context.Context, username, password string) (*externalIdentity, error)
 }
 
-func (s *Server) passwordProviders() []passwordProvider {
+func (s *Server) passwordProviders(ctx context.Context) []passwordProvider {
 	var out []passwordProvider
-	if s.ldapEnabled() {
-		out = append(out, passwordProvider{name: s.ldapName(), issuer: s.ldapIssuer(), authenticate: s.ldapAuthenticate})
+	if s.ldapEnabled(ctx) {
+		out = append(out, passwordProvider{name: s.ldapName(ctx), issuer: s.ldapIssuer(ctx), authenticate: s.ldapAuthenticate})
 	}
 	if s.radiusEnabled() {
 		out = append(out, passwordProvider{name: s.radiusName(), issuer: s.radiusIssuer(), authenticate: s.radiusAuthenticate})
@@ -105,11 +105,11 @@ func (s *Server) passwordProviders() []passwordProvider {
 //   - rejections stay "invalid credentials"; a provider that could not be
 //     reached is reported as 503 so an operator knows to look at the log.
 func (s *Server) externalLogin(r *http.Request, username, password string) (string, *model.User, string, error) {
-	providers := s.passwordProviders()
+	ctx := r.Context()
+	providers := s.passwordProviders(ctx)
 	if len(providers) == 0 {
 		return "", nil, "", errInvalidCredentials
 	}
-	ctx := r.Context()
 	ip := clientIP(r)
 	boundTo := ""
 	if existing, _, err := s.Store.GetUserByName(ctx, strings.TrimSpace(username)); err == nil {

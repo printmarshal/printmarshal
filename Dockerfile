@@ -16,7 +16,7 @@
 
 ARG NODE_IMAGE=node:22-alpine
 ARG GO_IMAGE=golang:1.27-alpine
-ARG RUNTIME_IMAGE=alpine:3.22
+ARG RUNTIME_IMAGE=alpine:3.23
 
 # ---- Stage 1: web UI --------------------------------------------------------
 FROM ${NODE_IMAGE} AS web
