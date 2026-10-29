@@ -34,6 +34,15 @@ in the commits noted below, each with a regression test unless stated.
 - Job lists and results remain fleet-wide for scoped principals, as `docs/auth.md` states.
 - A14 (managed secret rotation) and A17 (vendor PKI delivery) from the earlier audit remain out of scope.
 
+## Race detector
+
+You listed the race detector as not run. `go test -race` over jobs, fleet,
+firmware, alerts, configmgmt, consumables, security and api found one real
+race besides H-011: `jobs.Runner.Submit` returned the same `*model.Job` the
+worker was about to mark running, and HTTP handlers serialised it. Submit now
+hands callers a copy taken before the job is queued. The packages are
+race-clean after that.
+
 ## Verification
 
 `go build ./... && go vet ./... && go test ./...` green on every package; `cd web && npm run typecheck` green. New or extended tests: `TestOIDCSignIn`, `TestScopeBoundaryClosed`, `TestPartialPollKeepsFaults`, `TestEvaluate`, `TestFixedWidthTimestampMigration`, `TestPackagesIntegrityAndDeleteRefusal`, the store stock-event test, and the IPP `auth_test.go` suite. The simulator end-to-end script is run before the final commit of the day.
