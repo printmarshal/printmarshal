@@ -143,7 +143,7 @@ func (p *Plugin) enrich(ctx context.Context, pr *vendorkit.Probe, id *model.Iden
 		return
 	}
 	jd := jetdirectSysDescr(pr.SysDescr)
-	if id.Model == "" || strings.HasPrefix(strings.ToUpper(id.Model), "HP ETHERNET") {
+	if id.Model == "" || model.IsGenericModel(id.Model) {
 		if pid := jd["PID"]; pid != "" {
 			id.Model = pid
 		}

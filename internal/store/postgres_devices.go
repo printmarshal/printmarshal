@@ -145,7 +145,7 @@ func (s *Postgres) UpsertDevice(ctx context.Context, id *model.Identity, caps ma
 		firmware=?, sys_descr=?, sys_name=?, enterprise_id=?, admin_url=?, capabilities=?, discovery_methods=?, identify_methods=?,
 		last_seen=?, updated_at=? WHERE id=?`,
 		id.Address, pick(id.Hostname, existing.Hostname), strings.ToLower(pick(id.MAC, existing.MAC)), pick(id.Serial, existing.Serial),
-		pick(id.UUID, existing.UUID), pick(id.Make, existing.Make), pick(id.Model, existing.Model), pick(id.DeviceType, existing.DeviceType),
+		pick(id.UUID, existing.UUID), pick(id.Make, existing.Make), pickModel(id.Model, existing.Model), pick(id.DeviceType, existing.DeviceType),
 		pick(id.Firmware, existing.Firmware), pick(id.SysDescr, existing.SysDescr), pick(id.SysName, existing.SysName),
 		maxInt(id.EnterpriseID, existing.EnterpriseID), pick(id.AdminURL, existing.AdminURL), toJSON(merged), toJSON(disc), toJSON(ident),
 		n, n, existing.ID)
