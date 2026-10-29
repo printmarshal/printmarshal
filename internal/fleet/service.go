@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -35,6 +36,9 @@ type Service struct {
 	Consumables *consumables.Service
 	// Probe is the cheap liveness check used by active scans.
 	Probe discovery.Prober
+	// WebClient performs the device web-page probe (weburl.go); nil means a
+	// default client with short timeouts and no certificate verification.
+	WebClient *http.Client
 
 	pollMu  sync.Mutex
 	polling map[string]bool
@@ -101,6 +105,7 @@ func (s *Service) IdentifyAndUpsert(ctx context.Context, address string, methods
 	if err != nil {
 		return nil, false, err
 	}
+	s.ensureWebURL(ctx, dev, true)
 	if created {
 		s.emit("device.discovered", dev)
 	}
@@ -178,6 +183,9 @@ func (s *Service) PollDevice(ctx context.Context, dev *model.Device) (*model.Dev
 	}
 	if res.Reachable && res.Supplies != nil {
 		s.afterSupplies(ctx, dev, updated)
+	}
+	if res.Reachable {
+		s.ensureWebURL(ctx, updated, false)
 	}
 	s.emit("device.updated", updated)
 	return updated, res, nil

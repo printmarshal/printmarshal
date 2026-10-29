@@ -14,7 +14,8 @@ import (
 
 const deviceCols = `id, address, hostname, mac, serial, uuid, make, model, device_type, firmware, sys_descr, sys_name,
  enterprise_id, admin_url, capabilities, discovery_methods, identify_methods, display_name, location, asset_tag, notes,
- state, status, supplies, trays, counters, severity, consecutive_failures, first_seen, last_seen, last_polled, created_at, updated_at`
+ state, status, supplies, trays, counters, severity, consecutive_failures, first_seen, last_seen, last_polled, created_at, updated_at,
+ web_url_probed, web_url_override`
 
 type rowScanner interface{ Scan(dest ...any) error }
 
@@ -30,7 +31,8 @@ func scanDevice(r rowScanner) (*model.Device, error) {
 	)
 	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
 		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.Location, &d.AssetTag,
-		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd)
+		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd,
+		&d.WebURLProbed, &d.WebURLOverride)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +54,7 @@ func scanDevice(r rowScanner) (*model.Device, error) {
 		d.Counters = &model.Counters{}
 		fromJSON(counters, d.Counters)
 	}
+	d.WebURL = model.ResolveWebURL(&d)
 	d.FirstSeen, d.LastSeen = parseTime(firstSeen), parseTime(lastSeen)
 	d.LastPolled = parseTimeP(lastPolled)
 	d.CreatedAt, d.UpdatedAt = parseTime(created), parseTime(upd)
@@ -125,10 +128,10 @@ func (s *SQLite) UpsertDevice(ctx context.Context, id *model.Identity, caps map[
 	n := now()
 	if existing == nil {
 		d := &model.Device{ID: newID()}
-		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(33)+`)`,
+		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(35)+`)`,
 			d.ID, id.Address, id.Hostname, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
 			id.SysDescr, id.SysName, id.EnterpriseID, id.AdminURL, toJSON(caps), toJSON(discoveryMethods), toJSON(identMethods),
-			"", id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n)
+			"", id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "")
 		if err != nil {
 			return nil, false, err
 		}
@@ -299,8 +302,11 @@ func (s *SQLite) PatchDevice(ctx context.Context, id string, p DevicePatch) (*mo
 	if p.Notes != nil {
 		d.Notes = *p.Notes
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE devices SET display_name=?, location=?, asset_tag=?, notes=?, updated_at=? WHERE id=?`,
-		d.DisplayName, d.Location, d.AssetTag, d.Notes, now(), id)
+	if p.WebURLOverride != nil {
+		d.WebURLOverride = strings.TrimSpace(*p.WebURLOverride)
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE devices SET display_name=?, location=?, asset_tag=?, notes=?, web_url_override=?, updated_at=? WHERE id=?`,
+		d.DisplayName, d.Location, d.AssetTag, d.Notes, d.WebURLOverride, now(), id)
 	if err != nil {
 		return nil, err
 	}
@@ -622,4 +628,16 @@ func MatchRule(r *model.GroupRule, d *model.Device) bool {
 // SortDevicesByName orders devices by display name (helper for callers).
 func SortDevicesByName(devs []*model.Device) {
 	sort.SliceStable(devs, func(i, j int) bool { return strings.ToLower(devs[i].Name()) < strings.ToLower(devs[j].Name()) })
+}
+
+// SetDeviceWebURLProbed records the web-page probe result (see model.ResolveWebURL).
+func (s *SQLite) SetDeviceWebURLProbed(ctx context.Context, id, url string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE devices SET web_url_probed=?, updated_at=? WHERE id=?`, url, now(), id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

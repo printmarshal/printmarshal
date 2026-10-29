@@ -24,6 +24,20 @@ func testOperatorFieldsSurviveScan(t *testing.T, s testStore) {
 	if _, err := s.PatchDevice(ctx, d.ID, DevicePatch{DisplayName: &name, Location: &loc, AssetTag: &tag, Notes: &notes}); err != nil {
 		t.Fatal(err)
 	}
+	// The device web page: a probe result is used until an operator overrides it.
+	if err := s.SetDeviceWebURLProbed(ctx, d.ID, "https://10.0.0.7/"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.GetDevice(ctx, d.ID); got.WebURL != "https://10.0.0.7/" || got.WebURLProbed != "https://10.0.0.7/" {
+		t.Fatalf("probed web url: %+v", got.WebURL)
+	}
+	web := "http://printer-7.example.net/admin"
+	if got, err := s.PatchDevice(ctx, d.ID, DevicePatch{WebURLOverride: &web}); err != nil || got.WebURL != web || got.WebURLOverride != web {
+		t.Fatalf("web url override: %v %q", err, got.WebURL)
+	}
+	if err := s.SetDeviceWebURLProbed(ctx, "nope", "x"); err != ErrNotFound {
+		t.Fatalf("probe on unknown device: %v", err)
+	}
 	if _, err := s.SetDeviceState(ctx, d.ID, model.StateActive); err != nil {
 		t.Fatal(err)
 	}
