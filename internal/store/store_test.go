@@ -211,8 +211,12 @@ func testConsumablesStockAndLinks(t *testing.T, s testStore) {
 	if len(pending) != 1 {
 		t.Errorf("pending = %+v", pending)
 	}
-	if err := s.SetStockEventStatus(ctx, pending[0].ID, model.StockEventDismissed); err != nil {
+	if err := s.SetStockEventStatus(ctx, pending[0].ID, model.StockEventPending, model.StockEventDismissed); err != nil {
 		t.Fatal(err)
+	}
+	// The transition is conditional: a second actor racing on the same event loses.
+	if err := s.SetStockEventStatus(ctx, pending[0].ID, model.StockEventPending, model.StockEventConfirmed); err != ErrNotFound {
+		t.Fatalf("stale transition = %v, want ErrNotFound", err)
 	}
 	// UpdateConsumable never touches on-hand.
 	c.OnHand = 99

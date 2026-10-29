@@ -268,8 +268,8 @@ func (s *Postgres) GetStockEvent(ctx context.Context, id int64) (*model.StockEve
 	return e, err
 }
 
-func (s *Postgres) SetStockEventStatus(ctx context.Context, id int64, status string) error {
-	return affected(pgExec(ctx, s.db, `UPDATE consumable_stock_events SET status=? WHERE id=?`, status, id))
+func (s *Postgres) SetStockEventStatus(ctx context.Context, id int64, from, to string) error {
+	return affected(pgExec(ctx, s.db, `UPDATE consumable_stock_events SET status=? WHERE id=? AND status=?`, to, id, from))
 }
 
 // --- supply links ----------------------------------------------------------

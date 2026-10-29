@@ -87,6 +87,11 @@ type Service struct {
 	mu     sync.Mutex
 	wakes  map[string]chan struct{}
 	active map[string]bool
+	// lifecycle serialises Start/Confirm/Pause/Resume/Cancel so two
+	// overlapping requests cannot both read "draft" and each queue a worker
+	// (code review H-008). A campaign row also records the id of the one job
+	// allowed to run it (JobID); a worker whose job is not that id exits.
+	lifecycle sync.Mutex
 }
 
 // New builds the service, registers its job type and recovers campaigns a

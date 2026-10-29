@@ -206,3 +206,107 @@ func TestGroupScopedToken(t *testing.T) {
 		t.Fatalf("rule scope list: %d %s", code, body)
 	}
 }
+
+// TestScopeBoundaryClosed covers the bypasses from code review H-002/H-003:
+// nested targets, resource ids and group edits for scoped principals, and
+// user management for API tokens.
+func TestScopeBoundaryClosed(t *testing.T) {
+	ts, s := newTestServer(t)
+	ctx := context.Background()
+	admin := login(t, ts, "admin", "adminpass123")
+	in, _, _ := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.20", Serial: "IN2", Make: "Acme", Model: "Acme 100", Method: "snmp"}, map[model.Capability]string{model.CapReadStatus: "snmp"}, nil)
+	out, _, _ := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.21", Serial: "OUT2", Make: "Zed", Model: "Zed 1", Method: "snmp"}, map[model.Capability]string{model.CapReadStatus: "snmp"}, nil)
+	g := &model.Group{Name: "mine", Kind: "static"}
+	if err := s.Store.CreateGroup(ctx, g); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.Store.SetGroupMembers(ctx, g.ID, []string{in.ID})
+	other := &model.Group{Name: "theirs", Kind: "static"}
+	if err := s.Store.CreateGroup(ctx, other); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.Store.SetGroupMembers(ctx, other.ID, []string{out.ID})
+	tok := mkToken(t, ts, admin, `{"name":"scoped-op","role":"operator","scope":["`+g.ID+`"]}`).Secret
+
+	prof := &model.Profile{Name: "p", Settings: []model.SettingChange{{Key: "network.hostname", Value: "x"}}}
+	if err := s.Store.CreateProfile(ctx, prof); err != nil {
+		t.Fatal(err)
+	}
+	// Nested target.deviceIds / target.groupId and a top-level groupId are checked.
+	for _, body := range []string{
+		`{"target":{"deviceIds":["` + out.ID + `"]},"dryRun":true}`,
+		`{"target":{"groupId":"` + other.ID + `"},"dryRun":true}`,
+	} {
+		if code, resp := do(t, ts, tok, "POST", "/api/profiles/"+prof.ID+"/apply", body); code != 403 || !strings.Contains(resp, "outside your group scope") {
+			t.Fatalf("apply %s: %d %s", body, code, resp)
+		}
+	}
+	if code, resp := do(t, ts, tok, "POST", "/api/policies/none/remediate", `{"groupId":"`+other.ID+`"}`); code != 403 {
+		t.Fatalf("remediate by group: %d %s", code, resp)
+	}
+	// Groups, users and tokens cannot be changed by a scoped principal (the
+	// rule {} would otherwise widen its own scope to the fleet).
+	if code, resp := do(t, ts, tok, "PATCH", "/api/groups/"+g.ID, `{"kind":"rule","rule":{}}`); code != 403 {
+		t.Fatalf("group patch: %d %s", code, resp)
+	}
+	if code, _ := do(t, ts, tok, "PUT", "/api/groups/"+g.ID+"/members", `{"deviceIds":["`+out.ID+`"]}`); code != 403 {
+		t.Fatal("members widened")
+	}
+	if code, _ := do(t, ts, tok, "POST", "/api/groups", `{"name":"all","kind":"rule","rule":{}}`); code != 403 {
+		t.Fatal("group created")
+	}
+	if code, body := do(t, ts, tok, "GET", "/api/groups/"+g.ID, ""); code != 200 {
+		t.Fatalf("group read: %d %s", code, body)
+	}
+	// Resource ids resolve to their device: alerts, write records, campaigns, replacements.
+	a, _, err := s.Store.RaiseAlert(ctx, out.ID, "jam", "poll", model.SeverityCritical, "jam")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code, _ := do(t, ts, tok, "POST", "/api/alerts/"+a.ID+"/ack", ""); code != 403 {
+		t.Fatalf("ack out-of-scope alert: %d", code)
+	}
+	ain, _, _ := s.Store.RaiseAlert(ctx, in.ID, "jam", "poll", model.SeverityCritical, "jam")
+	if code, body := do(t, ts, tok, "POST", "/api/alerts/"+ain.ID+"/ack", ""); code != 200 {
+		t.Fatalf("ack in-scope alert: %d %s", code, body)
+	}
+	wr := &model.WriteRecord{Actor: "admin", Changes: prof.Settings, Result: model.WriteResult{DeviceID: out.ID, Results: []model.SettingResult{{Key: "network.hostname", Status: model.SettingWritten, Before: "a", After: "x"}}, Rollback: []model.SettingChange{{Key: "network.hostname", Value: "a"}}}}
+	if err := s.Store.SaveWriteRecord(ctx, wr); err != nil {
+		t.Fatal(err)
+	}
+	if code, _ := do(t, ts, tok, "GET", "/api/config/writes/"+wr.ID, ""); code != 403 {
+		t.Fatalf("read out-of-scope write record: %d", code)
+	}
+	if code, _ := do(t, ts, tok, "POST", "/api/config/writes/"+wr.ID+"/revert", `{"dryRun":true}`); code != 403 {
+		t.Fatalf("revert out-of-scope write: %d", code)
+	}
+	c := &model.Campaign{Name: "c", PackageID: "none", GroupID: other.ID, Status: model.CampaignDraft}
+	if err := s.Store.CreateCampaign(ctx, c); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"GET /api/firmware/campaigns/" + c.ID, "POST /api/firmware/campaigns/" + c.ID + "/start", "POST /api/firmware/campaigns/" + c.ID + "/cancel"} {
+		m, path, _ := strings.Cut(p, " ")
+		if code, _ := do(t, ts, tok, m, path, ""); code != 403 {
+			t.Fatalf("%s: %d", p, code)
+		}
+	}
+	if code, _ := do(t, ts, tok, "POST", "/api/firmware/campaigns", `{"name":"x","packageId":"none","groupId":"`+other.ID+`"}`); code != 403 {
+		t.Fatal("campaign created for a foreign group")
+	}
+	// A missing resource is a 404 from the handler, not a scope leak.
+	if code, _ := do(t, ts, tok, "POST", "/api/alerts/nope/ack", ""); code != 404 {
+		t.Fatalf("missing alert: %d", code)
+	}
+
+	// API tokens cannot create or delete users, even with the admin role.
+	atok := mkToken(t, ts, admin, `{"name":"bot-admin","role":"admin"}`).Secret
+	if code, body := do(t, ts, atok, "POST", "/api/users", `{"username":"ghost","password":"ghostpass123","role":"admin"}`); code != 403 || !strings.Contains(body, "api tokens cannot") {
+		t.Fatalf("token created a user: %d %s", code, body)
+	}
+	if code, _ := do(t, ts, atok, "GET", "/api/users", ""); code != 200 {
+		t.Fatalf("token list users: %d", code)
+	}
+	if code, _ := do(t, ts, atok, "DELETE", "/api/users/x", ""); code != 403 {
+		t.Fatal("token deleted a user")
+	}
+}

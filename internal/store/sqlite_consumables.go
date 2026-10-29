@@ -307,8 +307,8 @@ func (s *SQLite) GetStockEvent(ctx context.Context, id int64) (*model.StockEvent
 	return e, err
 }
 
-func (s *SQLite) SetStockEventStatus(ctx context.Context, id int64, status string) error {
-	res, err := s.db.ExecContext(ctx, `UPDATE consumable_stock_events SET status=? WHERE id=?`, status, id)
+func (s *SQLite) SetStockEventStatus(ctx context.Context, id int64, from, to string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE consumable_stock_events SET status=? WHERE id=? AND status=?`, to, id, from)
 	if err != nil {
 		return err
 	}

@@ -54,7 +54,8 @@ Rules:
 
 - A token acts with its role everywhere a user of that role could, with
   these exceptions: it cannot call anything under `/api/auth/*` (no sessions,
-  password changes or SSO) and cannot create or revoke tokens, whatever its
+  password changes or SSO), cannot create or delete users and cannot create
+  or revoke tokens, whatever its
   role. Those requests answer 403 and are recorded as `auth.denied`.
 - The secret is accepted in the `Authorization` header only, never as a
   cookie or query parameter.
@@ -82,11 +83,29 @@ What the scope enforces:
   answers **403 `outside your group scope`** for a device outside the scope,
   whichever feature file serves it; the check sits in the shared `require`
   middleware.
-- JSON bodies naming devices (`deviceId`, `deviceIds`, `devices`) on bulk
-  endpoints (poll, configuration apply, firmware campaigns, security
-  remediation, supply operations) are checked the same way, and
+- JSON bodies naming devices or groups (`deviceId`, `deviceIds`, `devices`,
+  `groupId`, `groupIds`, at the top level or under `target`) on bulk
+  endpoints (poll, configuration apply and drift, firmware campaigns,
+  security assessment and remediation, rotation, supply operations) are
+  checked the same way: a group is resolved to its current devices first.
   `POST /api/poll` without an explicit device list (whole fleet) is refused.
+- Resources that belong to a device are checked through their own id:
+  `/api/alerts/{id}` (ack, clear), `/api/config/writes/{id}` (read, revert),
+  `/api/firmware/campaigns/{id}` (read, patch, start, confirm, pause, resume,
+  cancel, devices) and `/api/consumables/replacements/{id}` resolve to the
+  device (or the campaign's group) behind them and answer 403 outside the
+  scope. A missing resource is a plain 404.
+- A scoped principal cannot change groups, users or tokens (`POST`, `PATCH`,
+  `PUT`, `DELETE` under `/api/groups`, `/api/users`, `/api/tokens` answer
+  403): groups are what define its boundary (a rule group with an empty rule
+  matches the whole fleet), and the other two would let it mint an unscoped
+  principal. Reads stay allowed.
 - Each violation is recorded as `auth.denied` with the path and device.
+
+API tokens, scoped or not, additionally cannot create or delete users
+(`POST`/`DELETE /api/users` answer 403 `api tokens cannot manage
+authentication or users`): a service account must not be able to turn
+itself into a password login that outlives its expiry or revocation.
 
 What it does not do (by design, documented rather than hidden): the live
 stream (`/api/stream`), job lists and results, consumables, credentials and

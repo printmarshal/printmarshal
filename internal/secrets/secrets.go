@@ -44,12 +44,15 @@ func LoadOrCreateKey(env string, keyFile string) ([]byte, error) {
 		}
 		return k, nil
 	}
-	if b, err := os.ReadFile(keyFile); err == nil {
-		k, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(b)))
-		if err != nil {
-			return nil, fmt.Errorf("secrets: key file is not base64: %w", err)
-		}
-		return k, nil
+	b, err := os.ReadFile(keyFile)
+	if err == nil {
+		return decodeKey(b)
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		// An existing but unreadable key must stop startup: generating a
+		// new one here would silently orphan every stored secret (code
+		// review H-015).
+		return nil, fmt.Errorf("secrets: read key file %s: %w", keyFile, err)
 	}
 	k := make([]byte, 32)
 	if _, err := rand.Read(k); err != nil {
@@ -58,8 +61,40 @@ func LoadOrCreateKey(env string, keyFile string) ([]byte, error) {
 	if err := os.MkdirAll(filepath.Dir(keyFile), 0o700); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(keyFile, []byte(base64.StdEncoding.EncodeToString(k)+"\n"), 0o600); err != nil {
+	// Exclusive create: a concurrent first start that wins the race keeps its
+	// key and this process reads it back instead of overwriting it.
+	f, err := os.OpenFile(keyFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if errors.Is(err, os.ErrExist) {
+		b, err := os.ReadFile(keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("secrets: read key file %s: %w", keyFile, err)
+		}
+		return decodeKey(b)
+	}
+	if err != nil {
 		return nil, err
+	}
+	if _, err := f.Write([]byte(base64.StdEncoding.EncodeToString(k) + "\n")); err != nil {
+		f.Close()
+		return nil, err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return nil, err
+	}
+	if err := f.Close(); err != nil {
+		return nil, err
+	}
+	return k, nil
+}
+
+func decodeKey(b []byte) ([]byte, error) {
+	k, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(b)))
+	if err != nil {
+		return nil, fmt.Errorf("secrets: key file is not base64: %w", err)
+	}
+	if len(k) == 0 {
+		return nil, errors.New("secrets: key file is empty")
 	}
 	return k, nil
 }

@@ -589,7 +589,18 @@ func (s *Service) applyDevice(ctx context.Context, dev *model.Device, changes []
 	if err != nil {
 		return nil, err
 	}
-	defer release()
+	// The permit covers the writes only: the verification read below goes
+	// through readDevice, which takes its own permit, so holding this one
+	// across it deadlocks at concurrency 1 (or when a batch fills every
+	// slot) until the device context expires (code review H-005).
+	released := false
+	releaseOnce := func() {
+		if !released {
+			released = true
+			release()
+		}
+	}
+	defer releaseOnce()
 
 	final := map[string]model.SettingResult{}
 	skipReasons := map[string][]string{} // key -> "<driver>: <reason>" from every driver that skipped it
@@ -629,6 +640,7 @@ func (s *Service) applyDevice(ctx context.Context, dev *model.Device, changes []
 		rollback = append(rollback, res.Rollback...)
 		remaining = next
 	}
+	releaseOnce()
 	if len(final) == 0 && len(errs) > 0 {
 		return nil, errors.Join(errs...)
 	}
@@ -659,10 +671,15 @@ func (s *Service) applyDevice(ctx context.Context, dev *model.Device, changes []
 	rec := &model.WriteRecord{JobID: jobID, ProfileID: profileID, RevertOf: revertOf, Actor: actor, Changes: redactChanges(changes),
 		Result: model.WriteResult{DeviceID: dev.ID, DryRun: opts.DryRun, Results: results, At: time.Now().UTC(), Rollback: redactChanges(rollback)}}
 	rec.Count()
-	if err := s.Store.SaveWriteRecord(ctx, rec); err != nil {
+	// The device may already hold the new settings, so the record (with its
+	// rollback data) and the audit entry must be written even when the
+	// device context has since expired: use a bounded context of their own.
+	pctx, pcancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer pcancel()
+	if err := s.Store.SaveWriteRecord(pctx, rec); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, dev, rec)
+	s.audit(pctx, dev, rec)
 	s.emit("config.applied", map[string]any{"deviceId": dev.ID, "jobId": jobID, "writeId": rec.ID, "dryRun": opts.DryRun,
 		"written": rec.Written, "failed": rec.Failed, "skipped": rec.Skipped, "unchanged": rec.Unchanged,
 		"verified": rec.Verified, "diverged": rec.Diverged})

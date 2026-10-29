@@ -329,7 +329,11 @@ PM_ADMIN_PASSWORD=change-me ./bin/printmarshal
   `BOOLEAN`, `JSONB`, `BYTEA`), one table per SQLite table.
 - **Backup.** Use the database's own tooling instead of `pm-backup`:
   `pg_dump -Fc -d "$PM_DSN" -f printmarshal-$(date -u +%Y%m%dT%H%M%SZ).dump` (consistent
-  while the server runs) plus `secret.key` / `PM_SECRET_KEY` and `firmware/`. Restore
+  while the server runs) plus `secret.key` / `PM_SECRET_KEY` and `firmware/`.
+  Firmware packages are recorded relative to `<data dir>/firmware`, so an
+  archive restores into any data directory (a container's `/data` included);
+  packages registered by versions before 29 Oct 2026 carried absolute paths and
+  are rebased onto the new directory automatically. Restore
   with `pg_restore -d <empty database> file.dump`, then start the server with the same
   secret key. Point-in-time recovery, replication and HA are the database's job.
 - **Moving from SQLite** is not automated yet: start a fresh PostgreSQL instance,

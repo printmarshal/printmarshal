@@ -206,7 +206,7 @@ firmware service changes for a new vendor.
 | GET / DELETE | `/api/firmware/packages/{id}` | viewer / admin | DELETE → 409 while an unfinished campaign references it |
 | GET / POST | `/api/firmware/campaigns` | viewer / operator | `?status=&package=&active=true` |
 | GET / PATCH / DELETE | `/api/firmware/campaigns/{id}` | viewer / operator | PATCH and DELETE on drafts (DELETE also on finished) |
-| POST | `/api/firmware/campaigns/{id}/start` | operator | body `{"dryRun": bool}`; gate for wave 1 |
+| POST | `/api/firmware/campaigns/{id}/start` | operator | body `{"dryRun": bool}`; a missing body or field is a dry run, only `false` delivers; gate for wave 1 |
 | POST | `/api/firmware/campaigns/{id}/confirm` | operator | gate for wave 2 |
 | POST | `/api/firmware/campaigns/{id}/pause` · `/resume` · `/cancel` | operator | |
 | GET | `/api/firmware/campaigns/{id}/devices` | viewer | per-device state with name/address/model |

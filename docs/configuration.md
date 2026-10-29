@@ -147,7 +147,9 @@ Nothing should infer "in effect" from `written` alone.
 
 ## Safety rules (spec §3 principle 4, §11)
 
-- **Dry run first.** `dryRun: true` reads the device, reports `would_write` /
+- **Dry run by default.** A body without `dryRun` (or with `dryRun: true`)
+  is a dry run; only an explicit `"dryRun": false` writes. The dry run reads
+  the device, reports `would_write` /
   `unchanged` / `skipped` / `failed` per setting and performs **no write I/O**
   (asserted by tests against a fake transport and a recording fixture).
 - **Per-setting, per-device results.** Every apply is a `config.apply` job; each
@@ -185,15 +187,15 @@ Results are merged per key; a key no driver serves is `skipped` with a reason.
 | GET | `/api/profiles/{id}` | viewer | | `{profile, drift[], writes[]}` |
 | PATCH | `/api/profiles/{id}` | operator | `{name?, description?, settings?}` | profile |
 | DELETE | `/api/profiles/{id}` | operator | | `{ok}` |
-| POST | `/api/profiles/{id}/apply` | operator | `{target:{deviceIds?,groupId?}, dryRun}` | 202 `{job}` |
+| POST | `/api/profiles/{id}/apply` | operator | `{target:{deviceIds?,groupId?}, dryRun}` (omitted = dry run) | 202 `{job}` |
 | POST | `/api/profiles/{id}/drift` | viewer | `{target, refresh?}` | `{reports[], devices, drifted}` |
 | GET | `/api/devices/{id}/config` | viewer | `?refresh=true` reads the device, else latest snapshot | `{document, snapshotId, at, fresh}` |
 | GET | `/api/devices/{id}/config/snapshots` | viewer | `?limit=` | `{snapshots, total}` |
-| POST | `/api/devices/{id}/config` | operator | `{changes:[{key,value}], dryRun}` | 202 `{job}` |
+| POST | `/api/devices/{id}/config` | operator | `{changes:[{key,value}], dryRun}` (omitted = dry run) | 202 `{job}` |
 | GET | `/api/config/diff` | viewer | `?a=<deviceId>&b=<deviceId>&refresh=` | `{a, b, items[], same}` |
 | GET | `/api/config/writes` | viewer | `?device=&profile=&job=&limit=` | `{writes, total}` |
 | GET | `/api/config/writes/{id}` | viewer | | `{write, reversible}` |
-| POST | `/api/config/writes/{id}/revert` | operator | `{dryRun}` | 202 `{job}` |
+| POST | `/api/config/writes/{id}/revert` | operator | `{dryRun}` (omitted = dry run) | 202 `{job}` |
 
 Jobs are read through the existing `GET /api/jobs/{id}`; each per-device result
 carries `data.writeId`, `data.results[]` (the per-setting status and, for real

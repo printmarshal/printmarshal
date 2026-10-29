@@ -284,12 +284,17 @@ type StartOptions struct {
 // campaign, persists the device rows, verifies the package integrity and
 // submits the job. Only drafts can start.
 func (s *Service) Start(ctx context.Context, id, by string, opts StartOptions) (*model.Campaign, error) {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	c, err := s.Store.GetCampaign(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	if c.Status != model.CampaignDraft {
 		return nil, conflictf("campaign is %s; only drafts can be started", c.Status)
+	}
+	if s.isActive(c.ID) || c.JobID != "" {
+		return nil, conflictf("campaign already has a job (%s)", c.JobID)
 	}
 	if s.Jobs == nil {
 		return nil, errors.New("no job runner")
@@ -328,20 +333,20 @@ func (s *Service) Start(ctx context.Context, id, by string, opts StartOptions) (
 	return c, nil
 }
 
-// submit persists the campaign and queues its job.
+// submit persists the campaign and queues its job. The job id is chosen and
+// recorded on the campaign before the job is queued, so the worker can check
+// it holds the claim the moment it starts.
 func (s *Service) submit(ctx context.Context, c *model.Campaign) error {
-	j := &model.Job{Type: JobType, CreatedBy: c.StartedBy,
+	j := &model.Job{ID: newID(), Type: JobType, CreatedBy: c.StartedBy,
 		Target: map[string]any{"campaignId": c.ID, "name": c.Name, "dryRun": c.DryRun},
 		Params: map[string]any{"campaignId": c.ID}}
-	if err := s.Store.UpdateCampaign(ctx, c); err != nil {
-		return err
-	}
-	j, err := s.Jobs.Submit(ctx, j)
-	if err != nil {
-		return err
-	}
 	c.JobID = j.ID
 	if err := s.Store.UpdateCampaign(ctx, c); err != nil {
+		return err
+	}
+	if _, err := s.Jobs.Submit(ctx, j); err != nil {
+		c.JobID = ""
+		_ = s.Store.UpdateCampaign(ctx, c)
 		return err
 	}
 	s.emit(EventCampaignUpdated, c)
@@ -368,6 +373,8 @@ func (s *Service) ensureJob(ctx context.Context, c *model.Campaign) error {
 // Confirm is the second explicit gate: it releases wave 2 after the canary
 // wave finished and the campaign paused for review.
 func (s *Service) Confirm(ctx context.Context, id, by string) (*model.Campaign, error) {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	c, err := s.Store.GetCampaign(ctx, id)
 	if err != nil {
 		return nil, err
@@ -386,6 +393,8 @@ func (s *Service) Confirm(ctx context.Context, id, by string) (*model.Campaign, 
 // Pause stops further devices from being dispatched; devices already updating
 // finish, because a firmware write cannot be safely interrupted.
 func (s *Service) Pause(ctx context.Context, id, by string) (*model.Campaign, error) {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	c, err := s.Store.GetCampaign(ctx, id)
 	if err != nil {
 		return nil, err
@@ -406,6 +415,8 @@ func (s *Service) Pause(ctx context.Context, id, by string) (*model.Campaign, er
 // Resume continues a campaign paused by an operator, by the failure threshold
 // or by a restart. A canary pause needs Confirm instead.
 func (s *Service) Resume(ctx context.Context, id, by string) (*model.Campaign, error) {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	c, err := s.Store.GetCampaign(ctx, id)
 	if err != nil {
 		return nil, err
@@ -427,6 +438,8 @@ func (s *Service) Resume(ctx context.Context, id, by string) (*model.Campaign, e
 // Cancel stops a campaign. Pending devices are skipped; devices already
 // updating finish and are verified.
 func (s *Service) Cancel(ctx context.Context, id, by string) (*model.Campaign, error) {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	c, err := s.Store.GetCampaign(ctx, id)
 	if err != nil {
 		return nil, err

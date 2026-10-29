@@ -18,11 +18,38 @@ import (
 // and returns an error only for whole-job failure.
 type Handler func(ctx context.Context, jc *Context) error
 
-// Context is handed to a Handler.
+// Context is handed to a Handler. Handlers call Result from many goroutines
+// at once, so the job is only ever read for persistence or events as a
+// snapshot taken under mu, and saves of one job are serialised by saveMu so
+// an older snapshot cannot overwrite a newer one (code review H-011).
 type Context struct {
 	Job    *model.Job
 	runner *Runner
 	mu     sync.Mutex
+	saveMu sync.Mutex
+}
+
+// snapshot copies the job under the lock.
+func (c *Context) snapshot() *model.Job {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	cp := *c.Job
+	return &cp
+}
+
+// persist writes a throttled progress snapshot.
+func (c *Context) persist() {
+	if !c.runner.throttle(c.Job.ID) {
+		return
+	}
+	c.persistNow()
+}
+
+// persistNow writes the current snapshot; saves of one job never overlap.
+func (c *Context) persistNow() {
+	c.saveMu.Lock()
+	defer c.saveMu.Unlock()
+	c.runner.persistNow(c.snapshot())
 }
 
 // SetTotal sets the number of units of work.
@@ -30,7 +57,7 @@ func (c *Context) SetTotal(n int) {
 	c.mu.Lock()
 	c.Job.Total = n
 	c.mu.Unlock()
-	c.runner.persist(c.Job)
+	c.persist()
 }
 
 // Result records one per-device outcome and advances progress.
@@ -45,7 +72,7 @@ func (c *Context) Result(deviceID, address, status, message string, data map[str
 		c.Job.Failed++
 	}
 	c.mu.Unlock()
-	c.runner.persist(c.Job)
+	c.persist()
 }
 
 // Runner owns the worker pool and the job table.
@@ -168,10 +195,9 @@ func (r *Runner) run(ctx context.Context, j *model.Job) {
 		j.Status = model.JobSucceeded
 	}
 	jc.mu.Unlock()
-	r.persistNow(j)
+	jc.persistNow()
 	if r.events != nil {
-		cp := *j
-		r.events(model.Event{Type: "job.finished", At: fin, Data: &cp})
+		r.events(model.Event{Type: "job.finished", At: fin, Data: jc.snapshot()})
 	}
 	r.mu.Lock()
 	ws := r.waiters[j.ID]
@@ -183,19 +209,19 @@ func (r *Runner) run(ctx context.Context, j *model.Job) {
 	}
 }
 
-// persist throttles progress writes to a few per second per job.
-func (r *Runner) persist(j *model.Job) {
+// throttle allows a few progress writes per second per job.
+func (r *Runner) throttle(jobID string) bool {
 	r.mu.Lock()
-	last := r.lastSave[j.ID]
-	if time.Since(last) < 250*time.Millisecond {
-		r.mu.Unlock()
-		return
+	defer r.mu.Unlock()
+	if time.Since(r.lastSave[jobID]) < 250*time.Millisecond {
+		return false
 	}
-	r.lastSave[j.ID] = time.Now()
-	r.mu.Unlock()
-	r.persistNow(j)
+	r.lastSave[jobID] = time.Now()
+	return true
 }
 
+// persistNow saves and announces j, which must be a snapshot no goroutine
+// still mutates.
 func (r *Runner) persistNow(j *model.Job) {
 	if err := r.store.UpdateJob(context.Background(), j); err != nil {
 		r.log.Error("job update", "job", j.ID, "err", err)

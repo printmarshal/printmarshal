@@ -478,7 +478,11 @@ func (s *Server) dismissReplacement(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, "replacement is not pending")
 		return
 	}
-	if err := s.Store.SetStockEventStatus(r.Context(), id, model.StockEventDismissed); err != nil {
+	if err := s.Store.SetStockEventStatus(r.Context(), id, model.StockEventPending, model.StockEventDismissed); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeErr(w, http.StatusConflict, "replacement is no longer pending")
+			return
+		}
 		s.fail(w, err)
 		return
 	}
@@ -649,7 +653,7 @@ func (s *Server) markReplaced(w http.ResponseWriter, r *http.Request) {
 	pend, _ := s.Store.ListStockEvents(r.Context(), store.StockEventFilter{DeviceID: d.ID, Kind: model.StockEventReplacement, Status: model.StockEventPending})
 	for _, p := range pend {
 		if p.SupplyIndex == idx {
-			_ = s.Store.SetStockEventStatus(r.Context(), p.ID, model.StockEventConfirmed)
+			_ = s.Store.SetStockEventStatus(r.Context(), p.ID, model.StockEventPending, model.StockEventConfirmed)
 		}
 	}
 	s.audit(r.Context(), r, "consumable.replaced", cid, nil, map[string]any{"device": d.ID, "slot": idx, "supply": sp.Description, "decrement": body.Decrement, "onHand": c.OnHand}, "ok")

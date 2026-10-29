@@ -19,8 +19,12 @@ func TestEvaluate(t *testing.T) {
 		Trays:    []model.Tray{{Kind: "input", Name: "Tray 1", MediaSize: "210x297mm", Status: "empty"}, {Kind: "input", Name: "Tray 2", MediaSize: "210x297mm", Status: "empty"}, {Kind: "input", Name: "Tray 3", MediaSize: "216x279mm", Status: "ok"}},
 	}
 	got := map[string]Desired{}
-	for _, d := range Evaluate(dev, res, 0, th) {
+	desired, observed := Evaluate(dev, res, 0, th)
+	for _, d := range desired {
 		got[d.Key] = d
+	}
+	if strings.Join(observed, ",") != "offline,poll,supply" {
+		t.Errorf("observed = %v", observed)
 	}
 	if got["error:doorOpen"].Severity != model.SeverityCritical {
 		t.Errorf("doorOpen: %+v", got["error:doorOpen"])
@@ -44,13 +48,22 @@ func TestEvaluate(t *testing.T) {
 		t.Error("letter tray is fine")
 	}
 
-	off := Evaluate(dev, &engine.PollResult{Reachable: false}, 1, th)
+	off, observed := Evaluate(dev, &engine.PollResult{Reachable: false}, 1, th)
 	if len(off) != 0 {
 		t.Errorf("one failure should not alert yet: %+v", off)
 	}
-	off = Evaluate(dev, &engine.PollResult{Reachable: false}, 2, th)
+	if strings.Join(observed, ",") != "offline" {
+		t.Errorf("an unreachable poll must only own offline, got %v", observed)
+	}
+	off, _ = Evaluate(dev, &engine.PollResult{Reachable: false}, 2, th)
 	if len(off) != 1 || off[0].Key != "offline" {
 		t.Errorf("offline: %+v", off)
+	}
+	// A partial poll (counters answered, status and supplies did not) owns
+	// neither poll nor supply alerts, so existing faults are not cleared.
+	_, observed = Evaluate(dev, &engine.PollResult{Reachable: true, Counters: &model.Counters{Total: 1}}, 0, th)
+	if strings.Join(observed, ",") != "offline" {
+		t.Errorf("partial poll observed %v", observed)
 	}
 }
 

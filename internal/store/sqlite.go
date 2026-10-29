@@ -107,8 +107,88 @@ func (s *SQLite) migrate() error {
 	if _, err := s.db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS users_external ON users(external_issuer, external_subject) WHERE external_issuer <> ''`); err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (4, ?)`, now())
-	return err
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (4, ?)`, now()); err != nil {
+		return err
+	}
+	// Migration 5: fixed-width timestamps (see tsLayout). Runs once; it
+	// touches every timestamp column, so it is guarded by its version row.
+	if err := s.migrateFixedWidthTimestamps(); err != nil {
+		return fmt.Errorf("migrate timestamps: %w", err)
+	}
+	return nil
+}
+
+// timestampColumns lists every TEXT column holding a ts()/now() value.
+var timestampColumns = map[string][]string{
+	"schema_migrations":         {"applied_at"},
+	"devices":                   {"first_seen", "last_seen", "created_at", "updated_at"},
+	"groups":                    {"created_at", "updated_at"},
+	"credentials":               {"created_at", "updated_at"},
+	"jobs":                      {"created_at", "started_at", "finished_at"},
+	"job_results":               {"at"},
+	"telemetry":                 {"at"},
+	"alerts":                    {"raised_at", "updated_at", "cleared_at", "acked_at"},
+	"notification_log":          {"at"},
+	"audit":                     {"at"},
+	"users":                     {"created_at"},
+	"sessions":                  {"expires_at", "created_at"},
+	"consumables":               {"created_at", "updated_at"},
+	"consumable_stock_events":   {"at"},
+	"supply_links":              {"updated_at"},
+	"catalog_qualifications":    {"updated_at"},
+	"config_profiles":           {"created_at", "updated_at"},
+	"config_snapshots":          {"at"},
+	"config_writes":             {"at"},
+	"config_drift":              {"at"},
+	"device_logs":               {"at"},
+	"tombstones":                {"deleted_at"},
+	"firmware_packages":         {"created_at"},
+	"firmware_campaigns":        {"scheduled_at", "started_at", "finished_at", "created_at", "updated_at"},
+	"firmware_campaign_devices": {"started_at", "finished_at", "updated_at"},
+	"notification_outbox":       {"next_at", "created_at", "done_at"},
+	"security_policies":         {"created_at", "updated_at"},
+	"security_assessments":      {"at"},
+	"ca_profiles":               {"created_at", "updated_at"},
+	"issued_certificates":       {"not_before", "not_after", "installed_at", "created_at"},
+	"device_certificates":       {"not_before", "not_after", "seen_at"},
+	"api_tokens":                {"expires_at", "created_at", "last_used_at", "revoked_at"},
+}
+
+// migrateFixedWidthTimestamps rewrites every stored timestamp that is not
+// already in tsLayout. SQLite's strftime keeps millisecond precision, so
+// rows written before this migration lose sub-millisecond digits, which
+// nothing depends on; rows already 30 characters long are in the new form.
+func (s *SQLite) migrateFixedWidthTimestamps() error {
+	var done int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version=5`).Scan(&done); err != nil {
+		return err
+	}
+	if done > 0 {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	tables := make([]string, 0, len(timestampColumns))
+	for t := range timestampColumns {
+		tables = append(tables, t)
+	}
+	sort.Strings(tables)
+	for _, t := range tables {
+		for _, c := range timestampColumns[t] {
+			q := fmt.Sprintf(`UPDATE %s SET %s = substr(strftime('%%Y-%%m-%%dT%%H:%%M:%%fZ', %s), 1, 23) || '000000Z'
+				WHERE %s IS NOT NULL AND %s <> '' AND length(%s) <> 30 AND strftime('%%Y-%%m-%%dT%%H:%%M:%%fZ', %s) IS NOT NULL`, t, c, c, c, c, c, c)
+			if _, err := tx.Exec(q); err != nil {
+				return fmt.Errorf("%s.%s: %w", t, c, err)
+			}
+		}
+	}
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (5, ?)`, now()); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // addColumn adds a column with ALTER TABLE unless PRAGMA table_info already
@@ -203,9 +283,16 @@ func (s *SQLite) Close() error { return s.db.Close() }
 
 // --- helpers ---------------------------------------------------------------
 
-func now() string { return time.Now().UTC().Format(time.RFC3339Nano) }
+// tsLayout is the fixed-width UTC form every SQLite timestamp is stored in:
+// always nine fractional digits and a trailing Z, so the text sorts and
+// compares (<, >=, ORDER BY) exactly like the instants it encodes. RFC 3339
+// with trimmed fractions does not: "…:00Z" sorts after "…:00.5Z" because
+// 'Z' > '.' (code review H-020). Migration 5 rewrites older rows.
+const tsLayout = "2006-01-02T15:04:05.000000000Z07:00"
 
-func ts(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
+func now() string { return time.Now().UTC().Format(tsLayout) }
+
+func ts(t time.Time) string { return t.UTC().Format(tsLayout) }
 
 func tsp(t *time.Time) any {
 	if t == nil {

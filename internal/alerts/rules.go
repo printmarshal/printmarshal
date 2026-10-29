@@ -24,19 +24,31 @@ type Desired struct {
 }
 
 // Sources lists the alert sources the poll rules own; alerts of these sources
-// that are no longer desired after a poll are cleared.
+// that are no longer desired after a poll are cleared, but only for the
+// sources the poll actually observed (see Evaluate).
 var Sources = []string{"offline", "poll", "supply"}
 
 // Evaluate derives the alerts a device should have from its latest poll
-// (spec §8.3 alert model and noise rules).
-func Evaluate(d *model.Device, res *engine.PollResult, failures int, t Thresholds) []Desired {
-	var out []Desired
+// (spec §8.3 alert model and noise rules). observed lists the alert sources
+// the poll was able to judge: "offline" always, "poll" only when the status
+// read succeeded and "supply" only when the supplies read succeeded. A fault
+// alert is cleared only after a successful observation shows it resolved
+// (code review H-012); an unreachable or partial poll leaves the others as
+// they are instead of reporting them cleared.
+func Evaluate(d *model.Device, res *engine.PollResult, failures int, t Thresholds) (out []Desired, observed []string) {
+	observed = []string{"offline"}
 	if !res.Reachable {
 		if failures >= t.OfflineAfterFailures {
 			out = append(out, Desired{Key: "offline", Source: "offline", Severity: model.SeverityCritical,
 				Description: fmt.Sprintf("Device unreachable (%d consecutive failed polls)", failures)})
 		}
-		return out
+		return out, observed
+	}
+	if res.Status != nil {
+		observed = append(observed, "poll")
+	}
+	if res.Supplies != nil {
+		observed = append(observed, "supply")
 	}
 
 	if st := res.Status; st != nil {
@@ -129,7 +141,7 @@ func Evaluate(d *model.Device, res *engine.PollResult, failures int, t Threshold
 			out = append(out, Desired{Key: "paper:" + size, Source: "poll", Severity: model.SeverityWarning, Description: "Out of paper: " + label + " are empty"})
 		}
 	}
-	return out
+	return out, observed
 }
 
 // errorSeverity classifies hrPrinterDetectedErrorState bits and IPP printer-state-reasons.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"printmarshal/internal/engine"
@@ -111,27 +112,12 @@ func (s *Service) rotateDevice(ctx context.Context, dev *model.Device, kind stri
 		s.auditRotation(ctx, actor, dev, res, jobID)
 		return "error", res.Message, asMap(res)
 	}
-	results, err := s.applyChanges(ctx, dev, wc, []model.SettingChange{{Key: key, Value: secret}}, model.WriteOptions{})
-	if err != nil && len(results) == 0 {
-		res.Status, res.Message = "failed", err.Error()
-		s.auditRotation(ctx, actor, dev, res, jobID)
-		return "error", res.Message, asMap(res)
-	}
-	r := results[key]
-	res.Driver = r.Driver
-	if r.Status != model.SettingWritten {
-		res.Status, res.Message = "failed", nonEmpty(r.Error, fmt.Sprintf("device reported %s", r.Status))
-		if r.Status == model.SettingSkipped {
-			res.Status = "skipped"
-		}
-		s.auditRotation(ctx, actor, dev, res, jobID)
-		if res.Status == "skipped" {
-			return "skipped", res.Message, asMap(res)
-		}
-		return "error", res.Message, asMap(res)
-	}
-	// The device accepted the secret: store it so PrintMarshal keeps access. A
-	// rotated read community is a read credential; a rotated admin password
+	// Stage the new secret durably BEFORE the device changes (code review
+	// H-009): a crash, timeout or database failure between the device
+	// accepting the secret and it being stored would otherwise lose the only
+	// copy. The staged credential already outranks the previous one; it is
+	// deleted again if the device refuses the change. A rotated read
+	// community is a read credential; a rotated admin password
 	// authenticates reads and writes on the device's web service, so it is
 	// stored as both (audit A19).
 	cred := &model.Credential{Name: fmt.Sprintf("rotated %s %s", kind, s.Now().Format("2006-01-02 15:04")), Type: credType,
@@ -147,12 +133,67 @@ func (s *Service) rotateDevice(ctx context.Context, dev *model.Device, kind stri
 		sec.Password = secret
 	}
 	if err := s.Store.CreateCredential(ctx, cred, sec); err != nil {
-		res.Status, res.Message = "failed", "device accepted the new secret but storing the credential failed: "+err.Error()+"; the device may need manual recovery"
+		res.Status, res.Message = "failed", "could not stage the new secret: "+err.Error()+"; the device was not changed"
 		s.auditRotation(ctx, actor, dev, res, jobID)
 		return "error", res.Message, asMap(res)
 	}
-	res.Status, res.CredentialID, res.Message = "rotated", cred.ID, fmt.Sprintf("rotated %s via %s; new device-scoped credential %s", kind, r.Driver, cred.ID)
+	res.CredentialID = cred.ID
+	res.Status = "staged"
 	s.auditRotation(ctx, actor, dev, res, jobID)
+	// From here on the device may hold the new secret, so bookkeeping must
+	// finish even when the device context has expired.
+	bctx, bcancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer bcancel()
+	unstage := func() {
+		if err := s.Store.DeleteCredential(bctx, cred.ID); err != nil {
+			s.Log.Error("rotation: staged credential could not be removed; delete it by hand", "device", dev.ID, "credential", cred.ID, "err", err)
+			return
+		}
+		res.CredentialID = ""
+	}
+	results, err := s.applyChanges(ctx, dev, wc, []model.SettingChange{{Key: key, Value: secret}}, model.WriteOptions{})
+	if err != nil && len(results) == 0 {
+		unstage()
+		res.Status, res.Message = "failed", err.Error()
+		s.auditRotation(bctx, actor, dev, res, jobID)
+		return "error", res.Message, asMap(res)
+	}
+	r := results[key]
+	res.Driver = r.Driver
+	if r.Status != model.SettingWritten {
+		res.Status, res.Message = "failed", nonEmpty(r.Error, fmt.Sprintf("device reported %s", r.Status))
+		if r.Status == model.SettingSkipped {
+			res.Status = "skipped"
+		}
+		lower := strings.ToLower(r.Error)
+		ambiguous := r.Status == model.SettingFailed && (ctx.Err() != nil || strings.Contains(lower, "timeout") || strings.Contains(lower, "deadline") || strings.Contains(lower, "connection reset") || strings.Contains(lower, "eof"))
+		if ambiguous {
+			// The request may have reached the device before the failure, so
+			// the device state is unknown: keep the staged credential and say
+			// so rather than lose a secret the device may now use.
+			res.Message += fmt.Sprintf("; the staged credential %s is kept because the device state is unknown", cred.ID)
+		} else {
+			// The driver reports the device refused or skipped the change.
+			unstage()
+		}
+		s.auditRotation(bctx, actor, dev, res, jobID)
+		if res.Status == "skipped" {
+			return "skipped", res.Message, asMap(res)
+		}
+		return "error", res.Message, asMap(res)
+	}
+	res.Status, res.Message = "rotated", fmt.Sprintf("rotated %s via %s; new device-scoped credential %s", kind, r.Driver, cred.ID)
+	// Verify the device really answers to the new secret where a read can
+	// prove it (an SNMP community); an admin password is only exercised by
+	// the next authenticated write.
+	if credType == model.CredSNMPCommunity && s.Engine != nil {
+		if pr := s.Engine.Poll(ctx, dev, model.Creds{Communities: []string{secret}, V3: creds.V3}); pr != nil && pr.Reachable {
+			res.Message += "; verified by a read with the new community"
+		} else {
+			res.Message += "; the device accepted it but a read with the new community failed, check the device before relying on it"
+		}
+	}
+	s.auditRotation(bctx, actor, dev, res, jobID)
 	s.emit("security.rotated", res)
 	return "ok", res.Message, asMap(res)
 }

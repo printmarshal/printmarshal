@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -781,11 +782,20 @@ func TestPackagesIntegrityAndDeleteRefusal(t *testing.T) {
 	if pkg.FileName != "fw_2.15.bin" || pkg.Size != 11 || len(pkg.SHA256) != 64 || len(pkg.Models) != 1 || pkg.Models[0] != "4200" {
 		t.Errorf("package %+v", pkg)
 	}
-	if !strings.HasPrefix(pkg.StoragePath, h.svc.Dir()) {
-		t.Errorf("stored outside the data dir: %s", pkg.StoragePath)
+	// The stored path is relative to the firmware root (H-018) so a restore
+	// into another data directory still resolves it; PackagePath is absolute
+	// and inside the root.
+	if filepath.IsAbs(pkg.StoragePath) || !strings.HasPrefix(h.svc.PackagePath(pkg), h.svc.Dir()) {
+		t.Errorf("storage path %q, resolved %q", pkg.StoragePath, h.svc.PackagePath(pkg))
 	}
 	if err := h.svc.VerifyPackage(pkg); err != nil {
 		t.Fatal(err)
+	}
+	// A legacy absolute path that no longer exists is rebased onto the root.
+	legacy := *pkg
+	legacy.StoragePath = "/var/lib/old-printmarshal/firmware/" + pkg.ID + "/" + pkg.FileName
+	if got := h.svc.PackagePath(&legacy); got != h.svc.PackagePath(pkg) {
+		t.Errorf("legacy path resolved to %q", got)
 	}
 	dev := h.device("a", "Acme", "4200", "2.14")
 	c := h.campaign(pkg, []*model.Device{dev}, nil)
@@ -793,7 +803,7 @@ func TestPackagesIntegrityAndDeleteRefusal(t *testing.T) {
 		t.Errorf("delete with draft campaign: %v", err)
 	}
 	// Tampering is caught before anything starts.
-	if err := os.WriteFile(pkg.StoragePath, []byte("tampered"), 0o640); err != nil {
+	if err := os.WriteFile(h.svc.PackagePath(pkg), []byte("tampered"), 0o640); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.svc.VerifyPackage(pkg); err == nil || !strings.Contains(err.Error(), "integrity") {

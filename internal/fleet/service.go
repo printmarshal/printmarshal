@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -170,7 +171,11 @@ func (s *Service) PollDevice(ctx context.Context, dev *model.Device) (*model.Dev
 		_ = s.Store.AddSamples(ctx, []model.TelemetrySample{{DeviceID: dev.ID, Metric: "status.online", Value: 0, At: res.At}})
 	}
 	failures, _ := s.Store.DeviceFailures(ctx, dev.ID)
-	s.reconcileAlerts(ctx, updated, alerts.Evaluate(updated, res, failures, s.thresholds()), alerts.Sources)
+	desired, observed := alerts.Evaluate(updated, res, failures, s.thresholds())
+	s.reconcileAlerts(ctx, updated, desired, observed)
+	if res.Reachable && res.Status != nil {
+		s.reconcileTrapAlerts(ctx, updated)
+	}
 	if res.Reachable && res.Supplies != nil {
 		s.afterSupplies(ctx, dev, updated)
 	}
@@ -422,6 +427,14 @@ func (s *Service) runPoll(ctx context.Context, jc *jobs.Context) error {
 		go func(d *model.Device) {
 			defer wg.Done()
 			defer func() { <-sem }()
+			// A panic in one device's poll must not take the process down
+			// with every other job (code review H-004).
+			defer func() {
+				if p := recover(); p != nil {
+					s.Log.Error("poll panic", "device", d.ID, "panic", p, "stack", string(debug.Stack()))
+					jc.Result(d.ID, d.Address, "error", fmt.Sprintf("internal error: %v", p), nil)
+				}
+			}()
 			pctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 			defer cancel()
 			upd, res, err := s.PollDevice(pctx, d)
@@ -437,7 +450,11 @@ func (s *Service) runPoll(ctx context.Context, jc *jobs.Context) error {
 				jc.Result(d.ID, d.Address, "error", "unreachable", data)
 				return
 			}
-			jc.Result(upd.ID, upd.Address, "ok", fmt.Sprintf("%s (%s)", upd.Status.State, upd.Status.Severity), data)
+			msg := "reachable, status not read"
+			if upd.Status != nil {
+				msg = fmt.Sprintf("%s (%s)", upd.Status.State, upd.Status.Severity)
+			}
+			jc.Result(upd.ID, upd.Address, "ok", msg, data)
 		}(d)
 	}
 	wg.Wait()
@@ -513,7 +530,61 @@ func maxDur(a, b time.Duration) time.Duration {
 
 // --- traps ------------------------------------------------------------------
 
-// HandleTrap records a device-pushed event and schedules a reconciling poll (spec §8.3).
+// TrapAlertHold is how long a trap-raised alert survives successful polls.
+// Traps report moments (a link flapped, the device restarted, an alert
+// fired) rather than states the poller can confirm, so a trap alert is kept
+// at least this long and then cleared by the next poll that reads the
+// device's status without finding the condition (code review H-013). A
+// recovery trap (link up) clears its counterpart at once.
+var TrapAlertHold = 5 * time.Minute
+
+// trapRecoveries maps a recovery trap's alert key to the key it resolves.
+var trapRecoveries = map[string]string{"trap:link-up": "trap:link-down"}
+
+func trapKey(description string) string {
+	key := "trap:" + strings.ToLower(strings.ReplaceAll(description, " ", "-"))
+	if len(key) > 120 {
+		key = key[:120]
+	}
+	return key
+}
+
+// reconcileTrapAlerts clears trap alerts older than TrapAlertHold after a
+// poll that read the device's status: the poll rules now carry whatever the
+// device still reports, so the trap has served its purpose.
+func (s *Service) reconcileTrapAlerts(ctx context.Context, dev *model.Device) {
+	active, err := s.Store.ListAlerts(ctx, store.AlertFilter{DeviceID: dev.ID, ActiveOnly: true})
+	if err != nil {
+		return
+	}
+	var keep []string
+	hold := false
+	cutoff := time.Now().UTC().Add(-TrapAlertHold)
+	for _, a := range active {
+		if a.Source != "trap" {
+			continue
+		}
+		if a.RaisedAt.After(cutoff) {
+			keep = append(keep, a.Key)
+		}
+		hold = true
+	}
+	if !hold {
+		return
+	}
+	cleared, err := s.Store.ClearAlertsExcept(ctx, dev.ID, "trap", keep)
+	if err != nil {
+		s.Log.Warn("clear trap alerts", "device", dev.ID, "err", err)
+		return
+	}
+	for _, a := range cleared {
+		s.emit("alert.cleared", a)
+	}
+}
+
+// HandleTrap records a device-pushed event and schedules a reconciling poll
+// (spec §8.3). Informational traps (severity ok) raise nothing but may clear
+// the alert of the condition they end.
 func (s *Service) HandleTrap(ctx context.Context, sourceIP string, description string, severity model.Severity, varbinds map[string]string) {
 	devs, err := s.Store.ListDevices(ctx, store.DeviceFilter{Q: sourceIP, IncludeDecommissioned: true})
 	if err != nil {
@@ -531,9 +602,22 @@ func (s *Service) HandleTrap(ctx context.Context, sourceIP string, description s
 		return
 	}
 	s.Log.Info("trap", "device", dev.Name(), "description", description, "severity", severity)
-	key := "trap:" + strings.ToLower(strings.ReplaceAll(description, " ", "-"))
-	if len(key) > 120 {
-		key = key[:120]
+	key := trapKey(description)
+	if severity == model.SeverityOK {
+		if resolves, ok := trapRecoveries[key]; ok {
+			active, _ := s.Store.ListAlerts(ctx, store.AlertFilter{DeviceID: dev.ID, ActiveOnly: true})
+			for _, a := range active {
+				if a.Source == "trap" && a.Key == resolves {
+					if c, err := s.Store.ClearAlert(ctx, a.ID); err == nil {
+						s.emit("alert.cleared", c)
+					}
+				}
+			}
+		}
+		if _, err := s.SubmitPoll(ctx, []string{dev.ID}, "trap"); err != nil {
+			s.Log.Warn("trap poll", "err", err)
+		}
+		return
 	}
 	if severity == "" {
 		severity = model.SeverityWarning

@@ -213,7 +213,10 @@ type Store interface {
 	AdjustStock(ctx context.Context, id string, ev *model.StockEvent) (*model.Consumable, error)
 	ListStockEvents(ctx context.Context, f StockEventFilter) ([]*model.StockEvent, error)
 	GetStockEvent(ctx context.Context, id int64) (*model.StockEvent, error)
-	SetStockEventStatus(ctx context.Context, id int64, status string) error
+	// SetStockEventStatus moves a stock event from status `from` to `to`; it
+	// returns ErrNotFound when the event is missing or no longer in `from`,
+	// so two concurrent confirmations cannot both apply.
+	SetStockEventStatus(ctx context.Context, id int64, from, to string) error
 
 	// Supply links: installed supply (device slot) -> consumable
 	ListSupplyLinks(ctx context.Context, f SupplyLinkFilter) ([]*model.SupplyLink, error)

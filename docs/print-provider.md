@@ -93,7 +93,7 @@ lpadmin -x <name>          # remove
 | GET | `/api/print-provider` | viewer | settings, backend availability, queue inventory (empty while disabled) |
 | PUT | `/api/print-provider` | admin | replace settings (validated, audited) |
 | GET | `/api/print-provider/plan` | viewer | the plan |
-| POST | `/api/print-provider/sync` | operator | body `{"dryRun": bool}` → 202 `{job}` (`printprovider.sync`) |
+| POST | `/api/print-provider/sync` | operator | body `{"dryRun": bool}` (omitted = dry run) → 202 `{job}` (`printprovider.sync`) |
 | DELETE | `/api/print-provider/queues/{deviceId}` | operator | remove that device's queue |
 
 Sync and remove answer 409 while the module is disabled or in list mode, and 503 when

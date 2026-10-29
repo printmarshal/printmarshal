@@ -61,8 +61,12 @@ func (s *Service) RegisterPackage(ctx context.Context, meta PackageMeta, r io.Re
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
-	p.StoragePath = filepath.Join(dir, p.FileName)
-	f, err := os.OpenFile(p.StoragePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o640)
+	// StoragePath is kept relative to the firmware root so a backup restored
+	// into another data directory (or a container) still finds its images
+	// (code review H-018); PackagePath resolves it, and older absolute
+	// values too.
+	p.StoragePath = filepath.ToSlash(filepath.Join(p.ID, p.FileName))
+	f, err := os.OpenFile(s.PackagePath(p), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o640)
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +123,26 @@ func (s *Service) DeletePackage(ctx context.Context, id string) error {
 		return err
 	}
 	if p.StoragePath != "" {
-		_ = os.RemoveAll(filepath.Dir(p.StoragePath))
+		_ = os.RemoveAll(filepath.Dir(s.PackagePath(p)))
 	}
 	return nil
+}
+
+// PackagePath is the on-disk location of a package's image: StoragePath
+// resolved against the current firmware root. Absolute paths written by
+// earlier versions are honoured when they still exist and otherwise rebased
+// onto the root by package id and file name.
+func (s *Service) PackagePath(p *model.FirmwarePackage) string {
+	if p == nil || p.StoragePath == "" {
+		return ""
+	}
+	if filepath.IsAbs(p.StoragePath) {
+		if _, err := os.Stat(p.StoragePath); err == nil {
+			return p.StoragePath
+		}
+		return filepath.Join(s.Dir(), p.ID, filepath.Base(p.StoragePath))
+	}
+	return filepath.Join(s.Dir(), filepath.FromSlash(p.StoragePath))
 }
 
 // VerifyPackage recomputes the stored file's SHA-256 and compares it with the
@@ -130,7 +151,7 @@ func (s *Service) VerifyPackage(p *model.FirmwarePackage) error {
 	if p == nil || p.StoragePath == "" {
 		return fmt.Errorf("package has no stored file")
 	}
-	f, err := os.Open(p.StoragePath)
+	f, err := os.Open(s.PackagePath(p))
 	if err != nil {
 		return fmt.Errorf("package file: %w", err)
 	}

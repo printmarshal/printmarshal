@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"printmarshal/internal/auth"
@@ -22,38 +23,142 @@ const scopeDenied = "outside your group scope"
 
 // authorize applies the principal-level rules that a role rank cannot
 // express. It writes the 403 itself and returns false on a violation.
-//   - API tokens cannot use /api/auth/* (sessions, passwords, SSO) and cannot
-//     mint or revoke other tokens.
+//   - API tokens cannot use /api/auth/* (sessions, passwords, SSO), cannot
+//     mint or revoke other tokens and cannot create or delete users: a
+//     service account must not be able to turn itself into a human login
+//     that outlives its own expiry or revocation (review H-003).
 //   - A scoped principal cannot reach /api/devices/<id>... for a device
 //     outside its groups, nor name one in a JSON body (deviceId / deviceIds /
-//     devices) of a bulk endpoint.
+//     devices / groupId / target{...}) of a bulk endpoint, nor act on a
+//     resource (alert, write record, campaign, replacement) that belongs to
+//     such a device. It also cannot change groups, users or tokens, because
+//     groups are what define its boundary and the other two would let it
+//     mint an unscoped principal (review H-002).
 func (s *Server) authorize(w http.ResponseWriter, r *http.Request) bool {
 	u := auth.UserFrom(r.Context())
 	if u == nil {
 		return true
 	}
 	path := r.URL.Path
+	mutating := r.Method != http.MethodGet && r.Method != http.MethodHead
 	if auth.IsToken(u) {
-		if strings.HasPrefix(path, "/api/auth/") || (strings.HasPrefix(path, "/api/tokens") && r.Method != http.MethodGet) {
+		if strings.HasPrefix(path, "/api/auth/") || (mutating && (strings.HasPrefix(path, "/api/tokens") || strings.HasPrefix(path, "/api/users"))) {
 			s.security(r.Context(), r, "auth.denied", u.Username, r.Method+" "+path+" is not available to api tokens", "denied")
-			writeErr(w, http.StatusForbidden, "api tokens cannot manage authentication")
+			writeErr(w, http.StatusForbidden, "api tokens cannot manage authentication or users")
 			return false
 		}
 	}
 	if len(u.Scope) == 0 {
 		return true
 	}
+	if mutating && (strings.HasPrefix(path, "/api/groups") || strings.HasPrefix(path, "/api/users") || strings.HasPrefix(path, "/api/tokens")) {
+		s.security(r.Context(), r, "auth.denied", u.Username, r.Method+" "+path+" is not available to a group-scoped principal", "denied")
+		writeErr(w, http.StatusForbidden, "a group-scoped principal cannot manage groups, users or tokens")
+		return false
+	}
 	if id := devicePathID(path); id != "" && !s.allowedDevice(r.Context(), id) {
 		return s.denyScope(w, r, u, path)
 	}
-	if ids := bodyDeviceIDs(r); len(ids) > 0 {
-		for _, id := range ids {
-			if !s.allowedDevice(r.Context(), id) {
-				return s.denyScope(w, r, u, path+" (device "+id+")")
-			}
+	ids, groups := bodyTargets(r)
+	rids, rgroups, err := s.resourceTargets(r)
+	if err != nil {
+		// The resource is missing or unreadable: let the handler answer
+		// (404/500) rather than leak whether it exists through a 403.
+		return true
+	}
+	ids, groups = append(ids, rids...), append(groups, rgroups...)
+	for _, gid := range groups {
+		gids, err := s.groupDeviceIDs(r.Context(), gid)
+		if err != nil {
+			return true
+		}
+		ids = append(ids, gids...)
+	}
+	for _, id := range ids {
+		if !s.allowedDevice(r.Context(), id) {
+			return s.denyScope(w, r, u, path+" (device "+id+")")
 		}
 	}
 	return true
+}
+
+// resourceTargets resolves the devices behind a resource named in the path
+// (an alert, a configuration write record, a firmware campaign, a stock
+// replacement event) so a scoped principal cannot reach a device through
+// another object's id. It returns nothing for paths that name no such
+// resource.
+func (s *Server) resourceTargets(r *http.Request) (deviceIDs []string, groupIDs []string, err error) {
+	ctx := r.Context()
+	path := r.URL.Path
+	seg := func(prefix string) (string, bool) {
+		rest, ok := strings.CutPrefix(path, prefix)
+		if !ok {
+			return "", false
+		}
+		id, _, _ := strings.Cut(rest, "/")
+		return id, id != ""
+	}
+	if id, ok := seg("/api/alerts/"); ok {
+		a, err := s.Store.GetAlert(ctx, id)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []string{a.DeviceID}, nil, nil
+	}
+	if id, ok := seg("/api/config/writes/"); ok {
+		rec, err := s.Store.GetWriteRecord(ctx, id)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []string{rec.Result.DeviceID}, nil, nil
+	}
+	if id, ok := seg("/api/firmware/campaigns/"); ok {
+		c, err := s.Store.GetCampaign(ctx, id)
+		if err != nil {
+			return nil, nil, err
+		}
+		if c.GroupID != "" {
+			return c.DeviceIDs, []string{c.GroupID}, nil
+		}
+		return c.DeviceIDs, nil, nil
+	}
+	if id, ok := seg("/api/consumables/replacements/"); ok {
+		n, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			return nil, nil, err
+		}
+		ev, err := s.Store.GetStockEvent(ctx, n)
+		if err != nil {
+			return nil, nil, err
+		}
+		if ev.DeviceID != "" {
+			return []string{ev.DeviceID}, nil, nil
+		}
+	}
+	return nil, nil, nil
+}
+
+// groupDeviceIDs resolves a group (static members or rule matches) to the
+// ids of the devices it currently contains.
+func (s *Server) groupDeviceIDs(ctx context.Context, gid string) ([]string, error) {
+	g, err := s.Store.GetGroup(ctx, gid)
+	if err != nil {
+		return nil, err
+	}
+	if g.Kind != "rule" {
+		return g.MemberIDs, nil
+	}
+	all, err := s.Store.ListDevices(ctx, store.DeviceFilter{IncludeDecommissioned: true})
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, d := range all {
+		if store.MatchRule(g.Rule, d) {
+			out = append(out, d.ID)
+		}
+	}
+	return out, nil
 }
 
 func (s *Server) denyScope(w http.ResponseWriter, r *http.Request, u *model.User, what string) bool {
@@ -72,38 +177,51 @@ func devicePathID(path string) string {
 	return id
 }
 
-// bodyDeviceIDs peeks at a JSON request body for device references and puts
-// the body back for the handler. Non-JSON bodies (uploads) are left alone.
-func bodyDeviceIDs(r *http.Request) []string {
+// bodyTargets peeks at a JSON request body for device and group references
+// (top level and under "target") and puts the body back for the handler.
+// Non-JSON bodies (uploads) are left alone.
+func bodyTargets(r *http.Request) (deviceIDs []string, groupIDs []string) {
 	if r.Body == nil || r.Body == http.NoBody || (r.Method != http.MethodPost && r.Method != http.MethodPut && r.Method != http.MethodPatch) {
-		return nil
+		return nil, nil
 	}
 	if ct := r.Header.Get("Content-Type"); ct != "" && !strings.HasPrefix(ct, "application/json") {
-		return nil
+		return nil, nil
 	}
 	b, err := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
 	_ = r.Body.Close()
 	r.Body = io.NopCloser(bytes.NewReader(b))
 	if err != nil || len(b) == 0 {
-		return nil
+		return nil, nil
 	}
-	var probe struct {
+	type refs struct {
 		DeviceID  string          `json:"deviceId"`
 		DeviceIDs []string        `json:"deviceIds"`
 		Devices   json.RawMessage `json:"devices"`
+		GroupID   string          `json:"groupId"`
+		GroupIDs  []string        `json:"groupIds"`
+	}
+	var probe struct {
+		refs
+		Target refs `json:"target"`
 	}
 	if json.Unmarshal(b, &probe) != nil {
-		return nil
+		return nil, nil
 	}
-	ids := append([]string(nil), probe.DeviceIDs...)
-	if probe.DeviceID != "" {
-		ids = append(ids, probe.DeviceID)
+	for _, p := range []refs{probe.refs, probe.Target} {
+		deviceIDs = append(deviceIDs, p.DeviceIDs...)
+		if p.DeviceID != "" {
+			deviceIDs = append(deviceIDs, p.DeviceID)
+		}
+		var list []string
+		if len(p.Devices) > 0 && json.Unmarshal(p.Devices, &list) == nil {
+			deviceIDs = append(deviceIDs, list...)
+		}
+		if p.GroupID != "" {
+			groupIDs = append(groupIDs, p.GroupID)
+		}
+		groupIDs = append(groupIDs, p.GroupIDs...)
 	}
-	var list []string
-	if len(probe.Devices) > 0 && json.Unmarshal(probe.Devices, &list) == nil {
-		ids = append(ids, list...)
-	}
-	return ids
+	return deviceIDs, groupIDs
 }
 
 // scopeDeviceIDs resolves the principal's groups (static members or rule

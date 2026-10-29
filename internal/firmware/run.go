@@ -22,6 +22,14 @@ func (s *Service) runCampaign(ctx context.Context, jc *jobs.Context) error {
 	if id == "" {
 		return errors.New("job has no campaignId")
 	}
+	if c, err := s.Store.GetCampaign(ctx, id); err != nil {
+		return err
+	} else if c.JobID != jc.Job.ID {
+		return fmt.Errorf("campaign %s is owned by job %s; this job (%s) is superseded", id, c.JobID, jc.Job.ID)
+	}
+	if s.isActive(id) {
+		return fmt.Errorf("campaign %s already has a running worker", id)
+	}
 	s.setActive(id, true)
 	defer s.setActive(id, false)
 
@@ -42,6 +50,9 @@ func (s *Service) runCampaign(ctx context.Context, jc *jobs.Context) error {
 		c, err := s.Store.GetCampaign(ctx, id)
 		if err != nil {
 			return err
+		}
+		if c.JobID != jc.Job.ID {
+			return fmt.Errorf("campaign %s was handed to job %s; stopping", id, c.JobID)
 		}
 		devs, err := s.Store.ListCampaignDevices(ctx, id)
 		if err != nil {
@@ -101,6 +112,10 @@ func (s *Service) runCampaign(ctx context.Context, jc *jobs.Context) error {
 			})
 			return fmt.Errorf("package %s: %w", c.PackageID, err)
 		}
+		// Drivers open StoragePath directly: hand them the resolved location.
+		resolved := *pkg
+		resolved.StoragePath = s.PackagePath(pkg)
+		pkg = &resolved
 
 		// One batch of up to Concurrency devices; the loop then re-reads state.
 		n := c.Concurrency

@@ -215,7 +215,10 @@ func (n *Notifier) attempt(ctx context.Context, o *model.Outbox) {
 		if !ok || o.Attempts >= n.MaxAttempts {
 			o.State, o.DoneAt = "dead", &now
 			n.log.Error("notification dead", "notifier", o.Notifier, "event", o.Event, "attempts", o.Attempts, "err", err)
-			if n.bus != nil {
+			// A failure to deliver a notification.dead is logged but never
+			// published as another notification.dead: with two failing
+			// destinations that would ping-pong forever (code review H-014).
+			if n.bus != nil && o.Event != "notification.dead" {
 				n.bus.Publish(model.Event{Type: "notification.dead", Data: map[string]any{"notifier": o.Notifier, "event": o.Event, "subject": o.Subject, "attempts": o.Attempts, "error": err.Error(), "outboxId": o.ID}})
 			}
 		} else {

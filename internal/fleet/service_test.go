@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"printmarshal/internal/alerts"
 	"printmarshal/internal/config"
 	"printmarshal/internal/driver/snmp"
 	"printmarshal/internal/engine"
@@ -235,5 +236,74 @@ func TestPollLinksSuppliesAndDetectsReplacement(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected a consumable stock alert, got %+v", active)
+	}
+}
+
+// TestPartialPollKeepsFaults (code review H-012/H-013): alerts of sources a
+// poll did not observe survive it; trap alerts clear after the hold, and a
+// recovery trap clears its counterpart at once.
+func TestPartialPollKeepsFaults(t *testing.T) {
+	svc, st := newTestService(t, "generic-laser.snmp")
+	ctx := context.Background()
+	dev, _, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	jam, _, _ := st.RaiseAlert(ctx, dev.ID, "error:jammed", "poll", model.SeverityCritical, "Paper jam")
+	low, _, _ := st.RaiseAlert(ctx, dev.ID, "supply:1", "supply", model.SeverityWarning, "Black low")
+	active := func() map[string]bool {
+		as, _ := st.ListAlerts(ctx, store.AlertFilter{DeviceID: dev.ID, ActiveOnly: true})
+		m := map[string]bool{}
+		for _, a := range as {
+			m[a.Key] = true
+		}
+		return m
+	}
+	// Unreachable: only the offline source is judged.
+	desired, observed := alerts.Evaluate(dev, &engine.PollResult{Reachable: false}, 1, svc.thresholds())
+	svc.reconcileAlerts(ctx, dev, desired, observed)
+	if m := active(); !m["error:jammed"] || !m["supply:1"] {
+		t.Fatalf("unreachable poll cleared faults: %v", m)
+	}
+	// Partial: counters only.
+	desired, observed = alerts.Evaluate(dev, &engine.PollResult{Reachable: true, Counters: &model.Counters{Total: 5}}, 0, svc.thresholds())
+	svc.reconcileAlerts(ctx, dev, desired, observed)
+	if m := active(); !m["error:jammed"] || !m["supply:1"] {
+		t.Fatalf("partial poll cleared faults: %v", m)
+	}
+	// Status observed, supplies not: the jam clears, the supply stays.
+	desired, observed = alerts.Evaluate(dev, &engine.PollResult{Reachable: true, Status: &model.Status{State: "idle"}}, 0, svc.thresholds())
+	svc.reconcileAlerts(ctx, dev, desired, observed)
+	if m := active(); m["error:jammed"] || !m["supply:1"] {
+		t.Fatalf("status-only poll: %v", m)
+	}
+	_ = jam
+	_ = low
+
+	// Traps: a link-down alert survives a status poll inside the hold ...
+	svc.HandleTrap(ctx, "10.0.0.5", "Link down", model.SeverityCritical, nil)
+	if m := active(); !m["trap:link-down"] {
+		t.Fatalf("trap alert not raised: %v", m)
+	}
+	svc.reconcileTrapAlerts(ctx, dev)
+	if m := active(); !m["trap:link-down"] {
+		t.Fatal("trap alert cleared inside the hold")
+	}
+	// ... a link-up trap clears it at once ...
+	svc.HandleTrap(ctx, "10.0.0.5", "Link up", model.SeverityOK, nil)
+	if m := active(); m["trap:link-down"] {
+		t.Fatal("link up did not clear link down")
+	}
+	// ... and any other trap alert clears once the hold has passed and a poll read the status.
+	svc.HandleTrap(ctx, "10.0.0.5", "Device cold start", model.SeverityWarning, nil)
+	old := TrapAlertHold
+	TrapAlertHold = 0
+	defer func() { TrapAlertHold = old }()
+	time.Sleep(5 * time.Millisecond)
+	if _, _, err := svc.PollDevice(ctx, dev); err != nil {
+		t.Fatal(err)
+	}
+	if m := active(); m["trap:device-cold-start"] {
+		t.Fatalf("trap alert not reconciled after the hold: %v", m)
 	}
 }

@@ -2,6 +2,7 @@ package consumables
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -289,13 +290,23 @@ func (s *Service) ConfirmReplacement(ctx context.Context, id int64, actor string
 	if ev.Status != model.StockEventPending {
 		return nil, nil, fmt.Errorf("replacement is %s, not pending", ev.Status)
 	}
-	if err := s.Store.SetStockEventStatus(ctx, id, model.StockEventConfirmed); err != nil {
+	// Claim the event first (pending -> confirmed is conditional, so a
+	// concurrent confirmation of the same replacement loses and no unit is
+	// subtracted twice); put it back if the stock update then fails so the
+	// confirmation can be retried (code review H-010).
+	if err := s.Store.SetStockEventStatus(ctx, id, model.StockEventPending, model.StockEventConfirmed); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, nil, fmt.Errorf("replacement is no longer pending")
+		}
 		return nil, nil, err
 	}
 	applied := &model.StockEvent{Actor: actor, Kind: model.StockEventReplacement, Delta: -1, DeviceID: ev.DeviceID, SupplyIndex: ev.SupplyIndex,
 		Reason: "confirmed: " + ev.Reason, Status: model.StockEventApplied}
 	c, err := s.Store.AdjustStock(ctx, ev.ConsumableID, applied)
 	if err != nil {
+		if rb := s.Store.SetStockEventStatus(context.WithoutCancel(ctx), id, model.StockEventConfirmed, model.StockEventPending); rb != nil {
+			s.Log.Error("replacement confirmation: stock update failed and the event could not be returned to pending", "event", id, "err", err, "rollback", rb)
+		}
 		return nil, nil, err
 	}
 	return applied, c, nil

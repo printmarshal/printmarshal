@@ -199,8 +199,13 @@ func (s *Server) deleteProfile(w http.ResponseWriter, r *http.Request) {
 
 type applyBody struct {
 	Target model.ConfigTarget `json:"target"`
-	DryRun bool               `json:"dryRun"`
+	DryRun *bool              `json:"dryRun"`
 }
+
+// dryRunOf is the write gate for every device-changing endpoint: a body
+// that omits dryRun gets a dry run; only an explicit false writes (spec §3
+// principle 4, code review H-007).
+func dryRunOf(p *bool) bool { return p == nil || *p }
 
 func (s *Server) applyProfile(w http.ResponseWriter, r *http.Request) {
 	var body applyBody
@@ -209,12 +214,13 @@ func (s *Server) applyProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	job, err := s.ConfigMgmt.Apply(r.Context(), configmgmt.ApplyRequest{ProfileID: id, Target: body.Target, DryRun: body.DryRun}, actor(r))
+	dryRun := dryRunOf(body.DryRun)
+	job, err := s.ConfigMgmt.Apply(r.Context(), configmgmt.ApplyRequest{ProfileID: id, Target: body.Target, DryRun: dryRun}, actor(r))
 	if err != nil {
 		s.configFail(w, err)
 		return
 	}
-	s.audit(r.Context(), r, "profile.apply", id, nil, map[string]any{"jobId": job.ID, "target": job.Target, "dryRun": body.DryRun}, "queued")
+	s.audit(r.Context(), r, "profile.apply", id, nil, map[string]any{"jobId": job.ID, "target": job.Target, "dryRun": dryRun}, "queued")
 	writeJSON(w, http.StatusAccepted, map[string]any{"job": job})
 }
 
@@ -275,7 +281,7 @@ func (s *Server) deviceConfigSnapshots(w http.ResponseWriter, r *http.Request) {
 func (s *Server) applyDeviceConfig(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Changes []model.SettingChange `json:"changes"`
-		DryRun  bool                  `json:"dryRun"`
+		DryRun  *bool                 `json:"dryRun"`
 	}
 	if err := readJSON(r, &body); err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
@@ -288,12 +294,12 @@ func (s *Server) applyDeviceConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	job, err := s.ConfigMgmt.Apply(r.Context(), configmgmt.ApplyRequest{Changes: body.Changes, Target: model.ConfigTarget{DeviceIDs: []string{id}}, DryRun: body.DryRun}, actor(r))
+	job, err := s.ConfigMgmt.Apply(r.Context(), configmgmt.ApplyRequest{Changes: body.Changes, Target: model.ConfigTarget{DeviceIDs: []string{id}}, DryRun: dryRunOf(body.DryRun)}, actor(r))
 	if err != nil {
 		s.configFail(w, err)
 		return
 	}
-	s.audit(r.Context(), r, "device.config.apply", id, nil, map[string]any{"jobId": job.ID, "changes": job.Params["changes"], "dryRun": body.DryRun}, "queued")
+	s.audit(r.Context(), r, "device.config.apply", id, nil, map[string]any{"jobId": job.ID, "changes": job.Params["changes"], "dryRun": dryRunOf(body.DryRun)}, "queued")
 	writeJSON(w, http.StatusAccepted, map[string]any{"job": job})
 }
 
@@ -356,7 +362,7 @@ func (s *Server) getConfigWrite(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) revertConfigWrite(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		DryRun bool `json:"dryRun"`
+		DryRun *bool `json:"dryRun"`
 	}
 	if r.ContentLength != 0 {
 		if err := readJSON(r, &body); err != nil {
@@ -365,7 +371,7 @@ func (s *Server) revertConfigWrite(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	id := r.PathValue("id")
-	job, err := s.ConfigMgmt.Revert(r.Context(), id, body.DryRun, actor(r))
+	job, err := s.ConfigMgmt.Revert(r.Context(), id, dryRunOf(body.DryRun), actor(r))
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			s.fail(w, err)
@@ -374,6 +380,6 @@ func (s *Server) revertConfigWrite(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	s.audit(r.Context(), r, "config.revert", id, nil, map[string]any{"jobId": job.ID, "dryRun": body.DryRun}, "queued")
+	s.audit(r.Context(), r, "config.revert", id, nil, map[string]any{"jobId": job.ID, "dryRun": dryRunOf(body.DryRun)}, "queued")
 	writeJSON(w, http.StatusAccepted, map[string]any{"job": job})
 }

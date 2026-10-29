@@ -355,10 +355,11 @@ func (s *Server) deleteCampaign(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// startCampaign is the explicit confirmation gate for wave 1. Body: {"dryRun": bool} (optional).
+// startCampaign is the explicit confirmation gate for wave 1. Body:
+// {"dryRun": bool}; a missing body or field means dry run (H-007).
 func (s *Server) startCampaign(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		DryRun bool `json:"dryRun"`
+		DryRun *bool `json:"dryRun"`
 	}
 	if r.ContentLength != 0 {
 		if err := readJSON(r, &req); err != nil {
@@ -367,9 +368,9 @@ func (s *Server) startCampaign(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	id := r.PathValue("id")
-	c, err := s.Firmware.Start(r.Context(), id, actor(r), firmware.StartOptions{DryRun: req.DryRun})
+	c, err := s.Firmware.Start(r.Context(), id, actor(r), firmware.StartOptions{DryRun: dryRunOf(req.DryRun)})
 	if err != nil {
-		s.audit(r.Context(), r, "firmware.campaign.start", id, nil, map[string]any{"dryRun": req.DryRun}, "refused: "+err.Error())
+		s.audit(r.Context(), r, "firmware.campaign.start", id, nil, map[string]any{"dryRun": dryRunOf(req.DryRun)}, "refused: "+err.Error())
 		s.firmwareFail(w, err)
 		return
 	}

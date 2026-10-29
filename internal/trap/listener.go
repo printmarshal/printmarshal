@@ -209,7 +209,6 @@ func (l *Listener) onTrap(p *gosnmp.SnmpPacket, addr *net.UDPAddr) {
 	}
 	if sev == model.SeverityOK {
 		l.log.Info("informational trap", "source", addr.IP.String(), "description", desc)
-		return
 	}
 	l.h.HandleTrap(context.Background(), addr.IP.String(), desc, sev, vars)
 }

@@ -80,7 +80,7 @@ func (s *SQLite) findByIdentity(ctx context.Context, id *model.Identity) (*model
 		return s.getDevice(ctx, s.db.QueryRowContext(ctx, `SELECT `+deviceCols+` FROM devices WHERE `+col+`=? ORDER BY last_seen DESC LIMIT 1`, val))
 	}
 	for _, k := range []struct{ col, val string }{
-		{"serial", id.Serial}, {"uuid", id.UUID}, {"mac", strings.ToLower(id.MAC)}, {"address", id.Address},
+		{"serial", id.Serial}, {"uuid", id.UUID}, {"mac", strings.ToLower(id.MAC)},
 	} {
 		d, err := try(k.col, k.val)
 		if err == nil {
@@ -90,7 +90,28 @@ func (s *SQLite) findByIdentity(ctx context.Context, id *model.Identity) (*model
 			return nil, err
 		}
 	}
-	return nil, ErrNotFound
+	d, err := try("address", id.Address)
+	if err != nil {
+		return nil, err
+	}
+	if IdentityConflicts(d, id) {
+		// Another printer now answers at this address: a replacement must
+		// become its own record, not inherit the old one's groups,
+		// credentials and history (code review H-006).
+		return nil, ErrNotFound
+	}
+	return d, nil
+}
+
+// IdentityConflicts reports whether an address-matched record and an incoming
+// identity carry different, non-empty stable identifiers (serial, UUID or
+// MAC). Such a pair is two devices that have shared an address, never one.
+func IdentityConflicts(existing *model.Device, id *model.Identity) bool {
+	differs := func(a, b string) bool {
+		a, b = strings.TrimSpace(a), strings.TrimSpace(b)
+		return a != "" && b != "" && !strings.EqualFold(a, b)
+	}
+	return differs(existing.Serial, id.Serial) || differs(existing.UUID, id.UUID) || differs(existing.MAC, id.MAC)
 }
 
 // UpsertDevice implements Store. Automatic fields are refreshed; operator

@@ -146,7 +146,7 @@ func (s *Server) printProviderSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		DryRun bool `json:"dryRun"`
+		DryRun *bool `json:"dryRun"`
 	}
 	if r.ContentLength != 0 {
 		if err := readJSON(r, &req); err != nil {
@@ -154,13 +154,13 @@ func (s *Server) printProviderSync(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	job, err := p.Sync(r.Context(), actor(r), req.DryRun)
+	job, err := p.Sync(r.Context(), actor(r), dryRunOf(req.DryRun))
 	if err != nil {
-		s.audit(r.Context(), r, "printprovider.sync", "printprovider", nil, map[string]any{"dryRun": req.DryRun}, "refused: "+err.Error())
+		s.audit(r.Context(), r, "printprovider.sync", "printprovider", nil, map[string]any{"dryRun": dryRunOf(req.DryRun)}, "refused: "+err.Error())
 		writeErr(w, ppStatus(err), err.Error())
 		return
 	}
-	s.audit(r.Context(), r, "printprovider.sync", "printprovider", nil, map[string]any{"dryRun": req.DryRun, "jobId": job.ID}, "queued")
+	s.audit(r.Context(), r, "printprovider.sync", "printprovider", nil, map[string]any{"dryRun": dryRunOf(req.DryRun), "jobId": job.ID}, "queued")
 	writeJSON(w, http.StatusAccepted, map[string]any{"job": job})
 }
 

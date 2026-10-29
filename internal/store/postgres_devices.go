@@ -75,7 +75,7 @@ func (s *Postgres) findByIdentity(ctx context.Context, id *model.Identity) (*mod
 		return s.getDevice(pgRow(ctx, s.db, `SELECT `+deviceCols+` FROM devices WHERE `+col+`=? ORDER BY last_seen DESC LIMIT 1`, val))
 	}
 	for _, k := range []struct{ col, val string }{
-		{"serial", id.Serial}, {"uuid", id.UUID}, {"mac", strings.ToLower(id.MAC)}, {"address", id.Address},
+		{"serial", id.Serial}, {"uuid", id.UUID}, {"mac", strings.ToLower(id.MAC)},
 	} {
 		d, err := try(k.col, k.val)
 		if err == nil {
@@ -85,7 +85,17 @@ func (s *Postgres) findByIdentity(ctx context.Context, id *model.Identity) (*mod
 			return nil, err
 		}
 	}
-	return nil, ErrNotFound
+	d, err := try("address", id.Address)
+	if err != nil {
+		return nil, err
+	}
+	if IdentityConflicts(d, id) {
+		// Another printer now answers at this address: a replacement must
+		// become its own record, not inherit the old one's groups,
+		// credentials and history (code review H-006).
+		return nil, ErrNotFound
+	}
+	return d, nil
 }
 
 // UpsertDevice implements Store. Automatic fields are refreshed; operator
