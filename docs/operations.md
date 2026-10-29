@@ -368,7 +368,7 @@ PM_ADMIN_PASSWORD=change-me ./bin/printmarshal
 | `discovery.wsdWait` | — | `3s` | How long to collect WS-Discovery answers |
 | `discovery.scanWorkers` | — | `64` | Parallel probes during an active scan |
 | `discovery.maxAddresses` | — | `4096` | Largest scan accepted without the explicit "allow large" flag |
-| `discovery.reverseDns.enabled` | `PM_REVERSE_DNS_ENABLED` | `true` | Run PTR lookups to populate `Device.Hostname` when mDNS did not supply one |
+| `discovery.reverseDns.enabled` | `PM_REVERSE_DNS_ENABLED` | `false` | Run PTR lookups to populate `Device.DNSName` (`dnsName`) after identification and during polling |
 | `discovery.reverseDns.server` | `PM_REVERSE_DNS_SERVER` | system resolver | Custom DNS server (`host` or `host:port`, port `53` added when omitted) |
 | `discovery.reverseDns.shortNames` | `PM_REVERSE_DNS_SHORT_NAMES` | `true` | Store only the first DNS label (e.g. `printer-7`) |
 | `discovery.reverseDns.timeout` | `PM_REVERSE_DNS_TIMEOUT` | `1s` | Context timeout per reverse/forward lookup |

@@ -288,29 +288,29 @@ function SuppliesCard({ d, canOperate, hist }: { d: Device; canOperate: boolean;
   )
 }
 
-function hostnameSourceLabel(source?: Device['hostnameSource']): string {
-  switch (source) {
-    case 'dns': return 'from DNS'
-    case 'mdns': return 'from mDNS'
-    case 'advertised': return 'advertised'
-    default: return ''
-  }
-}
-
 function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; onSaved: (d: Device) => void }) {
-  const [form, setForm] = useState({ displayName: d.displayName, location: d.location, assetTag: d.assetTag, notes: d.notes })
+  const [form, setForm] = useState({ displayName: d.displayName, dnsSync: !!d.dnsSync, location: d.location, assetTag: d.assetTag, notes: d.notes })
   const [msg, setMsg] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const [usingDNS, setUsingDNS] = useState(false)
   const [groups, setGroups] = useState<{ id: string; name: string }[]>([])
-  useEffect(() => setForm({ displayName: d.displayName, location: d.location, assetTag: d.assetTag, notes: d.notes }), [d.id, d.displayName, d.location, d.assetTag, d.notes])
+  useEffect(() => setForm({ displayName: d.displayName, dnsSync: !!d.dnsSync, location: d.location, assetTag: d.assetTag, notes: d.notes }), [d.id, d.displayName, d.dnsSync, d.location, d.assetTag, d.notes])
   useEffect(() => { api.get<{ id: string; name: string; memberIds: string[] }[]>('/api/groups').then((gs) => setGroups(gs.filter((g) => g.memberIds.includes(d.id)))).catch(() => {}) }, [d.id])
-  const dirty = form.displayName !== d.displayName || form.location !== d.location || form.assetTag !== d.assetTag || form.notes !== d.notes
+  const dirty = form.displayName !== d.displayName || form.dnsSync !== !!d.dnsSync || form.location !== d.location || form.assetTag !== d.assetTag || form.notes !== d.notes
   const save = async (e: React.FormEvent) => { e.preventDefault(); try { onSaved(await api.patch<Device>(`/api/devices/${d.id}`, form)); setMsg('Saved.') } catch (err) { setMsg((err as Error).message) } }
   const refreshHostname = async () => {
     setRefreshing(true); setMsg('')
     try { onSaved(await api.post<Device>(`/api/devices/${d.id}/refresh-hostname`)) } catch (err) { setMsg((err as Error).message) } finally { setRefreshing(false) }
   }
-  const srcLabel = hostnameSourceLabel(d.hostnameSource)
+  const useDNSName = async () => {
+    setUsingDNS(true); setMsg('')
+    try {
+      await api.post('/api/devices/rename', { deviceIds: [d.id], source: 'dns', dryRun: false })
+      const r = await api.get<{ device: Device }>(`/api/devices/${d.id}`)
+      onSaved(r.device)
+      setMsg('Display name updated from DNS.')
+    } catch (err) { setMsg((err as Error).message) } finally { setUsingDNS(false) }
+  }
   const Row = ({ label, children, op }: { label: string; children: React.ReactNode; op?: boolean }) => <div className="frow"><span className="cap">{label}</span><span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{children}</span>{op === undefined ? <span /> : <Mk op={op} />}</div>
   return (
     <form className="card" id="identity" onSubmit={save} aria-labelledby="ida">
@@ -319,7 +319,28 @@ function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; on
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Mk op />Set by operator — never overwritten</span><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Mk op={false} />Discovered from device</span>
       </div>
       <div style={{ padding: '6px 0' }}>
-        <div className="frow"><label className="cap" htmlFor="f-name">Display name</label><input className="fin" id="f-name" value={form.displayName} disabled={!canEdit} placeholder={d.hostname || d.sysName || d.model} onChange={(e) => setForm({ ...form, displayName: e.target.value })} /><Mk op /></div>
+        <div className="frow">
+          <label className="cap" htmlFor="f-name">Display name</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <input className="fin" id="f-name" value={form.displayName} disabled={!canEdit} placeholder={d.sysName || d.hostname || d.model} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
+            {d.displayNameSource && <span className="cap" style={{ fontSize: 11 }}>Set from {d.displayNameSource}</span>}
+            {d.dnsNameChanged && (
+              <div style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                <Pill tone="warn" xs>DNS name changed</Pill>
+                {canEdit && d.dnsName && !d.dnsNameSuspect && <Btn sm variant="ghost" onClick={useDNSName} disabled={usingDNS} style={{ height: 22, padding: '0 6px', fontSize: 11 }}>{usingDNS ? 'Updating…' : 'Use DNS name'}</Btn>}
+              </div>
+            )}
+          </div>
+          <Mk op />
+        </div>
+        <div className="frow">
+          <span className="cap">DNS sync</span>
+          <label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <input className="cbx" type="checkbox" checked={form.dnsSync} disabled={!canEdit} onChange={(e) => setForm({ ...form, dnsSync: e.target.checked })} />
+            Keep display name synced with DNS name
+          </label>
+          <Mk op />
+        </div>
         <div className="frow"><label className="cap" htmlFor="f-loc">Location</label><input className="fin" id="f-loc" value={form.location} disabled={!canEdit} onChange={(e) => setForm({ ...form, location: e.target.value })} /><Mk op /></div>
         <div className="frow"><label className="cap" htmlFor="f-tag">Asset tag</label><input className="fin mono" id="f-tag" value={form.assetTag} disabled={!canEdit} onChange={(e) => setForm({ ...form, assetTag: e.target.value })} /><Mk op /></div>
         <div className="frow" style={{ alignItems: 'start' }}><label className="cap" htmlFor="f-notes" style={{ paddingTop: 6 }}>Notes</label><textarea className="fin" id="f-notes" rows={2} value={form.notes} disabled={!canEdit} onChange={(e) => setForm({ ...form, notes: e.target.value })} /><Mk op /></div>
@@ -330,10 +351,18 @@ function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; on
         <Row label="MAC" op={false}><span className="mono">{d.mac || '—'}</span></Row>
         <Row label="UUID" op={false}><span className="mono" style={{ fontSize: 11 }}>{d.uuid || '—'}</span></Row>
         <Row label="Firmware" op={false}><span className="mono">{d.firmware || '—'}</span></Row>
-        <Row label="Hostname" op={false}>
+        <Row label="Hostname" op={false}><span className="mono">{d.hostname || '—'}</span> <span className="cap">· mDNS / advertised</span></Row>
+        <Row label="sysName" op={false}><span className="mono">{d.sysName || '—'}</span> <span className="cap">· advertised</span></Row>
+        <Row label="DNS name" op={false}>
           <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-            <span className="mono">{d.hostname || '—'}</span>
-            {d.hostname && srcLabel && <span className="cap">· {srcLabel}</span>}
+            <span className="mono">{d.dnsName || '—'}</span>
+            {d.dnsName && d.dnsNameSuspect && <Pill tone="warn" xs title="Invalid characters, over length, or auto-generated from IP">Suspect</Pill>}
+            {d.dnsCheckedAt && <span className="cap">· checked {ago(d.dnsCheckedAt)}</span>}
+            {canEdit && d.dnsName && !d.dnsNameSuspect && d.displayName !== d.dnsName && (
+              <Btn sm variant="ghost" onClick={useDNSName} disabled={usingDNS} style={{ height: 22, padding: '0 6px', fontSize: 11 }}>
+                {usingDNS ? 'Applying…' : 'Use DNS name'}
+              </Btn>
+            )}
             {canEdit && <Btn sm variant="ghost" onClick={refreshHostname} disabled={refreshing} style={{ height: 22, padding: '0 6px', fontSize: 11 }}>{refreshing ? 'Refreshing…' : 'Refresh'}</Btn>}
           </span>
         </Row>

@@ -58,7 +58,7 @@ Duration strings use Go duration syntax: `30s`, `5m`, `720h`; `30d` is not suppo
 | `discovery.scanWorkers` | `int` | — | 64 | Concurrent active-scan liveness probes. |
 | `discovery.maxAddresses` | `int` | — | 4096 | Scan expansion cap unless the request sets allowLarge. |
 | `discovery.targets` | `[]string` | `PM_DISCOVERY_TARGETS` | empty | Default scheduled active-scan IPs, ranges or IPv4 CIDRs. |
-| `discovery.reverseDns.enabled` | `bool` | `PM_REVERSE_DNS_ENABLED` | true | Run PTR lookups to fill `Device.Hostname` when the device has no mDNS hostname. |
+| `discovery.reverseDns.enabled` | `bool` | `PM_REVERSE_DNS_ENABLED` | false | Run PTR lookups to fill `Device.DNSName` (`dnsName`); off by default and never overwrites `Device.Hostname`. |
 | `discovery.reverseDns.server` | `string` | `PM_REVERSE_DNS_SERVER` | empty → system resolver | Custom DNS server (`host` or `host:port`, port 53 added if omitted). |
 | `discovery.reverseDns.shortNames` | `bool` | `PM_REVERSE_DNS_SHORT_NAMES` | true | Store only the first DNS label (strip domain suffix). |
 | `discovery.reverseDns.timeout` | `Duration` | `PM_REVERSE_DNS_TIMEOUT` | 1s | Context timeout per reverse/forward lookup. |
@@ -251,11 +251,12 @@ The write driver derives TLS candidates before plaintext forms. `ippWriteRequire
 | `supplyCriticalPercent` | `alerts.supplyCriticalPercent` | Critical ≥ 0 and below warning. |
 | `offlineAfterFailures` | `alerts.offlineAfterFailures` | At least 1. |
 | `telemetryRetention` | `telemetry.retention` | At least 24h. |
+| `names.source` | `"advertised"` | `"advertised"` (default), `"dns"` or `"display"`. |
 
 The scheduler re-reads intervals/flags/targets every five-second tick. Alert evaluation loads effective thresholds per poll. Pruning runs every six hours. Settings changes do not rebuild the engine or resize its existing channel.
 
 ```json
-{"pollInterval":"5m","pollConcurrency":32,"discoveryEnabled":false,"discoveryInterval":"1h","discoveryTargets":[],"supplyWarningPercent":15,"supplyCriticalPercent":5,"offlineAfterFailures":2,"telemetryRetention":"2160h"}
+{"pollInterval":"5m","pollConcurrency":32,"discoveryEnabled":false,"discoveryInterval":"1h","discoveryTargets":[],"supplyWarningPercent":15,"supplyCriticalPercent":5,"offlineAfterFailures":2,"telemetryRetention":"2160h","names":{"source":"advertised"}}
 ```
 
 Consumable settings use `GET/PUT /api/consumables/settings`, stored under `consumables`; see [Consumables and stock](Consumables-and-stock.md). Print-provider settings use `GET/PUT /api/print-provider`, stored under `printprovider`; see [Print provider](Print-provider.md). Neither has direct env overrides.

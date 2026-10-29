@@ -19,16 +19,21 @@ func scanDevicePG(r rowScanner) (*model.Device, error) {
 		caps, disc, ident, supplies, trays string
 		status, counters                   sql.NullString
 		firstSeen, lastSeen, created, upd  time.Time
-		lastPolled                         sql.NullTime
+		lastPolled, dnsCheckedAt           sql.NullTime
+		dnsNameSuspect, dnsSync            int
 		failures                           int
 		severity                           string
 	)
-	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.HostnameSource, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
-		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.Location, &d.AssetTag,
+	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.DNSName, &dnsNameSuspect, &dnsCheckedAt, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
+		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.DisplayNameSource, &dnsSync, &d.Location, &d.AssetTag,
 		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd)
 	if err != nil {
 		return nil, err
 	}
+	d.DNSNameSuspect = dnsNameSuspect != 0
+	d.DNSCheckedAt = timeOf(dnsCheckedAt)
+	d.DNSSync = dnsSync != 0
+	d.DNSNameChanged = !d.DNSSync && d.DisplayNameSource == "dns" && d.DNSName != "" && d.DisplayName != "" && d.DNSName != d.DisplayName
 	d.Capabilities = map[model.Capability]string{}
 	fromJSON(sql.NullString{String: caps, Valid: true}, &d.Capabilities)
 	d.DiscoveryMethods = []string{}
@@ -109,10 +114,10 @@ func (s *Postgres) UpsertDevice(ctx context.Context, id *model.Identity, caps ma
 	n := nowUTC()
 	if existing == nil {
 		d := &model.Device{ID: newID()}
-		_, err := pgExec(ctx, s.db, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(34)+`)`,
-			d.ID, id.Address, id.Hostname, id.HostnameSource, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
+		_, err := pgExec(ctx, s.db, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(38)+`)`,
+			d.ID, id.Address, id.Hostname, "", 0, nil, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
 			id.SysDescr, id.SysName, id.EnterpriseID, id.AdminURL, toJSON(caps), toJSON(discoveryMethods), toJSON(identMethods),
-			"", id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n)
+			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n)
 		if err != nil {
 			return nil, false, err
 		}
@@ -125,11 +130,6 @@ func (s *Postgres) UpsertDevice(ctx context.Context, id *model.Identity, caps ma
 		}
 		return old
 	}
-	hostname, hostnameSource := existing.Hostname, existing.HostnameSource
-	if strings.TrimSpace(id.Hostname) != "" && (existing.Hostname == "" || hostnameRank(id.HostnameSource) >= hostnameRank(existing.HostnameSource)) {
-		hostname = id.Hostname
-		hostnameSource = pick(id.HostnameSource, existing.HostnameSource)
-	}
 	merged := map[model.Capability]string{}
 	for k, v := range existing.Capabilities {
 		merged[k] = v
@@ -139,10 +139,10 @@ func (s *Postgres) UpsertDevice(ctx context.Context, id *model.Identity, caps ma
 	}
 	disc := appendUnique(existing.DiscoveryMethods, discoveryMethods...)
 	ident := appendUnique(existing.IdentifyMethods, identMethods...)
-	_, err = pgExec(ctx, s.db, `UPDATE devices SET address=?, hostname=?, hostname_source=?, mac=?, serial=?, uuid=?, make=?, model=?, device_type=?,
+	_, err = pgExec(ctx, s.db, `UPDATE devices SET address=?, hostname=?, mac=?, serial=?, uuid=?, make=?, model=?, device_type=?,
 		firmware=?, sys_descr=?, sys_name=?, enterprise_id=?, admin_url=?, capabilities=?, discovery_methods=?, identify_methods=?,
 		last_seen=?, updated_at=? WHERE id=?`,
-		id.Address, hostname, hostnameSource, strings.ToLower(pick(id.MAC, existing.MAC)), pick(id.Serial, existing.Serial),
+		id.Address, pick(id.Hostname, existing.Hostname), strings.ToLower(pick(id.MAC, existing.MAC)), pick(id.Serial, existing.Serial),
 		pick(id.UUID, existing.UUID), pick(id.Make, existing.Make), pick(id.Model, existing.Model), pick(id.DeviceType, existing.DeviceType),
 		pick(id.Firmware, existing.Firmware), pick(id.SysDescr, existing.SysDescr), pick(id.SysName, existing.SysName),
 		maxInt(id.EnterpriseID, existing.EnterpriseID), pick(id.AdminURL, existing.AdminURL), toJSON(merged), toJSON(disc), toJSON(ident),
@@ -250,6 +250,15 @@ func (s *Postgres) PatchDevice(ctx context.Context, id string, p DevicePatch) (*
 	}
 	if p.DisplayName != nil {
 		d.DisplayName = *p.DisplayName
+		if p.DisplayNameSource == nil {
+			d.DisplayNameSource = ""
+		}
+	}
+	if p.DisplayNameSource != nil {
+		d.DisplayNameSource = *p.DisplayNameSource
+	}
+	if p.DNSSync != nil {
+		d.DNSSync = *p.DNSSync
 	}
 	if p.Location != nil {
 		d.Location = *p.Location
@@ -260,17 +269,29 @@ func (s *Postgres) PatchDevice(ctx context.Context, id string, p DevicePatch) (*
 	if p.Notes != nil {
 		d.Notes = *p.Notes
 	}
-	_, err = pgExec(ctx, s.db, `UPDATE devices SET display_name=?, location=?, asset_tag=?, notes=?, updated_at=? WHERE id=?`,
-		d.DisplayName, d.Location, d.AssetTag, d.Notes, nowUTC(), id)
+	dnsSync := 0
+	if d.DNSSync {
+		dnsSync = 1
+	}
+	_, err = pgExec(ctx, s.db, `UPDATE devices SET display_name=?, display_name_source=?, dns_sync=?, location=?, asset_tag=?, notes=?, updated_at=? WHERE id=?`,
+		d.DisplayName, d.DisplayNameSource, dnsSync, d.Location, d.AssetTag, d.Notes, nowUTC(), id)
 	if err != nil {
 		return nil, err
 	}
 	return s.GetDevice(ctx, id)
 }
 
-// SetDeviceHostname implements Store.
-func (s *Postgres) SetDeviceHostname(ctx context.Context, id, hostname, source string) (*model.Device, error) {
-	if err := affected(pgExec(ctx, s.db, `UPDATE devices SET hostname=?, hostname_source=?, updated_at=? WHERE id=?`, hostname, source, nowUTC(), id)); err != nil {
+// SetDeviceDNS implements Store.
+func (s *Postgres) SetDeviceDNS(ctx context.Context, id, dnsName string, suspect bool, checkedAt time.Time) (*model.Device, error) {
+	susp := 0
+	if suspect {
+		susp = 1
+	}
+	if checkedAt.IsZero() {
+		checkedAt = nowUTC()
+	}
+	if err := affected(pgExec(ctx, s.db, `UPDATE devices SET dns_name=?, dns_name_suspect=?, dns_checked_at=?, updated_at=? WHERE id=?`,
+		dnsName, susp, pgt(checkedAt), nowUTC(), id)); err != nil {
 		return nil, err
 	}
 	return s.GetDevice(ctx, id)

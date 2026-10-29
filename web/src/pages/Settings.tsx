@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api, fmtTime } from '../api'
-import type { AuditEntry, ConsumableSettings, User } from '../types'
+import type { AuditEntry, ConsumableSettings, NameSource, User } from '../types'
+import { setNameSource } from '../types'
 import { useDensity, useTheme } from '../theme'
 import { Ic } from '../components/icons'
 import { Av, Banner, Btn, Card, EmptyState, Pill, Seg, Tag } from '../components/ui'
@@ -95,9 +96,9 @@ function Users({ me }: { me: User }) {
   )
 }
 
-interface Runtime { pollInterval: string; pollConcurrency: number; discoveryEnabled: boolean; discoveryInterval: string; discoveryTargets: string[] | null; supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number; telemetryRetention: string }
+interface Runtime { pollInterval: string; pollConcurrency: number; discoveryEnabled: boolean; discoveryInterval: string; discoveryTargets: string[] | null; supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number; telemetryRetention: string; names?: { source: NameSource } }
 interface OutboxRow { id: number; eventId: string; event: string; notifier: string; subject: string; state: string; attempts: number; lastError?: string; nextAt: string; createdAt: string; doneAt?: string }
-interface RuntimeSettings { version: string; poll: { interval: string; concurrency: number }; discovery: { enabled: boolean; interval: string; targets: string[] | null; maxAddresses: number }; trap: { enabled: boolean; listen: string }; alerts: { supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number }; telemetry?: { retention: string }; runtime?: Runtime; defaults?: Runtime; notifiers: { name: string; type: string; events: string[] | null }[] }
+interface RuntimeSettings { version: string; poll: { interval: string; concurrency: number }; discovery: { enabled: boolean; interval: string; targets: string[] | null; maxAddresses: number }; trap: { enabled: boolean; listen: string }; alerts: { supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number }; telemetry?: { retention: string }; names?: { source: NameSource }; runtime?: Runtime; defaults?: Runtime; notifiers: { name: string; type: string; events: string[] | null }[] }
 
 function Notifications({ isAdmin }: { isAdmin: boolean }) {
   const [s, setS] = useState<RuntimeSettings | null>(null)
@@ -189,21 +190,28 @@ function System({ isAdmin }: { isAdmin: boolean }) {
 function ScheduleCard({ s, isAdmin, onSaved }: { s: RuntimeSettings | null; isAdmin: boolean; onSaved: (s: RuntimeSettings) => void }) {
   const [r, setR] = useState<Runtime | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  useEffect(() => { if (s?.runtime) setR({ ...s.runtime, discoveryTargets: s.runtime.discoveryTargets || [] }) }, [s])
+  useEffect(() => { if (s?.runtime) setR({ ...s.runtime, discoveryTargets: s.runtime.discoveryTargets || [], names: { source: s.runtime.names?.source || 'advertised' } }) }, [s])
   if (!s || !r) return <Card title="Polling & discovery" id="pol"><div className="cb cap">Loading…</div></Card>
   const d = s.defaults
   const overridden = (k: keyof Runtime) => d && JSON.stringify(d[k]) !== JSON.stringify(r[k])
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setMsg(null)
-    try { const saved = await api.patch<Runtime>('/api/settings', r); onSaved({ ...s, runtime: saved }); setMsg({ ok: true, text: 'Saved. The scheduler picks this up on its next tick.' }) } catch (err) { setMsg({ ok: false, text: (err as Error).message }) }
+    try { const saved = await api.patch<Runtime>('/api/settings', r); setNameSource(saved.names?.source); onSaved({ ...s, runtime: saved, names: saved.names }); setMsg({ ok: true, text: 'Saved. The scheduler picks this up on its next tick.' }) } catch (err) { setMsg({ ok: false, text: (err as Error).message }) }
   }
-  const reset = async () => { try { await api.del('/api/settings'); const fresh = await api.get<RuntimeSettings>('/api/settings'); onSaved(fresh); setMsg({ ok: true, text: 'Reset to the config file defaults.' }) } catch (err) { setMsg({ ok: false, text: (err as Error).message }) } }
+  const reset = async () => { try { await api.del('/api/settings'); const fresh = await api.get<RuntimeSettings>('/api/settings'); setNameSource(fresh.runtime?.names?.source); onSaved(fresh); setMsg({ ok: true, text: 'Reset to the config file defaults.' }) } catch (err) { setMsg({ ok: false, text: (err as Error).message }) } }
   const dur = (label: string, k: 'pollInterval' | 'discoveryInterval' | 'telemetryRetention', hint?: string) => (
     <SRow label={<>{label}{overridden(k) && <Tag>overrides file</Tag>}</>} hint={hint}><div className="row"><input className="fin mono" style={{ width: 120 }} value={r[k]} disabled={!isAdmin} onChange={(e) => setR({ ...r, [k]: e.target.value })} /><span className="cap">Go duration, e.g. 5m, 1h, 720h</span></div></SRow>
   )
   return (
     <form className="card" onSubmit={save} aria-labelledby="pol">
       <div className="ch"><div><h2 className="h2" id="pol">Polling & discovery</h2><div className="cap">effective values · overrides are saved here and applied without a restart; the config file / PM_* variables remain the defaults</div></div></div>
+      <SRow label={<>Device names{overridden('names') && <Tag>overrides file</Tag>}</>} hint="preferred name source in lists and headers when present">
+        <select className="fin" style={{ width: 240 }} aria-label="Device names" value={r.names?.source || 'advertised'} disabled={!isAdmin} onChange={(e) => setR({ ...r, names: { source: e.target.value as NameSource } })}>
+          <option value="advertised">Advertised (default)</option>
+          <option value="dns">DNS name</option>
+          <option value="display">Operator display name</option>
+        </select>
+      </SRow>
       {dur('Scheduled poll', 'pollInterval', 'status, supplies, trays, counters, firmware')}
       <SRow label={<>Poll concurrency{overridden('pollConcurrency') && <Tag>overrides file</Tag>}</>} hint="simultaneous device reads"><input className="fin num" type="number" min={1} max={512} style={{ width: 100 }} value={r.pollConcurrency} disabled={!isAdmin} onChange={(e) => setR({ ...r, pollConcurrency: Number(e.target.value) })} /></SRow>
       <SRow label={<>Scheduled discovery{overridden('discoveryEnabled') && <Tag>overrides file</Tag>}</>} hint="zero-config plus the targets below"><label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><input className="cbx" type="checkbox" checked={r.discoveryEnabled} disabled={!isAdmin} onChange={(e) => setR({ ...r, discoveryEnabled: e.target.checked })} />Run discovery on a schedule</label></SRow>

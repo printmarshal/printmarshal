@@ -98,7 +98,7 @@ type Config struct {
 	Export Export `json:"export"`
 }
 
-// ReverseDNS configures PTR lookups that fill Device.Hostname when mDNS is silent.
+// ReverseDNS configures optional PTR lookups that fill Device.DNSName.
 type ReverseDNS struct {
 	Enabled         bool     `json:"enabled"`
 	Server          string   `json:"server"`
@@ -324,7 +324,7 @@ func Default() *Config {
 	c.Discovery.ScanWorkers = 64
 	c.Discovery.MaxAddresses = 4096
 	c.Discovery.ReverseDNS = ReverseDNS{
-		Enabled:         true,
+		Enabled:         false,
 		Server:          "",
 		ShortNames:      true,
 		Timeout:         Duration(1 * time.Second),

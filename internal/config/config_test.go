@@ -34,11 +34,11 @@ func TestIPPWriteRequireTLS(t *testing.T) {
 
 func TestReverseDNSConfig(t *testing.T) {
 	def := Default().Discovery.ReverseDNS
-	if !def.Enabled || def.Server != "" || !def.ShortNames || def.Timeout.D() != time.Second || def.RefreshInterval.D() != 24*time.Hour || !def.ForwardConfirm {
+	if def.Enabled || def.Server != "" || !def.ShortNames || def.Timeout.D() != time.Second || def.RefreshInterval.D() != 24*time.Hour || !def.ForwardConfirm {
 		t.Fatalf("unexpected defaults: %+v", def)
 	}
 	path := filepath.Join(t.TempDir(), "pm.json")
-	raw := `{"discovery":{"reverseDns":{"enabled":false,"server":"10.0.0.53","shortNames":false,"timeout":"2s","refreshInterval":"12h","forwardConfirm":false}}}`
+	raw := `{"discovery":{"reverseDns":{"enabled":true,"server":"10.0.0.53","shortNames":false,"timeout":"2s","refreshInterval":"12h","forwardConfirm":false}}}`
 	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -47,10 +47,10 @@ func TestReverseDNSConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := c.Discovery.ReverseDNS
-	if r.Enabled || r.Server != "10.0.0.53" || r.ShortNames || r.Timeout.D() != 2*time.Second || r.RefreshInterval.D() != 12*time.Hour || r.ForwardConfirm {
+	if !r.Enabled || r.Server != "10.0.0.53" || r.ShortNames || r.Timeout.D() != 2*time.Second || r.RefreshInterval.D() != 12*time.Hour || r.ForwardConfirm {
 		t.Fatalf("JSON reverseDns not applied: %+v", r)
 	}
-	t.Setenv("PM_REVERSE_DNS_ENABLED", "true")
+	t.Setenv("PM_REVERSE_DNS_ENABLED", "false")
 	t.Setenv("PM_REVERSE_DNS_SERVER", "192.0.2.53:5353")
 	t.Setenv("PM_REVERSE_DNS_SHORT_NAMES", "1")
 	t.Setenv("PM_REVERSE_DNS_TIMEOUT", "500ms")
@@ -61,7 +61,7 @@ func TestReverseDNSConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	r = c.Discovery.ReverseDNS
-	if !r.Enabled || r.Server != "192.0.2.53:5353" || !r.ShortNames || r.Timeout.D() != 500*time.Millisecond || r.RefreshInterval.D() != 6*time.Hour || !r.ForwardConfirm {
+	if r.Enabled || r.Server != "192.0.2.53:5353" || !r.ShortNames || r.Timeout.D() != 500*time.Millisecond || r.RefreshInterval.D() != 6*time.Hour || !r.ForwardConfirm {
 		t.Fatalf("env overrides not applied: %+v", r)
 	}
 }

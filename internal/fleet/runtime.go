@@ -11,6 +11,11 @@ import (
 	"printmarshal/internal/store"
 )
 
+// NameSettings configures which name source takes precedence in lists and headers.
+type NameSettings struct {
+	Source string `json:"source"` // advertised | dns | display
+}
+
 // RuntimeSettings are the operator-adjustable scheduler and alert settings.
 // The config file/environment provide defaults; overrides saved through the
 // API live in the settings table and take effect on the next scheduler tick.
@@ -24,6 +29,7 @@ type RuntimeSettings struct {
 	SupplyCriticalPercent int             `json:"supplyCriticalPercent"`
 	OfflineAfterFailures  int             `json:"offlineAfterFailures"`
 	TelemetryRetention    config.Duration `json:"telemetryRetention"`
+	Names                 NameSettings    `json:"names"`
 }
 
 const runtimeKey = "runtime"
@@ -36,6 +42,7 @@ func (s *Service) Defaults() RuntimeSettings {
 		DiscoveryEnabled: c.Discovery.Enabled, DiscoveryInterval: c.Discovery.Interval, DiscoveryTargets: append([]string{}, c.Discovery.Targets...),
 		SupplyWarningPercent: c.Alerts.SupplyWarningPercent, SupplyCriticalPercent: c.Alerts.SupplyCriticalPercent, OfflineAfterFailures: c.Alerts.OfflineAfterFailures,
 		TelemetryRetention: c.Telemetry.Retention,
+		Names:              NameSettings{Source: "advertised"},
 	}
 }
 
@@ -71,6 +78,9 @@ func (s *Service) Runtime(ctx context.Context) RuntimeSettings {
 	if saved.TelemetryRetention > 0 {
 		eff.TelemetryRetention = saved.TelemetryRetention
 	}
+	if saved.Names.Source != "" {
+		eff.Names.Source = saved.Names.Source
+	}
 	return eff
 }
 
@@ -93,6 +103,14 @@ func (s *Service) SaveRuntime(ctx context.Context, r RuntimeSettings) error {
 	}
 	if r.TelemetryRetention.D() < 24*time.Hour {
 		return errors.New("telemetry retention must be at least 24h")
+	}
+	if r.Names.Source == "" {
+		r.Names.Source = "advertised"
+	}
+	switch r.Names.Source {
+	case "advertised", "dns", "display":
+	default:
+		return errors.New(`names.source must be "advertised", "dns" or "display"`)
 	}
 	for i, t := range r.DiscoveryTargets {
 		r.DiscoveryTargets[i] = strings.TrimSpace(t)
