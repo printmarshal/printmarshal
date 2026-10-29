@@ -68,10 +68,12 @@ a.nav.soon{opacity:.55;cursor:default}
 .grid-2{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(440px,1fr))}
 .grid-3{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
 @media (max-width:640px){.grid-2,.grid-3{grid-template-columns:1fr}.content{padding:16px}.top{padding:10px 16px}}
-/* Phone width: the sidebar becomes a drawer opened from the top bar. */
-.menu-btn{display:none}
+/* Phone width: the sidebar becomes a drawer opened from the top bar.
+   .btn.menu-btn (not .menu-btn alone): the later .btn{display:inline-flex}
+   has equal specificity and would otherwise keep the button visible. */
+.btn.menu-btn{display:none}
 @media (max-width:768px){
-  .menu-btn{display:inline-flex}
+  .btn.menu-btn{display:inline-flex}
   .side{position:fixed;left:0;top:0;bottom:0;z-index:45;transform:translateX(-100%);transition:transform .18s ease;box-shadow:var(--shadow);width:240px}
   .side.open{transform:none}
   .side.collapsed{width:240px;padding:12px 10px}
