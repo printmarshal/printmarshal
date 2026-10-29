@@ -31,10 +31,11 @@ type DeviceFilter struct {
 
 // DevicePatch holds operator-editable fields (spec §8.2). Nil = unchanged.
 type DevicePatch struct {
-	DisplayName *string
-	Location    *string
-	AssetTag    *string
-	Notes       *string
+	DisplayName    *string
+	Location       *string
+	AssetTag       *string
+	Notes          *string
+	WebURLOverride *string // "" clears; validated by the API with model.ValidWebURL
 }
 
 // PollUpdate is what a poll writes back onto a device (automatic fields only).
@@ -134,6 +135,9 @@ type Store interface {
 	ListDevices(ctx context.Context, f DeviceFilter) ([]*model.Device, error)
 	CountDevices(ctx context.Context, f DeviceFilter) (int, error)
 	PatchDevice(ctx context.Context, id string, p DevicePatch) (*model.Device, error)
+	// SetDeviceWebURLProbed records what the web-page probe found (a URL or
+	// model.WebURLNone) without touching operator fields.
+	SetDeviceWebURLProbed(ctx context.Context, id, url string) error
 	SetDeviceState(ctx context.Context, id string, state model.LifecycleState) (*model.Device, error)
 	ApplyPoll(ctx context.Context, id string, u PollUpdate) (*model.Device, error)
 	DeviceFailures(ctx context.Context, id string) (int, error)
