@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 560" width="1180" height="560" font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif">
+  <title>PrintMarshal app icon sketches, round 7: D with a shield tile, and reversed</title>
+  <style>
+    @font-face { font-family: 'Barlow'; src: url('file:///private/tmp/claude-502/-Users-ktaynaz-printmarshal/c4ba53fc-560e-4883-8781-3cbcdf33ad31/scratchpad/fonts/Barlow-Bold.ttf'); font-weight: 700; }
+    .label { font-size:18px; font-weight:600; fill:#14171E; }
+    .note { font-size:13px; fill:#5B6676; }
+    .tile { font-family:'Barlow', system-ui, sans-serif; font-weight:700; }
+  </style>
+  <defs>
+    <linearGradient id="gCobalt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A6FF0"/><stop offset="1" stop-color="#1E3AA8"/></linearGradient>
+    <linearGradient id="gMist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DDE3EC"/></linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+    <linearGradient id="gBlock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE3EF"/></linearGradient>
+    <linearGradient id="gBlockBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3D63F0"/><stop offset="1" stop-color="#2142BE"/></linearGradient>
+    <linearGradient id="gTile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2748C9"/><stop offset="1" stop-color="#15287A"/></linearGradient>
+    <linearGradient id="gTileLight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3E8F2"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#081547" flood-opacity="0.40"/></filter>
+    <filter id="shadowL" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#1B2A5E" flood-opacity="0.22"/></filter>
+    <filter id="shadowSoft" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#081547" flood-opacity="0.35"/></filter>
+    <filter id="shadowSoftL" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#1B2A5E" flood-opacity="0.20"/></filter>
+    <symbol id="mfp" viewBox="0 0 128 128">
+      <g style="fill:var(--blk,#FFFFFF)">
+        <rect x="30" y="7" width="34" height="11" rx="3"/>
+        <rect x="20" y="20" width="88" height="10" rx="2.5"/>
+        <rect x="20" y="33" width="88" height="39" rx="4"/>
+        <rect x="20" y="75" width="88" height="19" rx="3"/>
+        <rect x="20" y="97" width="88" height="21" rx="3"/>
+        <rect x="26" y="120" width="8" height="5" rx="1.5"/>
+        <rect x="94" y="120" width="8" height="5" rx="1.5"/>
+      </g>
+      <rect x="97" y="35" width="24" height="12" rx="2.5" style="fill:var(--blk,#FFFFFF);stroke:var(--bg);stroke-width:3"/>
+      <g style="fill:var(--bg)">
+        <rect x="30" y="43" width="50" height="8" rx="1.5"/>
+        <rect x="54" y="83" width="20" height="3.5" rx="1.5"/>
+        <rect x="54" y="106" width="20" height="3.5" rx="1.5"/>
+      </g>
+    </symbol>
+    <symbol id="shield" viewBox="0 0 24 28">
+      <path d="M12 1.5 L22 5 V13 C22 19.5 17.5 24.5 12 26.5 C6.5 24.5 2 19.5 2 13 V5 Z"/>
+    </symbol>
+  </defs>
+
+  <rect width="1180" height="560" fill="#F4F6F9"/>
+  <text x="30" y="40" font-size="24" font-weight="700" fill="#14171E">PrintMarshal app icon sketches, round 7: D with a shield tile, and reversed (30 Oct 2026, drafts)</text>
+  <text x="30" y="62" class="note">Layered MFP (a translucent second machine behind), the corner tile replaced by a shield carrying the P. Right: the same icon with its colours reversed. Each at 240 px, 96 px, 48 px, 24 px.</text>
+
+  <!-- D1: Cobalt -->
+  <g transform="translate(30,80)">
+    <rect width="550" height="450" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(24,24)">
+      <rect width="240" height="240" rx="55" fill="url(#gCobalt)"/><rect width="240" height="240" rx="55" fill="url(#gloss)"/>
+      <g style="--blk:#AFC0F5;--bg:#2E54E6" opacity="0.55"><use href="#mfp" x="70" y="12" width="168" height="168"/></g>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadow)"><use href="#mfp" x="41" y="36" width="168" height="168"/></g>
+      <g filter="url(#shadow)"><g fill="url(#gTile)"><use href="#shield" x="14" y="124" width="84" height="98"/></g><g fill="url(#gloss)"><use href="#shield" x="14" y="124" width="84" height="98"/></g></g>
+      <text class="tile" x="56" y="191" font-size="52" fill="#FFFFFF" text-anchor="middle">P</text>
+    </g>
+    <g transform="translate(300,24)">
+      <rect width="96" height="96" rx="22" fill="url(#gCobalt)"/>
+      <g style="--blk:#AFC0F5;--bg:#2E54E6" opacity="0.55"><use href="#mfp" x="28" y="5" width="67" height="67"/></g>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadowSoft)"><use href="#mfp" x="16" y="14" width="67" height="67"/></g>
+      <g fill="url(#gTile)" filter="url(#shadowSoft)"><use href="#shield" x="5" y="49" width="34" height="40"/></g>
+      <text class="tile" x="22" y="77" font-size="21" fill="#FFFFFF" text-anchor="middle">P</text>
+    </g>
+    <g transform="translate(300,140)">
+      <rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6"><use href="#mfp" x="9" y="5" width="36" height="36"/></g>
+      <g fill="url(#gTile)"><use href="#shield" x="2" y="25" width="19" height="22"/></g>
+      <text class="tile" x="11.5" y="40.5" font-size="12" fill="#FFFFFF" text-anchor="middle">P</text>
+      <rect x="64" width="24" height="24" rx="5.5" fill="url(#gCobalt)"/>
+      <g fill="#FFFFFF"><use href="#shield" x="64" y="0" width="24" height="24"/></g>
+      <text class="tile" x="76" y="16" font-size="12" fill="#1E3AA8" text-anchor="middle">P</text>
+    </g>
+    <text x="24" y="316" class="label">D1. Layered MFP, shield with P</text>
+    <text x="24" y="338" class="note">The ghost machine behind, the shaded machine in front, and a Deep shield at the</text>
+    <text x="24" y="356" class="note">corner carrying the P. The shield and the P each follow a later app: a different</text>
+    <text x="24" y="374" class="note">letter, the same shield. At 24 px it reduces to the shield alone.</text>
+  </g>
+
+  <!-- D2: reversed -->
+  <g transform="translate(600,80)">
+    <rect width="550" height="450" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(24,24)">
+      <rect width="240" height="240" rx="55" fill="url(#gMist)" stroke="#C9D1DE"/>
+      <g style="--blk:#8DA4F2;--bg:#EEF1F6" opacity="0.5"><use href="#mfp" x="70" y="12" width="168" height="168"/></g>
+      <g style="--blk:url(#gBlockBlue);--bg:#EEF1F6" filter="url(#shadowL)"><use href="#mfp" x="41" y="36" width="168" height="168"/></g>
+      <g filter="url(#shadowL)"><g fill="url(#gTileLight)"><use href="#shield" x="14" y="124" width="84" height="98"/></g></g>
+      <text class="tile" x="56" y="191" font-size="52" fill="#2E54E6" text-anchor="middle">P</text>
+    </g>
+    <g transform="translate(300,24)">
+      <rect width="96" height="96" rx="22" fill="url(#gMist)" stroke="#C9D1DE"/>
+      <g style="--blk:#8DA4F2;--bg:#EEF1F6" opacity="0.5"><use href="#mfp" x="28" y="5" width="67" height="67"/></g>
+      <g style="--blk:url(#gBlockBlue);--bg:#EEF1F6" filter="url(#shadowSoftL)"><use href="#mfp" x="16" y="14" width="67" height="67"/></g>
+      <g fill="url(#gTileLight)" filter="url(#shadowSoftL)"><use href="#shield" x="5" y="49" width="34" height="40"/></g>
+      <text class="tile" x="22" y="77" font-size="21" fill="#2E54E6" text-anchor="middle">P</text>
+    </g>
+    <g transform="translate(300,140)">
+      <rect width="48" height="48" rx="11" fill="url(#gMist)" stroke="#C9D1DE"/>
+      <g style="--blk:url(#gBlockBlue);--bg:#EEF1F6"><use href="#mfp" x="9" y="5" width="36" height="36"/></g>
+      <g fill="#FFFFFF" stroke="#C9D1DE" stroke-width="0.8"><use href="#shield" x="2" y="25" width="19" height="22"/></g>
+      <text class="tile" x="11.5" y="40.5" font-size="12" fill="#2E54E6" text-anchor="middle">P</text>
+      <rect x="64" width="24" height="24" rx="5.5" fill="url(#gMist)" stroke="#C9D1DE"/>
+      <g fill="#2E54E6"><use href="#shield" x="64" y="0" width="24" height="24"/></g>
+      <text class="tile" x="76" y="16" font-size="12" fill="#FFFFFF" text-anchor="middle">P</text>
+    </g>
+    <text x="24" y="316" class="label">D2. The same, reversed</text>
+    <text x="24" y="338" class="note">Mist icon, Cobalt machine with the light showing through the gaps, a paler</text>
+    <text x="24" y="356" class="note">ghost behind, and a white shield with the P in Cobalt. Same palette, swapped;</text>
+    <text x="24" y="374" class="note">suits light docks and the light site sections.</text>
+  </g>
+</svg>
