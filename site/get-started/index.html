@@ -28,7 +28,7 @@
     <div class="container header-inner">
       <a class="brand" href="/" aria-label="PrintMarshal home">
         <img class="brand-mark" src="/assets/mark.svg" alt="" width="32" height="32">
-        <span class="brand-name">Print<span>Marshal</span></span>
+        <span class="brand-name wordmark"><span class="wm-print">print</span><span class="wm-marshal">Marshal</span></span>
         <span class="brand-tag">Open source · Self-hosted</span>
       </a>
 
@@ -62,7 +62,7 @@
   </header>
 
   <main id="main-content">
-    <section class="page-hero" aria-labelledby="start-heading">
+    <section class="page-hero surface-light" aria-labelledby="start-heading">
       <div class="container">
         <div class="eyebrow">Simulator-First Onboarding</div>
         <h1 id="start-heading">Evaluate locally with the built-in simulator.</h1>
@@ -81,7 +81,7 @@
     <!-- ====================================================================
          1. RECOMMENDED PATH: LOCAL SIMULATOR (PM-SIM)
          ==================================================================== -->
-    <section id="simulator" class="section" aria-labelledby="sim-heading">
+    <section id="simulator" class="section surface-dark" aria-labelledby="sim-heading">
       <div class="container">
         <div class="section-header">
           <div class="eyebrow">Path 1 · Recommended First Step</div>
@@ -151,7 +151,7 @@ PM_TRAP_ENABLED=false \
     <!-- ====================================================================
          2. FIRST-SUCCESS CHECKLIST
          ==================================================================== -->
-    <section id="first-five" class="section section-alt" aria-labelledby="checklist-heading">
+    <section id="first-five" class="section section-alt surface-light" aria-labelledby="checklist-heading">
       <div class="container">
         <div class="section-header">
           <div class="eyebrow">First-Success Walkthrough</div>
@@ -210,7 +210,7 @@ PM_TRAP_ENABLED=false \
     <!-- ====================================================================
          3. DOCKER & SINGLE-BINARY PRODUCTION DEPLOYMENT
          ==================================================================== -->
-    <section id="deploy" class="section" aria-labelledby="deploy-heading">
+    <section id="deploy" class="section surface-dark" aria-labelledby="deploy-heading">
       <div class="container">
         <div class="section-header">
           <div class="eyebrow">Path 2 · Lab VLAN or Production Deployment</div>
@@ -314,7 +314,7 @@ PM_DATA_DIR=/var/lib/printmarshal ./deploy/scripts/backup.sh /var/backups/printm
     <!-- ====================================================================
          4. ENVIRONMENT VARIABLES & NETWORK PORTS REFERENCE
          ==================================================================== -->
-    <section id="env-reference" class="section section-alt" aria-labelledby="env-heading">
+    <section id="env-reference" class="section section-alt surface-light" aria-labelledby="env-heading">
       <div class="container">
         <div class="section-header">
           <div class="eyebrow">Configuration Reference</div>
@@ -434,9 +434,9 @@ PM_DATA_DIR=/var/lib/printmarshal ./deploy/scripts/backup.sh /var/backups/printm
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <a class="brand" href="/" style="margin-bottom: 12px;">
-            <img class="brand-mark" src="/assets/mark.svg" alt="" width="28" height="28">
-            <span class="brand-name">Print<span>Marshal</span></span>
+          <a class="brand" href="/" style="margin-bottom: 12px;" aria-label="PrintMarshal">
+            <img class="brand-mark" src="/assets/mark-on-dark.svg" alt="" width="28" height="28">
+            <span class="brand-name wordmark"><span class="wm-print">print</span><span class="wm-marshal">Marshal</span></span>
           </a>
           <p style="max-width: 36ch; font-size: 0.84rem; color: var(--text-muted);">
             Self-hosted network printer security, compliance, and fleet configuration console. Open-source Go + React single-binary deployment.

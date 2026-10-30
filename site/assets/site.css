@@ -15,6 +15,35 @@
   --tint: #8DA4F2;
   --brass: #D7A442; /* Reserved strictly for the Guard Chevron star */
 
+  /* Typography */
+  --font-display: 'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Layout metrics */
+  --container-max: 1240px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Product-capture frame: Slate reads at >= 3:1 on both surfaces
+     (3.2:1 on #0D1016, 5.3:1 on #F3F5F9). */
+  --capture-frame: var(--slate);
+}
+
+/* ==========================================================================
+   Dual-tone surfaces (DRAFT 2026-10-30)
+   Surface-dependent tokens. The dark set is the original console look; it is
+   also re-applied to dark components that sit inside light sections (product
+   captures, code blocks, the closing call to action) so they keep their
+   original, already-verified contrast.
+   ========================================================================== */
+:root,
+.surface-dark,
+.site-footer,
+.surface-light .console-showcase,
+.surface-light .code-block,
+.surface-light .closing-cta {
   /* Surface hierarchy (calm dark network-operations console) */
   --bg-canvas: #0D1016;
   --bg-base: #12161F;
@@ -57,26 +86,96 @@
   --state-unk-bg: rgba(167, 179, 198, 0.08);
   --state-unk-border: rgba(167, 179, 198, 0.42);
 
-  /* Typography */
-  --font-display: 'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-
-  /* Layout metrics */
-  --container-max: 1240px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
   --shadow-panel: 0 20px 50px rgba(0, 0, 0, 0.48), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
   --shadow-card: 0 10px 28px rgba(0, 0, 0, 0.28);
+
+  /* Accent, links and washes (were literal values in the rules below) */
+  --tint: #8DA4F2;
+  --link-hover: #B4C4F9;
+  --link-underline: rgba(141, 164, 242, 0.35);
+  --wash: rgba(232, 236, 242, 0.05);
+  --accent-wash: rgba(46, 84, 230, 0.18);
+  --accent-wash-border: rgba(141, 164, 242, 0.28);
+  --code-bg: rgba(232, 236, 242, 0.07);
+  --code-ink: #E8ECF2;
+  --inset-bg: rgba(13, 16, 22, 0.62);
+  --glass: rgba(23, 28, 39, 0.85);
+  --trace-bg: linear-gradient(180deg, rgba(23, 28, 39, 0.96) 0%, rgba(18, 22, 31, 0.96) 100%);
+
+  /* Status ink (text colour inside pills and tags) */
+  --ink-ok: #6CE0A6;
+  --ink-crit: #FF8E88;
+  --ink-warn: #F6C168;
+  --ink-info: #A8C0FF;
+  --ink-unk: #C7D1E0;
 }
+
+/* Light surface: Mist ground lifted toward white, Graphite ink, Cobalt accent.
+   Every text pairing here is >= 4.5:1 (see brand/concepts/site-draft-notes.md). */
+.surface-light,
+.site-header {
+  --bg-canvas: #F3F5F9;   /* section ground: Mist (#E8ECF2) halfway to white */
+  --bg-base: #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-panel: #E8ECF2;    /* Mist */
+  --bg-subtle: #EEF1F6;
+  --bg-hover: #E3E8F0;
+
+  --text-primary: #14171E;   /* Graphite */
+  --text-secondary: #3A4352;
+  --text-muted: #5B6676;     /* Slate */
+  --text-dim: #5B6676;
+
+  --border-subtle: rgba(20, 23, 30, 0.09);
+  --border-default: rgba(20, 23, 30, 0.14);
+  --border-strong: rgba(20, 23, 30, 0.26);
+  --border-accent: rgba(46, 84, 230, 0.45);
+
+  --state-ok: #1F9D63;
+  --state-ok-bg: rgba(31, 157, 99, 0.10);
+  --state-ok-border: rgba(31, 157, 99, 0.50);
+  --state-warn: #C77D12;
+  --state-warn-bg: rgba(232, 163, 58, 0.14);
+  --state-warn-border: rgba(199, 125, 18, 0.55);
+  --state-crit: #D6453D;
+  --state-crit-bg: rgba(214, 69, 61, 0.09);
+  --state-crit-border: rgba(214, 69, 61, 0.50);
+  --state-info: #2E54E6;
+  --state-info-bg: rgba(46, 84, 230, 0.09);
+  --state-info-border: rgba(46, 84, 230, 0.45);
+  --state-unk: #5B6676;
+  --state-unk-bg: rgba(91, 102, 118, 0.07);
+  --state-unk-border: rgba(91, 102, 118, 0.60);
+
+  --shadow-panel: 0 22px 48px rgba(20, 23, 30, 0.18), 0 2px 6px rgba(20, 23, 30, 0.08);
+  --shadow-card: 0 6px 18px rgba(20, 23, 30, 0.07);
+
+  --tint: #2E54E6;            /* Cobalt: 5.4:1 on the ground, 6.0:1 on white */
+  --link-hover: #1E3AA8;      /* Deep Cobalt */
+  --link-underline: rgba(46, 84, 230, 0.40);
+  --wash: rgba(20, 23, 30, 0.045);
+  --accent-wash: rgba(46, 84, 230, 0.10);
+  --accent-wash-border: rgba(46, 84, 230, 0.38);
+  --code-bg: rgba(20, 23, 30, 0.06);
+  --code-ink: #14171E;
+  --inset-bg: #F3F5F9;
+  --glass: #FFFFFF;
+  --trace-bg: linear-gradient(180deg, #FFFFFF 0%, #F7F9FC 100%);
+
+  --ink-ok: #11744A;
+  --ink-crit: #B3261E;
+  --ink-warn: #855000;
+  --ink-info: #1E3AA8;
+  --ink-unk: #3A4352;
+}
+
 
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
 html {
-  background-color: var(--bg-canvas);
+  background-color: #F3F5F9;
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 16px;
@@ -88,10 +187,7 @@ html {
 
 body {
   margin: 0;
-  background-color: var(--bg-canvas);
-  background-image:
-    radial-gradient(ellipse 90% 42% at 50% 0%, rgba(46, 84, 230, 0.14), transparent 70%),
-    linear-gradient(180deg, #0D1016 0%, #11151E 100%);
+  background-color: #F3F5F9;
   color: var(--text-primary);
   min-height: 100vh;
   display: flex;
@@ -110,13 +206,13 @@ img, svg {
 a {
   color: var(--tint);
   text-decoration: underline;
-  text-decoration-color: rgba(141, 164, 242, 0.35);
+  text-decoration-color: var(--link-underline);
   text-underline-offset: 3px;
   transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 a:hover {
-  color: #B4C4F9;
+  color: var(--link-hover);
   text-decoration-color: currentColor;
 }
 
@@ -208,10 +304,10 @@ pre code {
 p code, li code, td code {
   font-size: 0.84em;
   padding: 2px 6px;
-  background: rgba(232, 236, 242, 0.07);
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-radius: 4px;
-  color: var(--mist);
+  color: var(--code-ink);
 }
 
 .eyebrow {
@@ -250,7 +346,7 @@ p code, li code, td code {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(13, 16, 22, 0.88);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -301,7 +397,7 @@ p code, li code, td code {
   padding: 2px 7px;
   border-radius: 999px;
   background: rgba(46, 84, 230, 0.16);
-  border: 1px solid rgba(141, 164, 242, 0.28);
+  border: 1px solid var(--accent-wash-border);
   color: var(--tint);
   letter-spacing: 0.03em;
 }
@@ -398,13 +494,13 @@ p code, li code, td code {
 
 .site-nav a:hover {
   color: var(--text-primary);
-  background: rgba(232, 236, 242, 0.05);
+  background: var(--wash);
 }
 
 .site-nav a[aria-current="page"] {
   color: var(--text-primary);
-  background: rgba(46, 84, 230, 0.18);
-  border: 1px solid rgba(141, 164, 242, 0.28);
+  background: var(--accent-wash);
+  border: 1px solid var(--accent-wash-border);
 }
 
 .site-nav .nav-external-mobile {
@@ -432,7 +528,7 @@ p code, li code, td code {
 
 .quiet-link:hover {
   color: var(--text-primary);
-  background: rgba(232, 236, 242, 0.05);
+  background: var(--wash);
 }
 
 /* Buttons */
@@ -502,27 +598,27 @@ p code, li code, td code {
 .status-pass,
 .cap-implemented {
   background: var(--state-ok-bg);
-  color: #6CE0A6;
+  color: var(--ink-ok);
   border-color: var(--state-ok-border);
 }
 
 .status-fail {
   background: var(--state-crit-bg);
-  color: #FF8E88;
+  color: var(--ink-crit);
   border-color: var(--state-crit-border);
 }
 
 .status-warn,
 .cap-device {
   background: var(--state-warn-bg);
-  color: #F6C168;
+  color: var(--ink-warn);
   border-color: var(--state-warn-border);
 }
 
 .status-info,
 .cap-sim {
   background: var(--state-info-bg);
-  color: #A8C0FF;
+  color: var(--ink-info);
   border-color: var(--state-info-border);
 }
 
@@ -530,7 +626,7 @@ p code, li code, td code {
 .status-unknown,
 .cap-driver {
   background: var(--state-unk-bg);
-  color: #C7D1E0;
+  color: var(--ink-unk);
   border: 1px dashed var(--state-unk-border);
 }
 
@@ -544,7 +640,7 @@ p code, li code, td code {
   font-size: 0.7rem;
   background: rgba(232, 163, 58, 0.13);
   border: 1px solid rgba(232, 163, 58, 0.35);
-  color: #F6C168;
+  color: var(--ink-warn);
 }
 
 /* ==========================================================================
@@ -560,8 +656,9 @@ p code, li code, td code {
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/* Alternation is now carried by .surface-light / .surface-dark (end of file). */
 .section-alt {
-  background: rgba(18, 22, 31, 0.65);
+  background: transparent;
 }
 
 .section-header {
@@ -637,7 +734,7 @@ p code, li code, td code {
   gap: 10px;
   margin: 14px 0 0;
   padding: 10px 14px;
-  background: rgba(23, 28, 39, 0.85);
+  background: var(--glass);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
 }
@@ -679,7 +776,7 @@ p code, li code, td code {
 /* Browser / Console Frame for Real Product Captures */
 .console-showcase {
   background: var(--bg-base);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--capture-frame);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-panel);
   overflow: hidden;
@@ -716,7 +813,7 @@ p code, li code, td code {
 .console-url {
   padding: 3px 10px;
   border-radius: 4px;
-  background: rgba(13, 16, 22, 0.65);
+  background: var(--inset-bg);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   min-width: 0;
@@ -731,7 +828,7 @@ p code, li code, td code {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 4px;
-  background: rgba(46, 84, 230, 0.18);
+  background: var(--accent-wash);
   border: 1px solid rgba(141, 164, 242, 0.32);
   color: var(--tint);
   font-family: var(--font-mono);
@@ -911,7 +1008,7 @@ img.media-mobile-crop {
 }
 
 .walkthrough-tab[aria-selected="true"] {
-  background: rgba(46, 84, 230, 0.18);
+  background: var(--accent-wash);
   border-color: var(--tint);
   color: var(--text-primary);
   box-shadow: 0 0 0 1px rgba(141, 164, 242, 0.25) inset;
@@ -1038,7 +1135,7 @@ img.media-mobile-crop {
 .walkthrough-boundary {
   padding: 11px 13px;
   border-radius: var(--radius-sm);
-  background: rgba(13, 16, 22, 0.55);
+  background: var(--inset-bg);
   border-left: 3px solid var(--tint);
   font-size: 0.81rem;
   color: var(--text-secondary);
@@ -1050,7 +1147,7 @@ img.media-mobile-crop {
    ========================================================================== */
 .trace-box {
   margin-top: 32px;
-  background: linear-gradient(180deg, rgba(23, 28, 39, 0.96) 0%, rgba(18, 22, 31, 0.96) 100%);
+  background: var(--trace-bg);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 26px;
@@ -1111,7 +1208,7 @@ img.media-mobile-crop {
   padding: 12px 16px;
   margin-bottom: 18px;
   border-radius: var(--radius-sm);
-  background: rgba(13, 16, 22, 0.72);
+  background: var(--inset-bg);
   border: 1px solid var(--border-default);
   font-size: 0.88rem;
   color: var(--text-secondary);
@@ -1213,11 +1310,11 @@ img.media-mobile-crop {
   margin-top: auto;
   padding: 6px 8px;
   border-radius: 4px;
-  background: rgba(232, 236, 242, 0.05);
+  background: var(--wash);
   border: 1px solid var(--border-subtle);
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  color: var(--mist);
+  color: var(--code-ink);
 }
 
 /* Evidence trace polish: scenario accent, device glyph, connected rail */
@@ -1254,7 +1351,7 @@ img.media-mobile-crop {
 
 .trace-device-art .tda-paper,
 .trace-device-art .tda-tray {
-  fill: rgba(232, 236, 242, 0.04);
+  fill: var(--wash);
   stroke: var(--text-muted);
 }
 
@@ -1325,7 +1422,7 @@ img.media-mobile-crop {
   margin-top: 8px;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  background: rgba(13, 16, 22, 0.65);
+  background: var(--inset-bg);
   border: 1px solid var(--border-subtle);
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -1558,7 +1655,7 @@ img.media-mobile-crop {
   overflow-x: auto;
   font-size: 0.83rem;
   line-height: 1.58;
-  color: var(--mist);
+  color: var(--code-ink);
 }
 
 /* Page Header for Interior Pages */
@@ -1609,16 +1706,15 @@ details.disclosure + details.disclosure {
 }
 
 details.disclosure summary {
-  padding: 16px 20px;
+  /* Block, not flex: flex would spread the inline <code> in a question across the row. */
+  position: relative;
+  padding: 16px 44px 16px 20px;
   font-family: var(--font-display);
   font-size: 1.08rem;
   font-weight: 600;
   color: var(--text-primary);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: block;
   list-style: none;
 }
 
@@ -1628,6 +1724,10 @@ details.disclosure summary::-webkit-details-marker {
 
 details.disclosure summary::after {
   content: "+";
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
   font-family: var(--font-mono);
   font-size: 1.1rem;
   color: var(--tint);
@@ -1635,7 +1735,7 @@ details.disclosure summary::after {
 
 details.disclosure[open] summary {
   border-bottom: 1px solid var(--border-subtle);
-  background: rgba(232, 236, 242, 0.03);
+  background: var(--wash);
 }
 
 details.disclosure[open] summary::after {
@@ -1697,7 +1797,7 @@ dialog.lightbox::backdrop {
 /* Closing Call to Action & Footer */
 .closing-cta {
   background: linear-gradient(180deg, rgba(46, 84, 230, 0.14) 0%, rgba(18, 22, 31, 0.9) 100%);
-  border: 1px solid rgba(141, 164, 242, 0.28);
+  border: 1px solid var(--accent-wash-border);
   border-radius: var(--radius-lg);
   padding: 44px;
   display: flex;
@@ -1822,10 +1922,10 @@ dialog.lightbox::backdrop {
     top: 100%;
     left: 0;
     right: 0;
-    background: rgba(14, 18, 26, 0.98);
+    background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border-strong);
-    box-shadow: 0 22px 48px rgba(0, 0, 0, 0.68);
+    box-shadow: 0 22px 48px rgba(20, 23, 30, 0.18);
     padding: 14px 16px 18px;
     flex-direction: column;
     align-items: stretch;
@@ -2090,4 +2190,106 @@ dialog.lightbox::backdrop {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ==========================================================================
+   Dual-tone section surfaces (DRAFT 2026-10-30, not live)
+   Rule: the hero / page hero is light, then sections alternate dark, light,
+   dark... on every page. The header is light; the footer is dark.
+   ========================================================================== */
+.surface-light,
+.surface-dark {
+  color: var(--text-primary);
+  border-bottom-color: transparent; /* the change of surface is the divider */
+}
+
+.surface-light {
+  background: var(--bg-canvas);
+}
+
+.surface-dark {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(46, 84, 230, 0.10), transparent 70%),
+    linear-gradient(180deg, #0D1016 0%, #11151E 100%);
+  background-color: #11151E; /* worst case for light text */
+}
+
+.hero.surface-light,
+.page-hero.surface-light {
+  background:
+    radial-gradient(ellipse 70% 90% at 85% 0%, rgba(46, 84, 230, 0.08), transparent 65%),
+    linear-gradient(180deg, #FFFFFF 0%, #F3F5F9 100%);
+  background-color: #F3F5F9; /* worst case for dark text */
+}
+
+.hero.surface-light {
+  padding-top: 40px;
+}
+
+/* Cards get a hairline lift on light so they do not rely on the border alone */
+.surface-light .panel-card,
+.surface-light .problem-card,
+.surface-light .walkthrough-copy,
+.surface-light .table-wrap,
+.surface-light .callout,
+.surface-light details.disclosure,
+.surface-light .hero-reassurance {
+  box-shadow: 0 1px 2px rgba(20, 23, 30, 0.06);
+}
+
+/* Product captures stay dark ("the product window") on both surfaces */
+.surface-light .console-showcase {
+  box-shadow: 0 24px 56px rgba(20, 23, 30, 0.22), 0 2px 8px rgba(20, 23, 30, 0.10);
+}
+
+/* Code blocks stay dark terminals; on light they get a Gunmetal edge */
+.surface-light .code-block {
+  border-color: var(--gunmetal);
+  box-shadow: 0 6px 18px rgba(20, 23, 30, 0.10);
+}
+
+/* Closing call to action on a light section becomes a Graphite panel */
+.surface-light .closing-cta {
+  background:
+    radial-gradient(ellipse 70% 120% at 100% 0%, rgba(46, 84, 230, 0.30), transparent 60%),
+    var(--graphite);
+  background-color: var(--graphite);
+  border-color: var(--graphite);
+  box-shadow: 0 22px 48px rgba(20, 23, 30, 0.20);
+}
+
+/* ==========================================================================
+   Draft wordmark, option A: "print" IBM Plex Mono 500 + "Marshal" Barlow 600
+   (brand/concepts/wordmarks.md). Live text, so it uses the fonts the site
+   already loads. Graphite + Cobalt on light; Mist + Cobalt Tint on dark.
+   ========================================================================== */
+.brand-name.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.1em;
+  font-size: 1.4rem;   /* ~28 px wordmark box in the 66 px header */
+  line-height: 1;
+  letter-spacing: 0;
+  --wm-print: #14171E;
+  --wm-marshal: #2E54E6;
+}
+
+.site-footer .brand-name.wordmark {
+  font-size: 1.25rem;
+  --wm-print: #E8ECF2;
+  --wm-marshal: #8DA4F2;
+}
+
+.brand-name .wm-print {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--wm-print);
+}
+
+.brand-name .wm-marshal {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--wm-marshal);
 }

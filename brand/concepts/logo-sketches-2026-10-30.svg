@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 420" width="1240" height="420" role="img" aria-label="Logo concept sketches, not final">
+  <title>PrintMarshal logo concept sketches — rough, not final</title>
+  <style>
+    .cell{fill:#E8ECF2}.cellD{fill:#14171E}
+    .g{fill:none;stroke:#14171E;stroke-width:6;stroke-linecap:square;stroke-linejoin:miter}
+    .gm{fill:none;stroke:#E8ECF2;stroke-width:6;stroke-linecap:square;stroke-linejoin:miter}
+    .c{fill:#2E54E6}.b{fill:#D7A442}.mist{fill:#E8ECF2}.gr{fill:#14171E}
+    .lbl{font:600 14px 'IBM Plex Mono',monospace;fill:#14171E}.lblD{font:600 14px 'IBM Plex Mono',monospace;fill:#E8ECF2}
+    .note{font:500 13px 'IBM Plex Mono',monospace;fill:#5B6676}
+  </style>
+  <rect width="1240" height="420" fill="#fff"/>
+  <text x="20" y="28" class="note">SKETCH SHEET · NOT FINAL · rough geometry only · 30 Oct 2026 · light row = on Mist, dark row = on Graphite</text>
+
+  <!-- 1 Page Check -->
+  <rect x="20" y="50" width="160" height="160" rx="12" class="cell"/>
+  <path class="g" d="M60 80 h40 l20 20 v70 h-60 z M100 80 v20 h20"/>
+  <path d="M118 150 l10 10 l22 -26" fill="none" stroke="#D7A442" stroke-width="8" stroke-linecap="square"/>
+  <text x="20" y="232" class="lbl">1 Page Check</text>
+
+  <!-- 2 Nozzle Grid -->
+  <rect x="200" y="50" width="160" height="160" rx="12" class="cell"/>
+  <g>
+    <circle cx="250" cy="100" r="9" class="c"/><circle cx="280" cy="100" r="9" class="c"/><circle cx="310" cy="100" r="9" class="c"/>
+    <circle cx="250" cy="130" r="9" class="c"/><circle cx="280" cy="130" r="9" fill="none" stroke="#D7A442" stroke-width="5"/><circle cx="310" cy="130" r="9" class="c"/>
+    <circle cx="250" cy="160" r="9" class="c"/><circle cx="280" cy="160" r="9" class="c"/><circle cx="310" cy="160" r="9" class="c"/>
+  </g>
+  <text x="200" y="232" class="lbl">2 Nozzle Grid</text>
+
+  <!-- 3 Paper Path -->
+  <rect x="380" y="50" width="160" height="160" rx="12" class="cell"/>
+  <path class="g" d="M410 175 h40 c30 0 30 -25 0 -25 h-10 c-30 0 -30 -25 0 -25 h40 c20 0 30 -10 30 -25"/>
+  <circle cx="510" cy="90" r="9" class="b"/>
+  <text x="380" y="232" class="lbl">3 Paper Path</text>
+
+  <!-- 4 Lens on Page -->
+  <rect x="560" y="50" width="160" height="160" rx="12" class="cell"/>
+  <path class="g" d="M595 78 h50 v30 M595 78 v90 h30"/>
+  <circle cx="660" cy="150" r="30" fill="#E8ECF2" stroke="#2E54E6" stroke-width="6"/>
+  <rect x="644" y="140" width="32" height="6" class="b"/><rect x="644" y="154" width="22" height="6" class="b"/>
+  <text x="560" y="232" class="lbl">4 Lens on Page</text>
+
+  <!-- 5 Fleet Formation -->
+  <rect x="740" y="50" width="160" height="160" rx="12" class="cell"/>
+  <rect x="775" y="78" width="50" height="64" fill="none" stroke="#5B6676" stroke-width="5"/>
+  <rect x="790" y="92" width="50" height="64" fill="none" stroke="#2A313D" stroke-width="5"/>
+  <path d="M805 106 h36 l14 14 v50 h-50 z" class="c"/>
+  <path d="M841 106 v14 h14 z" class="b"/>
+  <text x="740" y="232" class="lbl">5 Fleet Formation</text>
+
+  <!-- 6 Marshal Flag -->
+  <rect x="920" y="50" width="160" height="160" rx="12" class="cell"/>
+  <rect x="960" y="76" width="8" height="100" class="gr"/>
+  <rect x="972" y="80" width="60" height="18" class="b"/>
+  <rect x="972" y="106" width="42" height="18" class="b"/>
+  <text x="920" y="232" class="lbl">6 Marshal Flag</text>
+
+  <!-- 7 Printed M -->
+  <rect x="1100" y="50" width="120" height="160" rx="12" class="cell"/>
+  <defs><clipPath id="mclip"><path d="M1120 170 v-90 l40 40 l40 -40 v90 h-18 v-52 l-22 22 l-22 -22 v52 z"/></clipPath></defs>
+  <g clip-path="url(#mclip)">
+    <rect x="1115" y="80" width="90" height="12" class="c"/>
+    <rect x="1115" y="98" width="90" height="12" class="b"/>
+    <rect x="1115" y="116" width="90" height="12" class="c"/>
+    <rect x="1115" y="134" width="90" height="12" class="c"/>
+    <rect x="1115" y="152" width="90" height="12" class="c"/>
+  </g>
+  <text x="1100" y="232" class="lbl">7 Printed M</text>
+
+  <!-- dark row, 16px-ish favicon reductions at 4x -->
+  <text x="20" y="262" class="note">favicon reductions (drawn at 4×, meaning 64 px for a 16 px icon) on Graphite</text>
+  <rect x="20" y="272" width="1200" height="120" rx="12" class="cellD"/>
+  <g transform="translate(60,300)"><path class="gm" d="M8 4 h28 l14 14 v46 h-42 z"/><path d="M26 44 l8 8 l16 -18" fill="none" stroke="#D7A442" stroke-width="8" stroke-linecap="square"/></g>
+  <g transform="translate(240,300)"><circle cx="12" cy="12" r="8" class="c"/><circle cx="40" cy="12" r="8" class="c"/><circle cx="12" cy="40" r="8" class="c"/><circle cx="40" cy="40" r="8" fill="none" stroke="#D7A442" stroke-width="5"/></g>
+  <g transform="translate(420,300)"><path class="gm" d="M4 60 h24 c20 0 20 -22 0 -22 c-20 0 -20 -22 0 -22 h20"/><circle cx="56" cy="16" r="8" class="b"/></g>
+  <g transform="translate(600,300)"><path class="gm" d="M8 4 h30 M8 4 v56 h16"/><circle cx="44" cy="44" r="18" fill="#14171E" stroke="#2E54E6" stroke-width="6"/></g>
+  <g transform="translate(780,300)"><rect x="4" y="4" width="30" height="40" fill="none" stroke="#5B6676" stroke-width="5"/><path d="M20 20 h26 l10 10 v32 h-36 z" class="c"/></g>
+  <g transform="translate(960,300)"><rect x="8" y="2" width="8" height="62" class="mist"/><rect x="18" y="6" width="40" height="14" class="b"/><rect x="18" y="26" width="28" height="14" class="b"/></g>
+  <g transform="translate(1130,300)"><defs><clipPath id="mclip2"><path d="M0 64 v-60 l32 30 l32 -30 v60 h-14 v-34 l-18 18 l-18 -18 v34 z"/></clipPath></defs><g clip-path="url(#mclip2)"><rect y="4" width="64" height="14" class="c"/><rect y="24" width="64" height="14" class="b"/><rect y="44" width="64" height="20" class="c"/></g></g>
+  <text x="20" y="412" class="note">colours: Graphite #14171E · Mist #E8ECF2 · Cobalt #2E54E6 · Brass #D7A442 (Steel &amp; Signal, unchanged)</text>
+</svg>

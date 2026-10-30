@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 654.5 124" width="654.5" height="124" role="img" aria-label="PrintMarshal">
+  <title>PrintMarshal wordmark, option A, draft</title>
+  <desc>DRAFT concept, not final. Live text: needs the Google Fonts below (outline before production).</desc>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&amp;family=Barlow:wght@600&amp;display=swap');
+    .wmA-p { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 500; font-size: 100px; letter-spacing: 0px; fill: #14171E; }
+    .wmA-m { font-family: 'Barlow', system-ui, sans-serif; font-weight: 600; font-size: 100px; letter-spacing: -1px; fill: #2E54E6; }
+  </style>
+  <text y="92"><tspan class="wmA-p" x="4.1">print</tspan><tspan class="wmA-m" x="314.1">Marshal</tspan></text>
+</svg>

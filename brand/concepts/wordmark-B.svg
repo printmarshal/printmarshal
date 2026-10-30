@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 657.7 124" width="657.7" height="124" role="img" aria-label="PrintMarshal">
+  <title>PrintMarshal wordmark, option B, draft</title>
+  <desc>DRAFT concept, not final. Live text: needs the Google Fonts below (outline before production).</desc>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&amp;family=Space+Grotesk:wght@600&amp;display=swap');
+    .wmB-p { font-family: 'JetBrains Mono', ui-monospace, monospace; font-weight: 400; font-size: 90px; letter-spacing: 0px; fill: #14171E; }
+    .wmB-m { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 600; font-size: 100px; letter-spacing: -2px; fill: #2E54E6; }
+  </style>
+  <text y="92"><tspan class="wmB-p" x="3.7">print</tspan><tspan class="wmB-m" x="283.7">Marshal</tspan></text>
+</svg>

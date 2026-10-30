@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 880" width="1180" height="880" font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif">
+  <title>PrintMarshal logo mark sketches, round 2 (literal printer marks)</title>
+  <style>
+    .light { --p:#2E54E6; --a:#D7A442; --g:#8A94A6; }
+    .dark  { --p:#8DA4F2; --a:#EFC065; --g:#5B6676; }
+    .mono  { --p:#14171E; --a:#14171E; --g:#14171E; }
+    .st { fill:none; stroke:var(--p); stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+    .ac { fill:none; stroke:var(--a); stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+    .acf { fill:var(--a); }
+    .gh { fill:none; stroke:var(--g); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+    .label { font-size:18px; font-weight:600; fill:#14171E; }
+    .note { font-size:13px; fill:#5B6676; }
+    .tiny { font-size:11px; fill:#8A94A6; }
+  </style>
+  <defs>
+    <!-- 1 Shielded MFP: shield outline framing a small front-view printer -->
+    <symbol id="m1" viewBox="0 0 64 64">
+      <path class="st" d="M32 5 L55 13 V30 C55 44 45 54 32 59 C19 54 9 44 9 30 V13 Z"/>
+      <rect class="st" x="19" y="30" width="26" height="11" rx="2"/>
+      <path class="st" d="M24 30 V22 H40 V30"/>
+      <circle class="acf" cx="40" cy="35.5" r="2"/>
+    </symbol>
+    <!-- 2 Verified Page: printer whose output sheet carries the check -->
+    <symbol id="m2" viewBox="0 0 64 64">
+      <rect class="st" x="8" y="30" width="48" height="18" rx="4"/>
+      <path class="st" d="M19 30 V11 H45 V30"/>
+      <path class="ac" d="M26 21 L30.5 25.5 L39 16"/>
+      <path class="st" d="M19 48 V55 H45 V48"/>
+      <circle class="acf" cx="48" cy="39" r="2"/>
+    </symbol>
+    <!-- 3 Scan Frame: printer inside viewfinder brackets (discovery, inspection) -->
+    <symbol id="m3" viewBox="0 0 64 64">
+      <path class="st" d="M7 19 V7 H19 M45 7 H57 V19 M57 45 V57 H45 M19 57 H7 V45"/>
+      <rect class="st" x="16" y="31" width="32" height="13" rx="3"/>
+      <path class="st" d="M23 31 V19 H41 V31"/>
+      <circle class="acf" cx="43" cy="37.5" r="2"/>
+    </symbol>
+    <!-- 4 Pulse Sheet: the page coming out of the printer is a telemetry trace -->
+    <symbol id="m4" viewBox="0 0 64 64">
+      <rect class="st" x="8" y="32" width="48" height="18" rx="4"/>
+      <path class="st" d="M18 32 V11 H46 V32"/>
+      <path class="ac" d="M22 23 H27 L30 15 L34 29 L37 20 L39 23 H42"/>
+      <circle class="acf" cx="48" cy="41" r="2"/>
+    </symbol>
+    <!-- 5 Fleet Stack: three printers receding, the front one inspected -->
+    <symbol id="m5" viewBox="0 0 64 64">
+      <path class="gh" d="M26 18 H58 V30 M32 10 H50"/>
+      <path class="gh" d="M16 26 H50 V38 M22 18 H42"/>
+      <rect class="st" x="6" y="34" width="36" height="16" rx="3"/>
+      <path class="st" d="M14 34 V22 H34 V34"/>
+      <path class="ac" d="M19 28.5 L22.5 32 L29 25"/>
+      <circle class="acf" cx="36" cy="42" r="2"/>
+    </symbol>
+    <!-- 6 Shield Printer: one silhouette, a printer body that tapers into a shield -->
+    <symbol id="m6" viewBox="0 0 64 64">
+      <path class="st" d="M10 25 H54 V40 C54 50 45 57 32 61 C19 57 10 50 10 40 Z"/>
+      <path class="st" d="M21 25 V8 H43 V25"/>
+      <path class="ac" d="M26.5 17 L30.5 21 L37.5 12.5"/>
+      <path class="st" d="M18 34 H46"/>
+      <circle class="acf" cx="42" cy="44" r="2"/>
+    </symbol>
+  </defs>
+
+  <rect width="1180" height="880" fill="#F4F6F9"/>
+  <text x="30" y="40" font-size="24" font-weight="700" fill="#14171E">PrintMarshal mark sketches, round 2: literal printer marks (30 Oct 2026, drafts)</text>
+  <text x="30" y="62" class="note">Each tile: 160 px on light, 96 px on Graphite, then 32 px and 16 px, then one-ink mono. Brass marks the thing being checked.</text>
+
+  <g id="tiles">
+    <!-- tile template via repetition -->
+    <g transform="translate(30,80)">
+      <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+      <g class="light"><use href="#m1" x="16" y="16" width="160" height="160"/></g>
+      <rect x="200" y="16" width="144" height="144" rx="10" fill="#14171E"/>
+      <g class="dark"><use href="#m1" x="224" y="40" width="96" height="96"/></g>
+      <g class="light"><use href="#m1" x="16" y="196" width="32" height="32"/><use href="#m1" x="64" y="204" width="16" height="16"/></g>
+      <g class="mono"><use href="#m1" x="104" y="196" width="32" height="32"/></g>
+      <text x="16" y="262" class="label">1. Shielded MFP</text>
+      <text x="16" y="284" class="note">Shield frames a small front-view printer.</text>
+      <text x="16" y="302" class="note">Protection first, printer second. The printer</text>
+      <text x="16" y="320" class="note">is the part that dies at 16 px.</text>
+    </g>
+    <g transform="translate(410,80)">
+      <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+      <g class="light"><use href="#m2" x="16" y="16" width="160" height="160"/></g>
+      <rect x="200" y="16" width="144" height="144" rx="10" fill="#14171E"/>
+      <g class="dark"><use href="#m2" x="224" y="40" width="96" height="96"/></g>
+      <g class="light"><use href="#m2" x="16" y="196" width="32" height="32"/><use href="#m2" x="64" y="204" width="16" height="16"/></g>
+      <g class="mono"><use href="#m2" x="104" y="196" width="32" height="32"/></g>
+      <text x="16" y="262" class="label">2. Verified Page</text>
+      <text x="16" y="284" class="note">A printer whose output sheet carries the check.</text>
+      <text x="16" y="302" class="note">Says: the device was inspected and signed off.</text>
+      <text x="16" y="320" class="note">Most literal of the six.</text>
+    </g>
+    <g transform="translate(790,80)">
+      <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+      <g class="light"><use href="#m3" x="16" y="16" width="160" height="160"/></g>
+      <rect x="200" y="16" width="144" height="144" rx="10" fill="#14171E"/>
+      <g class="dark"><use href="#m3" x="224" y="40" width="96" height="96"/></g>
+      <g class="light"><use href="#m3" x="16" y="196" width="32" height="32"/><use href="#m3" x="64" y="204" width="16" height="16"/></g>
+      <g class="mono"><use href="#m3" x="104" y="196" width="32" height="32"/></g>
+      <text x="16" y="262" class="label">3. Scan Frame</text>
+      <text x="16" y="284" class="note">Printer inside viewfinder brackets: discovery</text>
+      <text x="16" y="302" class="note">and inspection. Reads as a security scan</text>
+      <text x="16" y="320" class="note">without any badge iconography.</text>
+    </g>
+    <g transform="translate(30,480)">
+      <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+      <g class="light"><use href="#m4" x="16" y="16" width="160" height="160"/></g>
+      <rect x="200" y="16" width="144" height="144" rx="10" fill="#14171E"/>
+      <g class="dark"><use href="#m4" x="224" y="40" width="96" height="96"/></g>
+      <g class="light"><use href="#m4" x="16" y="196" width="32" height="32"/><use href="#m4" x="64" y="204" width="16" height="16"/></g>
+      <g class="mono"><use href="#m4" x="104" y="196" width="32" height="32"/></g>
+      <text x="16" y="262" class="label">4. Pulse Sheet</text>
+      <text x="16" y="284" class="note">The page coming out is a telemetry trace.</text>
+      <text x="16" y="302" class="note">Says: monitoring, health, the fleet reporting in.</text>
+      <text x="16" y="320" class="note">Less about security, more about watching.</text>
+    </g>
+    <g transform="translate(410,480)">
+      <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+      <g class="light"><use href="#m5" x="16" y="16" width="160" height="160"/></g>
+      <rect x="200" y="16" width="144" height="144" rx="10" fill="#14171E"/>
+      <g class="dark"><use href="#m5" x="224" y="40" width="96" height="96"/></g>
+      <g class="light"><use href="#m5" x="16" y="196" width="32" height="32"/><use href="#m5" x="64" y="204" width="16" height="16"/></g>
+      <g class="mono"><use href="#m5" x="104" y="196" width="32" height="32"/></g>
+      <text x="16" y="262" class="label">5. Fleet Stack</text>
+      <text x="16" y="284" class="note">Three printers receding, the front one checked.</text>
+      <text x="16" y="302" class="note">Says: a fleet, not one device. The ghosts</text>
+      <text x="16" y="320" class="note">drop out at 16 px, leaving mark 2.</text>
+    </g>
+    <g transform="translate(790,480)">
+      <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+      <g class="light"><use href="#m6" x="16" y="16" width="160" height="160"/></g>
+      <rect x="200" y="16" width="144" height="144" rx="10" fill="#14171E"/>
+      <g class="dark"><use href="#m6" x="224" y="40" width="96" height="96"/></g>
+      <g class="light"><use href="#m6" x="16" y="196" width="32" height="32"/><use href="#m6" x="64" y="204" width="16" height="16"/></g>
+      <g class="mono"><use href="#m6" x="104" y="196" width="32" height="32"/></g>
+      <text x="16" y="262" class="label">6. Shield Printer</text>
+      <text x="16" y="284" class="note">One silhouette: a printer body that tapers into</text>
+      <text x="16" y="302" class="note">a shield, sheet and check on top. Printer and</text>
+      <text x="16" y="320" class="note">protection in a single shape.</text>
+    </g>
+  </g>
+</svg>
