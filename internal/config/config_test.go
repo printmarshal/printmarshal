@@ -86,3 +86,19 @@ func TestSNMPTuningEnv(t *testing.T) {
 		t.Fatalf("env not applied: %+v", c.Poll)
 	}
 }
+
+// NV-14: the startup log must not carry a database password.
+func TestRedactDSN(t *testing.T) {
+	cases := map[string]string{
+		"postgres://pm:s3cret@db.example:5432/pm?sslmode=require": "postgres://pm:***@db.example:5432/pm?sslmode=require",
+		"postgresql://pm@db/pm":                                   "postgresql://pm@db/pm",
+		"host=db user=pm password=s3cret dbname=pm":               "host=db user=pm password=*** dbname=pm",
+		"/data/printmarshal.db":                                   "/data/printmarshal.db",
+		"":                                                        "",
+	}
+	for in, want := range cases {
+		if got := RedactDSN(in); got != want {
+			t.Errorf("RedactDSN(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

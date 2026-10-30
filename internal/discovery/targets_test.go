@@ -3,6 +3,7 @@ package discovery
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestExpandTargets(t *testing.T) {
@@ -44,5 +45,28 @@ func TestMergeCandidates(t *testing.T) {
 	)
 	if len(out) != 2 || len(out[0].Methods) != 2 || out[0].TXT["ty"] != "X" {
 		t.Errorf("merge = %+v", out)
+	}
+}
+
+// A range that ends at the last IPv4 address must terminate: netip.Addr.Next
+// returns the zero Addr after 255.255.255.255, and the zero Addr compares
+// below every valid address (security audit run-1, NV-08).
+func TestExpandRangeEndingAtBroadcastTerminates(t *testing.T) {
+	done := make(chan struct{})
+	var (
+		addrs []string
+		err   error
+	)
+	go func() {
+		addrs, _, err = ExpandTargets([]string{"255.255.255.250-255.255.255.255"}, 100)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("ExpandTargets did not terminate for a range ending at 255.255.255.255")
+	}
+	if err != nil || len(addrs) != 6 || addrs[5] != "255.255.255.255" {
+		t.Fatalf("addrs=%v err=%v", addrs, err)
 	}
 }
