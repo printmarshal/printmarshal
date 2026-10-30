@@ -1,0 +1,217 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 900" width="1180" height="900" font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif">
+  <title>PrintMarshal app icon sketches, round 4: shield holding the MFP, one colour</title>
+  <style>
+    .label { font-size:18px; font-weight:600; fill:#14171E; }
+    .note { font-size:13px; fill:#5B6676; }
+    .k { fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  </style>
+  <defs>
+    <linearGradient id="gCobalt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A6FF0"/><stop offset="1" stop-color="#1E3AA8"/></linearGradient>
+    <linearGradient id="gGraphite" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#343C4A"/><stop offset="1" stop-color="#14171E"/></linearGradient>
+    <linearGradient id="gMist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DDE3EC"/></linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+
+    <!-- Full MFP, two drawers, no accents. 128 grid. -->
+    <symbol id="mfp" viewBox="0 0 128 128">
+      <g class="k" stroke="currentColor" stroke-width="5">
+        <path d="M30 20 V13 a3 3 0 0 1 3-3 H60 a3 3 0 0 1 3 3 V20"/>
+        <rect x="20" y="20" width="88" height="10" rx="2"/>
+        <rect x="20" y="30" width="88" height="86" rx="5"/>
+        <path d="M96 33 H118 a2 2 0 0 1 2 2 V40 a2 2 0 0 1 -2 2 H100"/>
+        <rect x="30" y="41" width="50" height="9" rx="1.5"/>
+        <path d="M20 74 H108 M20 95 H108"/>
+        <path d="M54 84.5 H74 M54 105.5 H74"/>
+        <path d="M30 116 V121 M98 116 V121"/>
+      </g>
+    </symbol>
+    <!-- Simplified MFP: lid, panel, slot, two drawers; no feeder, handles or casters -->
+    <symbol id="mfp-m" viewBox="0 0 128 128">
+      <g class="k" stroke="currentColor" stroke-width="6">
+        <rect x="18" y="14" width="92" height="12" rx="3"/>
+        <rect x="18" y="26" width="92" height="90" rx="6"/>
+        <path d="M98 31 H120 a2 2 0 0 1 2 2 V40 a2 2 0 0 1 -2 2 H102"/>
+        <path d="M30 44 H82"/>
+        <path d="M18 72 H110 M18 94 H110"/>
+      </g>
+    </symbol>
+    <!-- Reduced MFP for 32 px and below -->
+    <symbol id="mfp-s" viewBox="0 0 128 128">
+      <g class="k" stroke="currentColor" stroke-width="10">
+        <rect x="18" y="16" width="92" height="14" rx="3"/>
+        <rect x="18" y="30" width="92" height="86" rx="6"/>
+        <path d="M30 48 H80"/>
+        <path d="M18 78 H110"/>
+      </g>
+    </symbol>
+    <symbol id="shield" viewBox="0 0 128 128">
+      <path d="M64 7 L116 23 V60 C116 92 94 113 64 122 C34 113 12 92 12 60 V23 Z"/>
+    </symbol>
+    <!-- Wider, squarer shield: more room for the machine -->
+    <symbol id="shield-w" viewBox="0 0 128 128">
+      <path d="M64 6 L120 20 V66 C120 96 96 116 64 124 C32 116 8 96 8 66 V20 Z"/>
+    </symbol>
+  </defs>
+
+  <rect width="1180" height="900" fill="#F4F6F9"/>
+  <text x="30" y="40" font-size="24" font-weight="700" fill="#14171E">PrintMarshal app icon sketches, round 4: shield holding the MFP, one colour (30 Oct 2026, drafts)</text>
+  <text x="30" y="62" class="note">No brass, no dot. White or Mist line work only, on Cobalt and Graphite. Each tile: 160 px, 96 px, 32 px, 16 px.</text>
+
+  <!-- 1: C as it was, cleaned: Cobalt, white shield, full MFP -->
+  <g transform="translate(30,80)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)">
+      <rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"><use href="#shield" x="12" y="10" width="176" height="176"/></g>
+      <g color="#FFFFFF"><use href="#mfp" x="52" y="44" width="96" height="96"/></g>
+    </g>
+    <g transform="translate(240,20)">
+      <rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"><use href="#shield" x="6" y="5" width="88" height="88"/></g>
+      <g color="#FFFFFF"><use href="#mfp" x="26" y="22" width="48" height="48"/></g>
+    </g>
+    <g transform="translate(240,140)">
+      <rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"><use href="#shield" x="3" y="2" width="42" height="42"/></g>
+      <g color="#FFFFFF"><use href="#mfp-s" x="13" y="11" width="22" height="22"/></g>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"><use href="#shield" x="62" y="1.5" width="20" height="20"/></g>
+      <g color="#FFFFFF"><use href="#mfp-s" x="67" y="6" width="10" height="10"/></g>
+    </g>
+    <text x="16" y="262" class="label">1. C, cleaned</text>
+    <text x="16" y="284" class="note">C with the dot removed: white shield outline, full MFP</text>
+    <text x="16" y="302" class="note">with feeder and two drawers, Cobalt icon. The baseline</text>
+    <text x="16" y="320" class="note">the other tiles vary from.</text>
+  </g>
+
+  <!-- 2: same on Graphite (E background) -->
+  <g transform="translate(410,80)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)">
+      <rect width="200" height="200" rx="46" fill="url(#gGraphite)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g fill="none" stroke="#E8ECF2" stroke-width="6" stroke-linejoin="round"><use href="#shield" x="12" y="10" width="176" height="176"/></g>
+      <g color="#E8ECF2"><use href="#mfp" x="52" y="44" width="96" height="96"/></g>
+    </g>
+    <g transform="translate(240,20)">
+      <rect width="100" height="100" rx="23" fill="url(#gGraphite)"/>
+      <g fill="none" stroke="#E8ECF2" stroke-width="3" stroke-linejoin="round"><use href="#shield" x="6" y="5" width="88" height="88"/></g>
+      <g color="#E8ECF2"><use href="#mfp" x="26" y="22" width="48" height="48"/></g>
+    </g>
+    <g transform="translate(240,140)">
+      <rect width="48" height="48" rx="11" fill="url(#gGraphite)"/>
+      <g fill="none" stroke="#E8ECF2" stroke-width="2.5" stroke-linejoin="round"><use href="#shield" x="3" y="2" width="42" height="42"/></g>
+      <g color="#E8ECF2"><use href="#mfp-s" x="13" y="11" width="22" height="22"/></g>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gGraphite)"/>
+      <g fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linejoin="round"><use href="#shield" x="62" y="1.5" width="20" height="20"/></g>
+      <g color="#E8ECF2"><use href="#mfp-s" x="67" y="6" width="10" height="10"/></g>
+    </g>
+    <text x="16" y="262" class="label">2. C on Graphite</text>
+    <text x="16" y="284" class="note">The same mark on E's Graphite icon, Mist line work.</text>
+    <text x="16" y="302" class="note">Matches the console and the dark site sections;</text>
+    <text x="16" y="320" class="note">quieter in a dock than Cobalt.</text>
+  </g>
+
+  <!-- 3: wider shield, simplified MFP, bigger -->
+  <g transform="translate(790,80)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)">
+      <rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"><use href="#shield-w" x="10" y="8" width="180" height="180"/></g>
+      <g color="#FFFFFF"><use href="#mfp-m" x="46" y="40" width="108" height="108"/></g>
+    </g>
+    <g transform="translate(240,20)">
+      <rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"><use href="#shield-w" x="5" y="4" width="90" height="90"/></g>
+      <g color="#FFFFFF"><use href="#mfp-m" x="23" y="20" width="54" height="54"/></g>
+    </g>
+    <g transform="translate(240,140)">
+      <rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"><use href="#shield-w" x="2.5" y="2" width="43" height="43"/></g>
+      <g color="#FFFFFF"><use href="#mfp-s" x="12" y="10" width="24" height="24"/></g>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"><use href="#shield-w" x="61.5" y="1" width="21" height="21"/></g>
+      <g color="#FFFFFF"><use href="#mfp-s" x="66.5" y="5.5" width="11" height="11"/></g>
+    </g>
+    <text x="16" y="262" class="label">3. Wider shield, simpler MFP</text>
+    <text x="16" y="284" class="note">A squarer shield gives the machine more room; the MFP</text>
+    <text x="16" y="302" class="note">loses the feeder, handles and casters and grows.</text>
+    <text x="16" y="320" class="note">Fewer lines, bigger read.</text>
+  </g>
+
+  <!-- 4: inverse, solid white shield, Cobalt MFP -->
+  <g transform="translate(30,480)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)">
+      <rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g fill="#FFFFFF"><use href="#shield-w" x="10" y="8" width="180" height="180"/></g>
+      <g color="#2E54E6"><use href="#mfp-m" x="46" y="40" width="108" height="108"/></g>
+    </g>
+    <g transform="translate(240,20)">
+      <rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g fill="#FFFFFF"><use href="#shield-w" x="5" y="4" width="90" height="90"/></g>
+      <g color="#2E54E6"><use href="#mfp-m" x="23" y="20" width="54" height="54"/></g>
+    </g>
+    <g transform="translate(240,140)">
+      <rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g fill="#FFFFFF"><use href="#shield-w" x="2.5" y="2" width="43" height="43"/></g>
+      <g color="#2E54E6"><use href="#mfp-s" x="12" y="10" width="24" height="24"/></g>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gCobalt)"/>
+      <g fill="#FFFFFF"><use href="#shield-w" x="61.5" y="1" width="21" height="21"/></g>
+      <g color="#2E54E6"><use href="#mfp-s" x="66.5" y="5.5" width="11" height="11"/></g>
+    </g>
+    <text x="16" y="262" class="label">4. Solid shield, Cobalt</text>
+    <text x="16" y="284" class="note">The shield is a solid white plate and the MFP is drawn</text>
+    <text x="16" y="302" class="note">into it in Cobalt. Strongest at a glance and the best</text>
+    <text x="16" y="320" class="note">16 px of the set: the shield is a shape, not a line.</text>
+  </g>
+
+  <!-- 5: inverse on Graphite -->
+  <g transform="translate(410,480)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)">
+      <rect width="200" height="200" rx="46" fill="url(#gGraphite)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g fill="#E8ECF2"><use href="#shield-w" x="10" y="8" width="180" height="180"/></g>
+      <g color="#14171E"><use href="#mfp-m" x="46" y="40" width="108" height="108"/></g>
+    </g>
+    <g transform="translate(240,20)">
+      <rect width="100" height="100" rx="23" fill="url(#gGraphite)"/>
+      <g fill="#E8ECF2"><use href="#shield-w" x="5" y="4" width="90" height="90"/></g>
+      <g color="#14171E"><use href="#mfp-m" x="23" y="20" width="54" height="54"/></g>
+    </g>
+    <g transform="translate(240,140)">
+      <rect width="48" height="48" rx="11" fill="url(#gGraphite)"/>
+      <g fill="#E8ECF2"><use href="#shield-w" x="2.5" y="2" width="43" height="43"/></g>
+      <g color="#14171E"><use href="#mfp-s" x="12" y="10" width="24" height="24"/></g>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gGraphite)"/>
+      <g fill="#E8ECF2"><use href="#shield-w" x="61.5" y="1" width="21" height="21"/></g>
+      <g color="#14171E"><use href="#mfp-s" x="66.5" y="5.5" width="11" height="11"/></g>
+    </g>
+    <text x="16" y="262" class="label">5. Solid shield, Graphite</text>
+    <text x="16" y="284" class="note">The same plate on Graphite: Mist shield, Graphite MFP.</text>
+    <text x="16" y="302" class="note">Two colours only, both already in the palette;</text>
+    <text x="16" y="320" class="note">no blue at all, which makes it the most neutral.</text>
+  </g>
+
+  <!-- 6: light twin + glyphs -->
+  <g transform="translate(790,480)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)">
+      <rect width="200" height="200" rx="46" fill="url(#gMist)" stroke="#C9D1DE"/>
+      <g fill="none" stroke="#14171E" stroke-width="6" stroke-linejoin="round"><use href="#shield-w" x="10" y="8" width="180" height="180"/></g>
+      <g color="#14171E"><use href="#mfp-m" x="46" y="40" width="108" height="108"/></g>
+    </g>
+    <g transform="translate(240,20)">
+      <g fill="none" stroke="#14171E" stroke-width="3" stroke-linejoin="round"><use href="#shield-w" x="5" y="4" width="90" height="90"/></g>
+      <g color="#14171E"><use href="#mfp-m" x="23" y="20" width="54" height="54"/></g>
+    </g>
+    <g transform="translate(240,140)">
+      <g fill="none" stroke="#2E54E6" stroke-width="2.5" stroke-linejoin="round"><use href="#shield-w" x="2.5" y="2" width="43" height="43"/></g>
+      <g color="#2E54E6"><use href="#mfp-s" x="12" y="10" width="24" height="24"/></g>
+      <g fill="none" stroke="#2E54E6" stroke-width="2" stroke-linejoin="round"><use href="#shield-w" x="61.5" y="1" width="21" height="21"/></g>
+      <g color="#2E54E6"><use href="#mfp-s" x="66.5" y="5.5" width="11" height="11"/></g>
+    </g>
+    <text x="16" y="262" class="label">6. Light icon and the glyph</text>
+    <text x="16" y="284" class="note">Graphite line work on a Mist icon for light contexts,</text>
+    <text x="16" y="302" class="note">and the one-ink glyph (Graphite or Cobalt) for the</text>
+    <text x="16" y="320" class="note">favicon, tab bar and console sidebar.</text>
+  </g>
+</svg>
