@@ -38,18 +38,30 @@ func NewResolver(server string) *net.Resolver {
 	}
 }
 
-func (s *Service) rdnsConfig() config.ReverseDNS {
-	if s.Cfg != nil {
+// rdnsConfig returns the effective reverse-DNS options: the file / environment
+// defaults overlaid with what an administrator saved in Settings (issue #18).
+func (s *Service) rdnsConfig(ctx context.Context) config.ReverseDNS {
+	if s.Cfg == nil {
+		return config.Default().Discovery.ReverseDNS
+	}
+	if s.Store == nil {
 		return s.Cfg.Discovery.ReverseDNS
 	}
-	return config.Default().Discovery.ReverseDNS
+	return s.Runtime(ctx).ReverseDNS
 }
 
-func (s *Service) resolver() Resolver {
+// resolver returns the injected Resolver or one for the effective DNS server,
+// rebuilt only when the server setting changes.
+func (s *Service) resolver(server string) Resolver {
 	if s.Resolver != nil {
 		return s.Resolver
 	}
-	return NewResolver(s.rdnsConfig().Server)
+	s.rdnsMu.Lock()
+	defer s.rdnsMu.Unlock()
+	if s.rdnsResolver == nil || s.rdnsServer != server {
+		s.rdnsResolver, s.rdnsServer = NewResolver(server), server
+	}
+	return s.rdnsResolver
 }
 
 // RefreshHostname performs an on-demand reverse DNS lookup for dev and stores
@@ -114,7 +126,7 @@ func (s *Service) RefreshHostname(ctx context.Context, dev *model.Device) (*mode
 // refreshHostname wraps RefreshHostname for discovery/poll flows where store
 // errors should be logged rather than aborting the caller.
 func (s *Service) refreshHostname(ctx context.Context, dev *model.Device) *model.Device {
-	if !s.rdnsConfig().Enabled {
+	if !s.rdnsConfig(ctx).Enabled {
 		return dev
 	}
 	updated, err := s.RefreshHostname(ctx, dev)
@@ -131,7 +143,7 @@ func (s *Service) refreshHostname(ctx context.Context, dev *model.Device) *model
 // per configured refreshInterval. Failed lookups are not recorded in
 // dnsRefreshed so the next poll retries them.
 func (s *Service) maybeRefreshHostname(ctx context.Context, dev *model.Device) *model.Device {
-	cfg := s.rdnsConfig()
+	cfg := s.rdnsConfig(ctx)
 	if !cfg.Enabled || dev == nil {
 		return dev
 	}
@@ -156,7 +168,7 @@ func (s *Service) lookupHostname(ctx context.Context, addr string) (name, fqdn s
 	if addr == "" {
 		return "", "", false
 	}
-	cfg := s.rdnsConfig()
+	cfg := s.rdnsConfig(ctx)
 	timeout := cfg.Timeout.D()
 	if timeout <= 0 {
 		timeout = time.Second
@@ -164,7 +176,7 @@ func (s *Service) lookupHostname(ctx context.Context, addr string) (name, fqdn s
 	lctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	res := s.resolver()
+	res := s.resolver(cfg.Server)
 	names, err := res.LookupAddr(lctx, addr)
 	if err != nil || len(names) == 0 {
 		if s.Log != nil {

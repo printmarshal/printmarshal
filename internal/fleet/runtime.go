@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +32,10 @@ type RuntimeSettings struct {
 	OfflineAfterFailures  int             `json:"offlineAfterFailures"`
 	TelemetryRetention    config.Duration `json:"telemetryRetention"`
 	Names                 NameSettings    `json:"names"`
+	// ReverseDNS is the lookup switch and its options (issue #18): the file
+	// and PM_REVERSE_DNS_* variables are the defaults, Settings overrides
+	// them without a restart.
+	ReverseDNS config.ReverseDNS `json:"reverseDns"`
 }
 
 const runtimeKey = "runtime"
@@ -43,6 +49,7 @@ func (s *Service) Defaults() RuntimeSettings {
 		SupplyWarningPercent: c.Alerts.SupplyWarningPercent, SupplyCriticalPercent: c.Alerts.SupplyCriticalPercent, OfflineAfterFailures: c.Alerts.OfflineAfterFailures,
 		TelemetryRetention: c.Telemetry.Retention,
 		Names:              NameSettings{Source: "advertised"},
+		ReverseDNS:         c.Discovery.ReverseDNS,
 	}
 }
 
@@ -51,6 +58,12 @@ func (s *Service) Runtime(ctx context.Context) RuntimeSettings {
 	eff := s.Defaults()
 	var saved RuntimeSettings
 	if err := s.Store.GetSetting(ctx, runtimeKey, &saved); err != nil {
+		return eff
+	}
+	if saved.PollInterval == 0 {
+		// ResetRuntime stores an empty record; SaveRuntime never stores a
+		// poll interval under 30s, so this means "no overrides" and every
+		// field, booleans included, comes from the file / environment.
 		return eff
 	}
 	if saved.PollInterval > 0 {
@@ -80,6 +93,13 @@ func (s *Service) Runtime(ctx context.Context) RuntimeSettings {
 	}
 	if saved.Names.Source != "" {
 		eff.Names.Source = saved.Names.Source
+	}
+	eff.ReverseDNS = saved.ReverseDNS
+	if eff.ReverseDNS.Timeout <= 0 {
+		eff.ReverseDNS.Timeout = s.Defaults().ReverseDNS.Timeout
+	}
+	if eff.ReverseDNS.RefreshInterval <= 0 {
+		eff.ReverseDNS.RefreshInterval = s.Defaults().ReverseDNS.RefreshInterval
 	}
 	return eff
 }
@@ -118,7 +138,35 @@ func (s *Service) SaveRuntime(ctx context.Context, r RuntimeSettings) error {
 			return fmt.Errorf("discovery target %d is empty", i+1)
 		}
 	}
+	if err := validateReverseDNS(&r.ReverseDNS); err != nil {
+		return err
+	}
 	return s.Store.SetSetting(ctx, runtimeKey, r)
+}
+
+// validateReverseDNS normalises and checks the reverse-DNS options.
+func validateReverseDNS(r *config.ReverseDNS) error {
+	r.Server = strings.TrimSpace(r.Server)
+	if r.Server != "" {
+		host := r.Server
+		if h, p, err := net.SplitHostPort(r.Server); err == nil {
+			host = h
+			if n, err := strconv.Atoi(p); err != nil || n < 1 || n > 65535 {
+				return fmt.Errorf("reverse DNS server port %q is not valid", p)
+			}
+		}
+		host = strings.Trim(host, "[]")
+		if host == "" || strings.ContainsAny(host, " \t/\\") {
+			return fmt.Errorf("reverse DNS server %q must be a host or host:port", r.Server)
+		}
+	}
+	if d := r.Timeout.D(); d < 100*time.Millisecond || d > 30*time.Second {
+		return errors.New("reverse DNS lookup timeout must be between 100ms and 30s")
+	}
+	if d := r.RefreshInterval.D(); d < time.Minute {
+		return errors.New("reverse DNS refresh interval must be at least 1m")
+	}
+	return nil
 }
 
 // ResetRuntime removes the overrides.

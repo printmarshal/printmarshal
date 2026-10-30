@@ -228,6 +228,11 @@ applies, `outcome` / `readBack`) and `data.verified` / `data.diverged`.
 ## Reverse DNS hostname lookup (`discovery.reverseDns`)
 
 Reverse DNS is **optional and off by default** (`discovery.reverseDns.enabled: false`).
+The values below are defaults: the switch and every option are also runtime settings
+(Settings → Polling & discovery, the `reverseDns` object of `GET/PATCH /api/settings`),
+saved in the settings table and applied on the next identification or poll without a
+restart; `GET /api/settings` reports in `sources.reverseDns` whether each default came
+from the environment, the config file or the built-in value.
 When enabled, PrintMarshal runs a PTR lookup on the device's address after
 identification and on successful polls at most once per `refreshInterval`
 (operators can also trigger a lookup on demand via `POST /api/devices/{id}/refresh-hostname`).

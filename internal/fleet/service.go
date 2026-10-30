@@ -47,17 +47,18 @@ type Service struct {
 
 	dnsMu        sync.Mutex
 	dnsRefreshed map[string]time.Time
+
+	// The resolver built for the effective DNS server (rdns.go).
+	rdnsMu       sync.Mutex
+	rdnsServer   string
+	rdnsResolver Resolver
 }
 
 // New builds a service and registers its job types.
 func New(st store.Store, eng *engine.Engine, runner *jobs.Runner, cfg *config.Config, log *slog.Logger, events func(model.Event), probe discovery.Prober) *Service {
-	var res Resolver
-	if cfg != nil {
-		res = NewResolver(cfg.Discovery.ReverseDNS.Server)
-	} else {
-		res = NewResolver("")
-	}
-	s := &Service{Store: st, Engine: eng, Jobs: runner, Cfg: cfg, Log: log, Events: events, Probe: probe, Resolver: res,
+	// Resolver stays nil so lookups follow the DNS server set at runtime
+	// (rdns.go builds one per effective server); tests inject a fake.
+	s := &Service{Store: st, Engine: eng, Jobs: runner, Cfg: cfg, Log: log, Events: events, Probe: probe,
 		polling: map[string]bool{}, dnsRefreshed: map[string]time.Time{},
 		Consumables: consumables.New(st, log)}
 	runner.Register("discovery", s.runDiscovery)

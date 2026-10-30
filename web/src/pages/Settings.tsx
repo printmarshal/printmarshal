@@ -99,9 +99,11 @@ function Users({ me }: { me: User }) {
   )
 }
 
-interface Runtime { pollInterval: string; pollConcurrency: number; discoveryEnabled: boolean; discoveryInterval: string; discoveryTargets: string[] | null; supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number; telemetryRetention: string; names?: { source: NameSource } }
+interface ReverseDns { enabled: boolean; server: string; shortNames: boolean; timeout: string; refreshInterval: string; forwardConfirm: boolean }
+const RDNS_ENV: Record<keyof ReverseDns, string> = { enabled: 'PM_REVERSE_DNS_ENABLED', server: 'PM_REVERSE_DNS_SERVER', shortNames: 'PM_REVERSE_DNS_SHORT_NAMES', timeout: 'PM_REVERSE_DNS_TIMEOUT', refreshInterval: 'PM_REVERSE_DNS_REFRESH_INTERVAL', forwardConfirm: 'PM_REVERSE_DNS_FORWARD_CONFIRM' }
+interface Runtime { pollInterval: string; pollConcurrency: number; discoveryEnabled: boolean; discoveryInterval: string; discoveryTargets: string[] | null; supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number; telemetryRetention: string; names?: { source: NameSource }; reverseDns: ReverseDns }
 interface OutboxRow { id: number; eventId: string; event: string; notifier: string; subject: string; state: string; attempts: number; lastError?: string; nextAt: string; createdAt: string; doneAt?: string }
-interface RuntimeSettings { version: string; poll: { interval: string; concurrency: number }; discovery: { enabled: boolean; interval: string; targets: string[] | null; maxAddresses: number }; trap: { enabled: boolean; listen: string }; alerts: { supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number }; telemetry?: { retention: string }; names?: { source: NameSource }; runtime?: Runtime; defaults?: Runtime; notifiers: { name: string; type: string; events: string[] | null }[] }
+interface RuntimeSettings { version: string; poll: { interval: string; concurrency: number }; discovery: { enabled: boolean; interval: string; targets: string[] | null; maxAddresses: number }; trap: { enabled: boolean; listen: string }; alerts: { supplyWarningPercent: number; supplyCriticalPercent: number; offlineAfterFailures: number }; telemetry?: { retention: string }; names?: { source: NameSource }; runtime?: Runtime; defaults?: Runtime; sources?: { reverseDns?: Partial<Record<keyof ReverseDns, string>> }; notifiers: { name: string; type: string; events: string[] | null }[] }
 
 function Notifications({ isAdmin }: { isAdmin: boolean }) {
   const [s, setS] = useState<RuntimeSettings | null>(null)
@@ -193,10 +195,16 @@ function System({ isAdmin }: { isAdmin: boolean }) {
 function ScheduleCard({ s, isAdmin, onSaved }: { s: RuntimeSettings | null; isAdmin: boolean; onSaved: (s: RuntimeSettings) => void }) {
   const [r, setR] = useState<Runtime | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  useEffect(() => { if (s?.runtime) setR({ ...s.runtime, discoveryTargets: s.runtime.discoveryTargets || [], names: { source: s.runtime.names?.source || 'advertised' } }) }, [s])
+  useEffect(() => { if (s?.runtime) setR({ ...s.runtime, discoveryTargets: s.runtime.discoveryTargets || [], names: { source: s.runtime.names?.source || 'advertised' }, reverseDns: s.runtime.reverseDns || { enabled: false, server: '', shortNames: true, timeout: '1s', refreshInterval: '24h', forwardConfirm: true } }) }, [s])
   if (!s || !r) return <Card title="Polling & discovery" id="pol"><div className="cb cap">Loading…</div></Card>
   const d = s.defaults
   const overridden = (k: keyof Runtime) => d && JSON.stringify(d[k]) !== JSON.stringify(r[k])
+  const rd = r.reverseDns
+  const setRd = (patch: Partial<ReverseDns>) => setR({ ...r, reverseDns: { ...rd, ...patch } })
+  const rdOverridden = (k: keyof ReverseDns) => !!d?.reverseDns && JSON.stringify(d.reverseDns[k]) !== JSON.stringify(rd[k])
+  const rdSource = (k: keyof ReverseDns) => { const src = s.sources?.reverseDns?.[k]; return src === 'environment' ? `set by ${RDNS_ENV[k]}` : src === 'file' ? 'set in the config file' : '' }
+  const rdLabel = (text: string, k: keyof ReverseDns) => <>{text}{rdOverridden(k) && <Tag>overrides {s.sources?.reverseDns?.[k] === 'environment' ? 'environment' : 'file'}</Tag>}</>
+  const rdHint = (k: keyof ReverseDns, hint?: string) => [hint, rdSource(k)].filter(Boolean).join(' · ') || undefined
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setMsg(null)
     try { const saved = await api.patch<Runtime>('/api/settings', r); setNameSource(saved.names?.source); onSaved({ ...s, runtime: saved, names: saved.names }); setMsg({ ok: true, text: 'Saved. The scheduler picks this up on its next tick.' }) } catch (err) { setMsg({ ok: false, text: (err as Error).message }) }
@@ -214,7 +222,14 @@ function ScheduleCard({ s, isAdmin, onSaved }: { s: RuntimeSettings | null; isAd
           <option value="dns">DNS name</option>
           <option value="display">Operator display name</option>
         </select>
+        {r.names?.source === 'dns' && !rd.enabled && <div className="cap" style={{ color: 'var(--warn)', marginTop: 6 }}>DNS name is selected, but DNS lookups are off, so devices keep their advertised names. Turn on “Look up DNS names” below.</div>}
       </SRow>
+      <SRow label={rdLabel('DNS lookups', 'enabled')} hint={rdHint('enabled', 'reverse DNS (PTR) after identification and on polls')}><label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><input className="cbx" type="checkbox" checked={rd.enabled} disabled={!isAdmin} onChange={(e) => setRd({ enabled: e.target.checked })} />Look up DNS names</label></SRow>
+      <SRow label={rdLabel('DNS server', 'server')} hint={rdHint('server', 'host or host:port; empty = the system resolver')}><input className="fin mono" style={{ width: 240 }} placeholder="system resolver" value={rd.server} disabled={!isAdmin || !rd.enabled} onChange={(e) => setRd({ server: e.target.value })} /></SRow>
+      <SRow label={rdLabel('DNS name form', 'shortNames')} hint={rdHint('shortNames')}><Seg label="DNS name form" value={rd.shortNames ? 'short' : 'full'} onChange={(v) => isAdmin && rd.enabled && setRd({ shortNames: v === 'short' })} options={[{ v: 'short', label: 'Short (printer-7)' }, { v: 'full', label: 'Full (printer-7.corp.example.com)' }]} /></SRow>
+      <SRow label={rdLabel('Forward-confirm', 'forwardConfirm')} hint={rdHint('forwardConfirm', 'accept a name only when it resolves back to the device')}><label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><input className="cbx" type="checkbox" checked={rd.forwardConfirm} disabled={!isAdmin || !rd.enabled} onChange={(e) => setRd({ forwardConfirm: e.target.checked })} />Resolve the name back and compare</label></SRow>
+      <SRow label={rdLabel('Lookup timeout', 'timeout')} hint={rdHint('timeout', 'per lookup')}><div className="row"><input className="fin mono" style={{ width: 120 }} value={rd.timeout} disabled={!isAdmin || !rd.enabled} onChange={(e) => setRd({ timeout: e.target.value })} /><span className="cap">100ms – 30s, e.g. 1s</span></div></SRow>
+      <SRow label={rdLabel('DNS refresh interval', 'refreshInterval')} hint={rdHint('refreshInterval', 'minimum time between automatic re-lookups on polls')}><div className="row"><input className="fin mono" style={{ width: 120 }} value={rd.refreshInterval} disabled={!isAdmin || !rd.enabled} onChange={(e) => setRd({ refreshInterval: e.target.value })} /><span className="cap">Go duration, e.g. 24h</span></div></SRow>
       {dur('Scheduled poll', 'pollInterval', 'status, supplies, trays, counters, firmware')}
       <SRow label={<>Poll concurrency{overridden('pollConcurrency') && <Tag>overrides file</Tag>}</>} hint="simultaneous device reads"><input className="fin num" type="number" min={1} max={512} style={{ width: 100 }} value={r.pollConcurrency} disabled={!isAdmin} onChange={(e) => setR({ ...r, pollConcurrency: Number(e.target.value) })} /></SRow>
       <SRow label={<>Scheduled discovery{overridden('discoveryEnabled') && <Tag>overrides file</Tag>}</>} hint="zero-config plus the targets below"><label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><input className="cbx" type="checkbox" checked={r.discoveryEnabled} disabled={!isAdmin} onChange={(e) => setR({ ...r, discoveryEnabled: e.target.checked })} />Run discovery on a schedule</label></SRow>

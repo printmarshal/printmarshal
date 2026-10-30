@@ -381,4 +381,28 @@ func TestRenameDevicesAndNameSourceSetting(t *testing.T) {
 	if code, _ := do(t, ts, admin, "PATCH", "/api/settings", string(rawBad)); code != 400 {
 		t.Errorf("invalid names.source should fail with 400, got %d", code)
 	}
+
+	// Reverse-DNS options are runtime settings too (issue #18), with their
+	// defaults' origin reported.
+	if !strings.Contains(setBody, `"reverseDns":{"enabled":false`) || !strings.Contains(setBody, `"sources":{"reverseDns":{"enabled":"default"`) {
+		t.Fatalf("GET /api/settings should report reverseDns and its sources: %s", setBody)
+	}
+	settings.Runtime["names"] = map[string]any{"source": "dns"}
+	settings.Runtime["reverseDns"] = map[string]any{"enabled": true, "server": "10.0.0.53", "shortNames": true, "timeout": "2s", "refreshInterval": "12h", "forwardConfirm": false}
+	rawRD, _ := json.Marshal(settings.Runtime)
+	code, rdBody := do(t, ts, admin, "PATCH", "/api/settings", string(rawRD))
+	if code != 200 || !strings.Contains(rdBody, `"reverseDns":{"enabled":true,"server":"10.0.0.53","shortNames":true,"timeout":"2s","refreshInterval":"12h0m0s","forwardConfirm":false}`) {
+		t.Fatalf("PATCH /api/settings reverseDns: %d %s", code, rdBody)
+	}
+	settings.Runtime["reverseDns"] = map[string]any{"enabled": true, "timeout": "5ms", "refreshInterval": "12h"}
+	rawRDBad, _ := json.Marshal(settings.Runtime)
+	if code, _ := do(t, ts, admin, "PATCH", "/api/settings", string(rawRDBad)); code != 400 {
+		t.Errorf("invalid reverseDns.timeout should fail with 400, got %d", code)
+	}
+	if code, _ := do(t, ts, admin, "DELETE", "/api/settings", ""); code != 200 {
+		t.Errorf("DELETE /api/settings: %d", code)
+	}
+	if code, body := do(t, ts, admin, "GET", "/api/settings", ""); code != 200 || !strings.Contains(body, `"reverseDns":{"enabled":false`) {
+		t.Fatalf("reset should restore the reverseDns defaults: %d %s", code, body)
+	}
 }
