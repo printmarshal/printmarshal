@@ -18,6 +18,16 @@ import (
 // Name is the driver's registry name.
 const Name = "snmp"
 
+// ErrNotPrinter is returned by Identify when the agent answered every read and
+// nothing in the Host Resources or Printer MIBs says the device prints.
+var ErrNotPrinter = errors.New("responds to SNMP but is not a printer (no hrDevicePrinter / Printer MIB)")
+
+// ErrReadFailed is returned by Identify when the system group answered but a
+// table walk that decides whether the device is a printer timed out or
+// errored. It is deliberately distinct from ErrNotPrinter: a slow agent is
+// not a print server (issue #19).
+var ErrReadFailed = errors.New("SNMP read failed")
+
 // Driver implements engine.Driver plus the read capabilities.
 type Driver struct {
 	dial Dialer
@@ -92,8 +102,16 @@ func (d *Driver) Identify(ctx context.Context, address string, creds model.Creds
 	// Is this a printer at all? (hrDeviceType == hrDevicePrinter, or a Printer MIB general entry.)
 	isPrinter := false
 	printerDescr := ""
-	types, _ := s.Walk(ctx, OIDHrDeviceType)
-	descrs, _ := s.Walk(ctx, OIDHrDeviceDescr)
+	var readErr error
+	note := func(what string, err error) {
+		if err != nil {
+			readErr = errors.Join(readErr, fmt.Errorf("%s: %w", what, err))
+		}
+	}
+	types, err := s.Walk(ctx, OIDHrDeviceType)
+	note("hrDeviceType", err)
+	descrs, err := s.Walk(ctx, OIDHrDeviceDescr)
+	note("hrDeviceDescr", err)
 	descrByIdx := map[string]string{}
 	for _, p := range descrs {
 		descrByIdx[strings.TrimPrefix(p.OID, OIDHrDeviceDescr+".")] = Str(p)
@@ -106,13 +124,21 @@ func (d *Driver) Identify(ctx context.Context, address string, creds model.Creds
 			}
 		}
 	}
-	general, _ := s.Walk(ctx, OIDPrtGeneralSerialNumber)
-	names, _ := s.Walk(ctx, OIDPrtGeneralPrinterName)
+	general, err := s.Walk(ctx, OIDPrtGeneralSerialNumber)
+	note("prtGeneralSerialNumber", err)
+	names, err := s.Walk(ctx, OIDPrtGeneralPrinterName)
+	note("prtGeneralPrinterName", err)
 	if len(general) > 0 || len(names) > 0 {
 		isPrinter = true
 	}
 	if !isPrinter {
-		return nil, errors.New("responds to SNMP but is not a printer (no hrDevicePrinter / Printer MIB)")
+		if readErr != nil {
+			// A walk that did not complete is not evidence of anything: report
+			// the read failure so the caller retries or records "unreachable"
+			// instead of "not a printer".
+			return nil, fmt.Errorf("%w: %w", ErrReadFailed, readErr)
+		}
+		return nil, ErrNotPrinter
 	}
 	for _, p := range general {
 		if v := Str(p); v != "" {

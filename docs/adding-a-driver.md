@@ -29,6 +29,12 @@ plugin is just another driver that talks to a manufacturer's device web service.
 3. In `Identify`, return only the capabilities you can actually serve for *that*
    device (probe once, cheaply). The engine merges identities by priority and records
    your name against each capability you win.
+   Before the drivers fan out, the engine reads the system group once (`engine.Preflight`:
+   whether SNMP answered, the sysObjectID enterprise, sysDescr). A driver that can tell
+   from that alone it does not apply implements `engine.Gated` (`Applies(Preflight) bool`)
+   and is then skipped without opening a session; `vendorkit.Base` does this for its
+   enterprise numbers. When a read that decides "is this a printer" times out, return a
+   read failure (the SNMP driver's `ErrReadFailed`), never "not a printer" (issue #19).
 
 4. Register the driver at startup in `cmd/printmarshal/main.go`:
 
