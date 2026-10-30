@@ -101,6 +101,16 @@ func (s *Server) sync(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusForbidden, fmt.Sprintf("requires %s role", minRole))
 		return
 	}
+	// The sync API is an alternate reader of the same collections and keeps
+	// the same group scope as the primary lists (audit NV-03). Jobs and audit
+	// rows are fleet-wide and cannot be bounded per device, so a scoped
+	// principal does not get them at all; tombstones of devices it could not
+	// see are dropped with the rest.
+	scope := s.scopeDeviceIDs(ctx)
+	if scope != nil && (coll == "jobs" || coll == "audit") {
+		s.denyScope(w, r, auth.UserFrom(ctx), r.URL.Path+" (fleet-wide collection)")
+		return
+	}
 	rows, more, err := fetch()
 	if err != nil {
 		s.fail(w, err)
@@ -108,8 +118,11 @@ func (s *Server) sync(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := syncResponse{Collection: coll, Items: make([]any, 0, len(rows)), HasMore: more, Cursor: encodeCursor(after)}
 	for _, row := range rows {
-		resp.Items = append(resp.Items, row.Item)
 		resp.Cursor = encodeCursor(row.Cursor)
+		if scope != nil && !scope[deviceIDOf(row.Item)] {
+			continue
+		}
+		resp.Items = append(resp.Items, row.Item)
 	}
 	body, err := json.Marshal(resp)
 	if err != nil {

@@ -6,7 +6,9 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -468,4 +470,24 @@ func Load(path string) (*Config, error) {
 		c.DSN = c.DataDir + "/printmarshal.db"
 	}
 	return c, nil
+}
+
+var dsnPasswordRe = regexp.MustCompile(`(?i)(password\s*=\s*)('[^']*'|"[^"]*"|\S+)`)
+
+// RedactDSN masks the password in a database connection string so it can be
+// logged (audit NV-14): URL form ("postgres://user:pass@host/db") and
+// key=value form ("password=..."); anything else is returned unchanged.
+func RedactDSN(dsn string) string {
+	if dsn == "" {
+		return ""
+	}
+	if u, err := url.Parse(dsn); err == nil && u.Scheme != "" && u.User != nil {
+		if _, has := u.User.Password(); has {
+			name := u.User.Username()
+			u.User = nil
+			return strings.Replace(u.String(), "://", "://"+url.PathEscape(name)+":***@", 1)
+		}
+		return u.String()
+	}
+	return dsnPasswordRe.ReplaceAllString(dsn, "${1}***")
 }

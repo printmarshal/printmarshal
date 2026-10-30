@@ -144,8 +144,14 @@ func ExpandTargets(specs []string, max int) (addrs []string, skipped int, err er
 			if !ok || end.Less(start) {
 				return nil, 0, fmt.Errorf("bad range %q", spec)
 			}
-			for a := start; a.Compare(end) <= 0; a = a.Next() {
+			// Next returns the invalid zero Addr after 255.255.255.255 and the
+			// zero Addr sorts below every valid address, so stop on the end
+			// address itself rather than on the comparison (audit NV-08).
+			for a := start; a.IsValid() && a.Compare(end) <= 0; a = a.Next() {
 				add(a.String())
+				if a == end {
+					break
+				}
 			}
 		default:
 			if _, perr := netip.ParseAddr(spec); perr == nil {

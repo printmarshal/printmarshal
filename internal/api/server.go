@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -61,6 +62,9 @@ func (s *Server) Handler() http.Handler {
 	}
 	if s.Hub != nil && s.Hub.Authorize == nil {
 		s.Hub.Authorize = func(r *http.Request) bool { _, err := s.Auth.Authenticate(r); return err == nil }
+	}
+	if s.Hub != nil && s.Hub.Scope == nil {
+		s.Hub.Scope = s.streamScope
 	}
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -233,6 +237,11 @@ func readJSON(r *http.Request, dst any) error {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
 		return fmt.Errorf("invalid JSON body: %w", err)
+	}
+	// One value per body: data after it would be read by nothing the scope
+	// check saw (audit NV-04).
+	if _, err := dec.Token(); err != io.EOF {
+		return errors.New("invalid JSON body: trailing data after the JSON value")
 	}
 	return nil
 }
@@ -1104,7 +1113,7 @@ func (s *Server) listCredentials(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, cs) // model.Credential carries no secret fields by construction
+	writeJSON(w, http.StatusOK, s.filterCredentials(r.Context(), cs)) // model.Credential carries no secret fields by construction
 }
 
 func (s *Server) createCredential(w http.ResponseWriter, r *http.Request) {
@@ -1363,4 +1372,17 @@ func (s *Server) listDrivers(w http.ResponseWriter, r *http.Request) {
 		out = append(out, drv{d.Name(), d.Capabilities()})
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// streamScope is the live stream's per-subscriber filter: nil for unscoped
+// principals, otherwise only events about devices in the principal's groups.
+func (s *Server) streamScope(r *http.Request) func(data any) bool {
+	set := s.scopeDeviceIDs(r.Context())
+	if set == nil {
+		return nil
+	}
+	return func(data any) bool {
+		id := deviceIDOf(data)
+		return id != "" && set[id]
+	}
 }

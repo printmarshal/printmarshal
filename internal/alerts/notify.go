@@ -356,8 +356,7 @@ func (n *Notifier) sendMail(ctx context.Context, dest config.Notifier, subject, 
 		port = 587
 	}
 	addr := net.JoinHostPort(dest.Host, fmt.Sprint(port))
-	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s\r\n",
-		dest.From, strings.Join(dest.To, ", "), subject, body)
+	msg := mailMessage(dest.From, dest.To, subject, body)
 	dialer := &net.Dialer{Timeout: 10 * time.Second}
 	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
@@ -407,4 +406,28 @@ func (n *Notifier) sendMail(ctx context.Context, dest config.Notifier, subject, 
 		return err
 	}
 	return c.Quit()
+}
+
+// mailMessage builds the RFC 5322 message. The subject can carry text from
+// an anonymous request (auth.failed includes the attempted username), so it
+// is folded onto one line and bounded before it becomes a header (audit
+// NV-02).
+func mailMessage(from string, to []string, subject, body string) string {
+	return fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s\r\n",
+		headerText(from), headerText(strings.Join(to, ", ")), headerText(subject), body)
+}
+
+// headerText makes a value safe for a single header line.
+func headerText(v string) string {
+	v = strings.Map(func(r rune) rune {
+		if r == '\r' || r == '\n' || r == 0 {
+			return ' '
+		}
+		return r
+	}, v)
+	v = strings.TrimSpace(v)
+	if len(v) > 200 {
+		v = v[:200]
+	}
+	return v
 }
