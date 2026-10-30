@@ -1,0 +1,231 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 1320" width="1180" height="1320" font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif">
+  <title>PrintMarshal app icon sketches, round 5: kept marks, word icons, Office-style tiles</title>
+  <style>
+    @font-face { font-family: 'IBM Plex Mono'; src: url('file:///private/tmp/claude-502/-Users-ktaynaz-printmarshal/c4ba53fc-560e-4883-8781-3cbcdf33ad31/scratchpad/fonts/IBMPlexMono-Medium.ttf'); font-weight: 500; }
+    @font-face { font-family: 'Barlow'; src: url('file:///private/tmp/claude-502/-Users-ktaynaz-printmarshal/c4ba53fc-560e-4883-8781-3cbcdf33ad31/scratchpad/fonts/Barlow-Bold.ttf'); font-weight: 700; }
+    .label { font-size:18px; font-weight:600; fill:#14171E; }
+    .note { font-size:13px; fill:#5B6676; }
+    .row { font-size:15px; font-weight:700; fill:#5B6676; letter-spacing:0.08em; }
+    .k { fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .mono { font-family:'IBM Plex Mono', ui-monospace, monospace; font-weight:500; }
+    .tile { font-family:'Barlow', system-ui, sans-serif; font-weight:700; }
+  </style>
+  <defs>
+    <linearGradient id="gCobalt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A6FF0"/><stop offset="1" stop-color="#1E3AA8"/></linearGradient>
+    <linearGradient id="gGraphite" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#343C4A"/><stop offset="1" stop-color="#14171E"/></linearGradient>
+    <linearGradient id="gMist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DDE3EC"/></linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+    <symbol id="mfp" viewBox="0 0 128 128">
+      <g class="k" stroke="currentColor" stroke-width="5">
+        <path d="M30 20 V13 a3 3 0 0 1 3-3 H60 a3 3 0 0 1 3 3 V20"/>
+        <rect x="20" y="20" width="88" height="10" rx="2"/>
+        <rect x="20" y="30" width="88" height="86" rx="5"/>
+        <path d="M96 33 H118 a2 2 0 0 1 2 2 V40 a2 2 0 0 1 -2 2 H100"/>
+        <rect x="30" y="41" width="50" height="9" rx="1.5"/>
+        <path d="M20 74 H108 M20 95 H108"/>
+        <path d="M54 84.5 H74 M54 105.5 H74"/>
+        <path d="M30 116 V121 M98 116 V121"/>
+      </g>
+    </symbol>
+    <symbol id="mfp-s" viewBox="0 0 128 128">
+      <g class="k" stroke="currentColor" stroke-width="10">
+        <rect x="18" y="16" width="92" height="14" rx="3"/>
+        <rect x="18" y="30" width="92" height="86" rx="6"/>
+        <path d="M30 48 H80"/>
+        <path d="M18 78 H110"/>
+      </g>
+    </symbol>
+    <symbol id="shield" viewBox="0 0 128 128">
+      <path d="M64 7 L116 23 V60 C116 92 94 113 64 122 C34 113 12 92 12 60 V23 Z"/>
+    </symbol>
+    <!-- Filled MFP: white blocks, the gaps show the icon background (the use element sets the bg variable) -->
+    <symbol id="mfp-fill" viewBox="0 0 128 128">
+      <g fill="#FFFFFF">
+        <rect x="30" y="7" width="34" height="11" rx="3"/>
+        <rect x="20" y="20" width="88" height="10" rx="2.5"/>
+        <rect x="20" y="33" width="88" height="39" rx="4"/>
+        <rect x="20" y="75" width="88" height="19" rx="3"/>
+        <rect x="20" y="97" width="88" height="21" rx="3"/>
+        <rect x="26" y="120" width="8" height="5" rx="1.5"/>
+        <rect x="94" y="120" width="8" height="5" rx="1.5"/>
+      </g>
+      <rect x="97" y="35" width="24" height="12" rx="2.5" fill="#FFFFFF" stroke="var(--bg)" stroke-width="3"/>
+      <g fill="var(--bg)">
+        <rect x="30" y="43" width="50" height="8" rx="1.5"/>
+        <rect x="54" y="83" width="20" height="3.5" rx="1.5"/>
+        <rect x="54" y="106" width="20" height="3.5" rx="1.5"/>
+      </g>
+    </symbol>
+  </defs>
+
+  <rect width="1180" height="1320" fill="#F4F6F9"/>
+  <text x="30" y="40" font-size="24" font-weight="700" fill="#14171E">PrintMarshal app icon sketches, round 5 (30 Oct 2026, drafts)</text>
+  <text x="30" y="62" class="note">Row 1: the kept marks (1, 2 and 6, with 6 now using the same MFP and shield). Row 2: the word instead of the picture. Row 3: Office-style filled MFP with a letter tile.</text>
+
+  <text x="30" y="98" class="row">KEPT</text>
+  <g transform="translate(30,110)">
+    <rect width="360" height="340" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"><use href="#shield" x="12" y="10" width="176" height="176"/></g>
+      <g color="#FFFFFF"><use href="#mfp" x="52" y="44" width="96" height="96"/></g></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"><use href="#shield" x="6" y="5" width="88" height="88"/></g>
+      <g color="#FFFFFF"><use href="#mfp" x="26" y="22" width="48" height="48"/></g></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"><use href="#shield" x="3" y="2" width="42" height="42"/></g>
+      <g color="#FFFFFF"><use href="#mfp-s" x="13" y="11" width="22" height="22"/></g>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"><use href="#shield" x="62" y="1.5" width="20" height="20"/></g>
+      <g color="#FFFFFF"><use href="#mfp-s" x="67" y="6" width="10" height="10"/></g></g>
+    <text x="16" y="262" class="label">1. Shield and MFP, Cobalt</text>
+    <text x="16" y="284" class="note">White outline shield holding the full MFP.</text>
+  </g>
+  <g transform="translate(410,110)">
+    <rect width="360" height="340" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gGraphite)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g fill="none" stroke="#E8ECF2" stroke-width="6" stroke-linejoin="round"><use href="#shield" x="12" y="10" width="176" height="176"/></g>
+      <g color="#E8ECF2"><use href="#mfp" x="52" y="44" width="96" height="96"/></g></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gGraphite)"/>
+      <g fill="none" stroke="#E8ECF2" stroke-width="3" stroke-linejoin="round"><use href="#shield" x="6" y="5" width="88" height="88"/></g>
+      <g color="#E8ECF2"><use href="#mfp" x="26" y="22" width="48" height="48"/></g></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gGraphite)"/>
+      <g fill="none" stroke="#E8ECF2" stroke-width="2.5" stroke-linejoin="round"><use href="#shield" x="3" y="2" width="42" height="42"/></g>
+      <g color="#E8ECF2"><use href="#mfp-s" x="13" y="11" width="22" height="22"/></g>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gGraphite)"/>
+      <g fill="none" stroke="#E8ECF2" stroke-width="2" stroke-linejoin="round"><use href="#shield" x="62" y="1.5" width="20" height="20"/></g>
+      <g color="#E8ECF2"><use href="#mfp-s" x="67" y="6" width="10" height="10"/></g></g>
+    <text x="16" y="262" class="label">2. Shield and MFP, Graphite</text>
+    <text x="16" y="284" class="note">The same mark in Mist on Graphite.</text>
+  </g>
+  <g transform="translate(790,110)">
+    <rect width="360" height="340" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gMist)" stroke="#C9D1DE"/>
+      <g fill="none" stroke="#14171E" stroke-width="6" stroke-linejoin="round"><use href="#shield" x="12" y="10" width="176" height="176"/></g>
+      <g color="#14171E"><use href="#mfp" x="52" y="44" width="96" height="96"/></g></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gMist)" stroke="#C9D1DE"/>
+      <g fill="none" stroke="#14171E" stroke-width="3" stroke-linejoin="round"><use href="#shield" x="6" y="5" width="88" height="88"/></g>
+      <g color="#14171E"><use href="#mfp" x="26" y="22" width="48" height="48"/></g></g>
+    <g transform="translate(240,140)">
+      <g fill="none" stroke="#14171E" stroke-width="2.5" stroke-linejoin="round"><use href="#shield" x="3" y="2" width="42" height="42"/></g>
+      <g color="#14171E"><use href="#mfp-s" x="13" y="11" width="22" height="22"/></g>
+      <g fill="none" stroke="#2E54E6" stroke-width="2" stroke-linejoin="round"><use href="#shield" x="62" y="1.5" width="20" height="20"/></g>
+      <g color="#2E54E6"><use href="#mfp-s" x="67" y="6" width="10" height="10"/></g></g>
+    <text x="16" y="262" class="label">6. Light icon, same mark</text>
+    <text x="16" y="284" class="note">Graphite on Mist, now with the same shield and full MFP;</text>
+    <text x="16" y="302" class="note">one-ink glyphs beside it.</text>
+  </g>
+
+  <text x="30" y="498" class="row">WORD INSTEAD OF PICTURE</text>
+  <g transform="translate(30,510)">
+    <rect width="360" height="340" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <text class="mono" x="100" y="118" font-size="54" fill="#FFFFFF" text-anchor="middle">print</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <text class="mono" x="50" y="59" font-size="27" fill="#FFFFFF" text-anchor="middle">print</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <text class="mono" x="24" y="34" font-size="30" fill="#FFFFFF" text-anchor="middle">p</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gCobalt)"/>
+      <text class="mono" x="72" y="17.5" font-size="16" fill="#FFFFFF" text-anchor="middle">p</text></g>
+    <text x="16" y="262" class="label">W1. The word, Cobalt</text>
+    <text x="16" y="284" class="note">Lowercase mono "print" from the wordmark, white on</text>
+    <text x="16" y="302" class="note">Cobalt, like Zoom. Falls back to "p" from 32 px down.</text>
+  </g>
+  <g transform="translate(410,510)">
+    <rect width="360" height="340" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gGraphite)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <text class="mono" x="22" y="116" font-size="44" fill="#E8ECF2">print</text>
+      <rect x="158" y="82" width="22" height="38" rx="3" fill="#2E54E6"/></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gGraphite)"/>
+      <text class="mono" x="11" y="58" font-size="22" fill="#E8ECF2">print</text>
+      <rect x="79" y="41" width="11" height="19" rx="1.5" fill="#2E54E6"/></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gGraphite)"/>
+      <text class="mono" x="10" y="34" font-size="30" fill="#E8ECF2">p</text>
+      <rect x="29" y="12" width="9" height="20" rx="1.5" fill="#2E54E6"/>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gGraphite)"/>
+      <text class="mono" x="65" y="17.5" font-size="16" fill="#E8ECF2">p</text>
+      <rect x="75" y="6" width="4.5" height="10" rx="1" fill="#2E54E6"/></g>
+    <text x="16" y="262" class="label">W2. The word with a cursor, Graphite</text>
+    <text x="16" y="284" class="note">"print" in Mist with a Cobalt block cursor after it:</text>
+    <text x="16" y="302" class="note">a terminal prompt, the developer read.</text>
+  </g>
+  <g transform="translate(790,510)">
+    <rect width="360" height="340" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"><use href="#shield" x="12" y="10" width="176" height="176"/></g>
+      <text class="mono" x="100" y="106" font-size="40" fill="#FFFFFF" text-anchor="middle">print</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"><use href="#shield" x="6" y="5" width="88" height="88"/></g>
+      <text class="mono" x="50" y="53" font-size="20" fill="#FFFFFF" text-anchor="middle">print</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linejoin="round"><use href="#shield" x="3" y="2" width="42" height="42"/></g>
+      <text class="mono" x="24" y="29" font-size="22" fill="#FFFFFF" text-anchor="middle">p</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gCobalt)"/>
+      <g fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"><use href="#shield" x="62" y="1.5" width="20" height="20"/></g>
+      <text class="mono" x="72" y="15" font-size="11" fill="#FFFFFF" text-anchor="middle">p</text></g>
+    <text x="16" y="262" class="label">W3. The word in the shield</text>
+    <text x="16" y="284" class="note">The kept shield with "print" inside instead of the MFP.</text>
+    <text x="16" y="302" class="note">Direct comparison with mark 1.</text>
+  </g>
+
+  <text x="30" y="898" class="row">OFFICE-STYLE: FILLED MFP WITH A LETTER TILE</text>
+  <g transform="translate(30,910)">
+    <rect width="360" height="340" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g style="--bg:#2E54E6"><use href="#mfp-fill" x="36" y="22" width="150" height="150"/></g>
+      <rect x="16" y="112" width="68" height="68" rx="15" fill="#1E3AA8"/>
+      <text class="tile" x="50" y="165" font-size="52" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g style="--bg:#2E54E6"><use href="#mfp-fill" x="18" y="11" width="75" height="75"/></g>
+      <rect x="8" y="56" width="34" height="34" rx="7.5" fill="#1E3AA8"/>
+      <text class="tile" x="25" y="82.5" font-size="26" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g style="--bg:#2E54E6"><use href="#mfp-fill" x="9" y="5" width="36" height="36"/></g>
+      <rect x="4" y="27" width="17" height="17" rx="4" fill="#1E3AA8"/>
+      <text class="tile" x="12.5" y="40" font-size="13" fill="#FFFFFF" text-anchor="middle">P</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="#1E3AA8"/>
+      <text class="tile" x="72" y="18.5" font-size="18" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <text x="16" y="262" class="label">O1. Filled MFP, "P" tile</text>
+    <text x="16" y="284" class="note">White blocks with the background showing as the outline,</text>
+    <text x="16" y="302" class="note">a Deep tile with "P" at the corner. 16 px is the tile alone.</text>
+  </g>
+  <g transform="translate(410,910)">
+    <rect width="360" height="340" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g style="--bg:#2E54E6"><use href="#mfp-fill" x="40" y="22" width="150" height="150"/></g>
+      <rect x="14" y="112" width="92" height="68" rx="15" fill="#1E3AA8"/>
+      <text class="tile" x="60" y="163" font-size="46" fill="#FFFFFF" text-anchor="middle" letter-spacing="-1">PM</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g style="--bg:#2E54E6"><use href="#mfp-fill" x="20" y="11" width="75" height="75"/></g>
+      <rect x="7" y="56" width="46" height="34" rx="7.5" fill="#1E3AA8"/>
+      <text class="tile" x="30" y="81.5" font-size="23" fill="#FFFFFF" text-anchor="middle">PM</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g style="--bg:#2E54E6"><use href="#mfp-fill" x="10" y="5" width="36" height="36"/></g>
+      <rect x="3" y="27" width="23" height="17" rx="4" fill="#1E3AA8"/>
+      <text class="tile" x="14.5" y="39.5" font-size="11.5" fill="#FFFFFF" text-anchor="middle">PM</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="#1E3AA8"/>
+      <text class="tile" x="72" y="17.5" font-size="12.5" fill="#FFFFFF" text-anchor="middle">PM</text></g>
+    <text x="16" y="262" class="label">O2. Filled MFP, "PM" tile</text>
+    <text x="16" y="284" class="note">Same, with a wider "PM" tile. Later apps change the tile</text>
+    <text x="16" y="302" class="note">letters and the picture, like Word, Excel, Outlook.</text>
+  </g>
+  <g transform="translate(790,910)">
+    <rect width="360" height="340" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gGraphite)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g style="--bg:#1F2530"><use href="#mfp-fill" x="36" y="22" width="150" height="150"/></g>
+      <rect x="16" y="112" width="68" height="68" rx="15" fill="#2E54E6"/>
+      <text class="tile" x="50" y="165" font-size="52" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gGraphite)"/>
+      <g style="--bg:#1F2530"><use href="#mfp-fill" x="18" y="11" width="75" height="75"/></g>
+      <rect x="8" y="56" width="34" height="34" rx="7.5" fill="#2E54E6"/>
+      <text class="tile" x="25" y="82.5" font-size="26" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gGraphite)"/>
+      <g style="--bg:#1F2530"><use href="#mfp-fill" x="9" y="5" width="36" height="36"/></g>
+      <rect x="4" y="27" width="17" height="17" rx="4" fill="#2E54E6"/>
+      <text class="tile" x="12.5" y="40" font-size="13" fill="#FFFFFF" text-anchor="middle">P</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="#2E54E6"/>
+      <text class="tile" x="72" y="18.5" font-size="18" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <text x="16" y="262" class="label">O3. Graphite with a Cobalt tile</text>
+    <text x="16" y="284" class="note">The suite colour lives in the tile: Cobalt for print,</text>
+    <text x="16" y="302" class="note">another colour per app, on a shared Graphite base.</text>
+  </g>
+</svg>
