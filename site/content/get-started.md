@@ -13,7 +13,8 @@
 
 3. **Docker & Single-Binary Deployment (`#deploy`)**
    - `Dockerfile`: `node:22-alpine` → `golang:1.27-alpine` (`CGO_ENABLED=0`) → `alpine:3.23` running as `pm` (`UID 10001`).
-   - **Preserve and reuse `PM_SECRET_KEY` (`openssl rand -base64 32`):** startup examples create `secret.key` only if it does not already exist so repeating the command against existing data never replaces the encryption key.
+   - **Docker key handling:** the example uses a named volume (`-v pm-data:/data`) and no `PM_SECRET_KEY`, so the application creates `/data/secret.key` itself (0600, owned by `pm`) and reuses it on every restart or recreation; no host `chown`/`sudo`. Bootstrap password via `docker exec printmarshal cat /data/initial-admin-password`. Key backup via `docker run --rm --entrypoint cat -v pm-data:/data:ro ...` under `umask 077`. Host notes cover bind mounts (privileged chown to 10001), supplying the same `PM_SECRET_KEY` on every start, and host networking.
+   - **Preserve and reuse `PM_SECRET_KEY` (`openssl rand -base64 32`):** binary examples create `secret.key` only if it does not already exist so repeating the command against existing data never replaces the encryption key.
    - Online backups use `deploy/scripts/backup.sh` (`/usr/local/bin/pm-backup`), which runs `sqlite3 "VACUUM INTO ..."` or `pg_dump -Fc`.
 
 4. **Environment Variables & Ports (`#env-reference`)**
