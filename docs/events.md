@@ -89,6 +89,10 @@ the outbox or the log.
 | `login` | Exchange / older relays that only advertise LOGIN | `username`, `passwordEnv` |
 | `xoauth2` | Microsoft 365, Google Workspace (basic auth disabled) | `username` (the mailbox), then either `tokenEnv` (a ready bearer token) or `tokenUrl` + `clientId` + `clientSecretEnv` (+ `scope`) for the OAuth 2.0 client-credentials grant |
 
+`login` and `xoauth2` send the password or bearer token in the clear, so they refuse to
+start unless the connection was upgraded with `startTls: true` (or the relay is localhost),
+the same rule `plain` has always had.
+
 Microsoft 365 example (app registration with the `SMTP.SendAsApp` application
 permission, and SMTP AUTH enabled on the mailbox):
 

@@ -25,7 +25,26 @@ import (
 // loginAuth implements the (non-standard but ubiquitous) LOGIN mechanism.
 type loginAuth struct{ username, password string }
 
-func (a *loginAuth) Start(*smtp.ServerInfo) (string, []byte, error) { return "LOGIN", nil, nil }
+func (a *loginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	if err := requireTLS(server, "LOGIN"); err != nil {
+		return "", nil, err
+	}
+	return "LOGIN", nil, nil
+}
+
+// requireTLS refuses to send a password or bearer token over a clear
+// channel, the rule net/smtp applies to PLAIN (audit NV-01); a localhost
+// relay is the one exception.
+func requireTLS(server *smtp.ServerInfo, mech string) error {
+	if server == nil || server.TLS {
+		return nil // nil only arrives from direct callers in tests; net/smtp always passes the server info
+	}
+	switch server.Name {
+	case "localhost", "127.0.0.1", "::1":
+		return nil
+	}
+	return fmt.Errorf("smtp: %s authentication requires TLS; enable startTls for this notifier", mech)
+}
 
 func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if !more {
@@ -43,7 +62,10 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 // xoauth2Auth implements SASL XOAUTH2.
 type xoauth2Auth struct{ username, token string }
 
-func (a *xoauth2Auth) Start(*smtp.ServerInfo) (string, []byte, error) {
+func (a *xoauth2Auth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	if err := requireTLS(server, "XOAUTH2"); err != nil {
+		return "", nil, err
+	}
 	return "XOAUTH2", []byte("user=" + a.username + "\x01auth=Bearer " + a.token + "\x01\x01"), nil
 }
 

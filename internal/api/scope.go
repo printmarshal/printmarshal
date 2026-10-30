@@ -42,9 +42,12 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	mutating := r.Method != http.MethodGet && r.Method != http.MethodHead
 	if auth.IsToken(u) {
-		if strings.HasPrefix(path, "/api/auth/") || (mutating && (strings.HasPrefix(path, "/api/tokens") || strings.HasPrefix(path, "/api/users"))) {
+		// Sign-in provider settings are authentication too: a token that can
+		// point LDAP at a directory it controls can sign in as a human admin
+		// and outlive its own expiry (audit NV-05).
+		if strings.HasPrefix(path, "/api/auth/") || strings.HasPrefix(path, "/api/settings/directory") || (mutating && (strings.HasPrefix(path, "/api/tokens") || strings.HasPrefix(path, "/api/users"))) {
 			s.security(r.Context(), r, "auth.denied", u.Username, r.Method+" "+path+" is not available to api tokens", "denied")
-			writeErr(w, http.StatusForbidden, "api tokens cannot manage authentication or users")
+			writeErr(w, http.StatusForbidden, "api tokens cannot manage authentication, sign-in providers or users")
 			return false
 		}
 	}
@@ -58,6 +61,14 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) bool {
 	}
 	if id := devicePathID(path); id != "" && !s.allowedDevice(r.Context(), id) {
 		return s.denyScope(w, r, u, path)
+	}
+	if mutating && strings.HasPrefix(path, "/api/credentials") {
+		// A credential is bound to a device, a group or every device; a
+		// scoped principal may only touch ones bound inside its groups
+		// (audit NV-07).
+		if ok, what := s.credentialScopeAllowed(r); !ok {
+			return s.denyScope(w, r, u, path+" ("+what+")")
+		}
 	}
 	ids, groups := bodyTargets(r)
 	rids, rgroups, err := s.resourceTargets(r)
@@ -180,20 +191,32 @@ func devicePathID(path string) string {
 	return id
 }
 
-// bodyTargets peeks at a JSON request body for device and group references
-// (top level and under "target") and puts the body back for the handler.
-// Non-JSON bodies (uploads) are left alone.
-func bodyTargets(r *http.Request) (deviceIDs []string, groupIDs []string) {
+// peekBody returns the body of a POST/PUT/PATCH request when it looks like a
+// JSON value, and puts it back for the handler. The handlers decode bodies
+// without looking at Content-Type, so the scope check must not either
+// (audit NV-04); uploads and other non-JSON bodies are left alone.
+func peekBody(r *http.Request) []byte {
 	if r.Body == nil || r.Body == http.NoBody || (r.Method != http.MethodPost && r.Method != http.MethodPut && r.Method != http.MethodPatch) {
-		return nil, nil
-	}
-	if ct := r.Header.Get("Content-Type"); ct != "" && !strings.HasPrefix(ct, "application/json") {
-		return nil, nil
+		return nil
 	}
 	b, err := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
 	_ = r.Body.Close()
 	r.Body = io.NopCloser(bytes.NewReader(b))
-	if err != nil || len(b) == 0 {
+	if err != nil {
+		return nil
+	}
+	t := bytes.TrimLeft(b, " \t\r\n")
+	if len(t) == 0 || (t[0] != '{' && t[0] != '[') {
+		return nil
+	}
+	return b
+}
+
+// bodyTargets peeks at a JSON request body for device and group references
+// (top level and under "target").
+func bodyTargets(r *http.Request) (deviceIDs []string, groupIDs []string) {
+	b := peekBody(r)
+	if len(b) == 0 {
 		return nil, nil
 	}
 	type refs struct {
@@ -310,6 +333,78 @@ func (s *Server) filterDevices(ctx context.Context, devs []*model.Device) []*mod
 	for _, d := range devs {
 		if set[d.ID] {
 			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// credentialScopeString reports whether a scoped principal may act on a
+// credential with the given scope string ("" = every device, "device:<id>",
+// "group:<id>"). A global credential applies to devices outside the
+// principal's groups, so it is never allowed.
+func (s *Server) credentialScopeString(ctx context.Context, scope string) bool {
+	u := auth.UserFrom(ctx)
+	if u == nil || len(u.Scope) == 0 {
+		return true
+	}
+	switch {
+	case strings.HasPrefix(scope, "device:"):
+		return s.allowedDevice(ctx, strings.TrimPrefix(scope, "device:"))
+	case strings.HasPrefix(scope, "group:"):
+		gid := strings.TrimPrefix(scope, "group:")
+		for _, g := range u.Scope {
+			if g == gid {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
+// credentialScopeAllowed checks a mutating /api/credentials request: the
+// scope named in a POST body, or the stored scope of the credential named in
+// the path. A credential that does not exist is left to the handler's 404.
+func (s *Server) credentialScopeAllowed(r *http.Request) (bool, string) {
+	u := auth.UserFrom(r.Context())
+	if u == nil || len(u.Scope) == 0 {
+		return true, ""
+	}
+	if r.URL.Path == "/api/credentials" {
+		var body struct {
+			Scope string `json:"scope"`
+		}
+		if b := peekBody(r); len(b) > 0 {
+			_ = json.Unmarshal(b, &body)
+		}
+		if !s.credentialScopeString(r.Context(), body.Scope) {
+			return false, "credential scope " + strconv.Quote(body.Scope)
+		}
+		return true, ""
+	}
+	id, _, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/api/credentials/"), "/")
+	cs, err := s.Store.ListCredentials(r.Context())
+	if err != nil {
+		return true, ""
+	}
+	for _, c := range cs {
+		if c.ID == id && !s.credentialScopeString(r.Context(), c.Scope) {
+			return false, "credential " + id
+		}
+	}
+	return true, ""
+}
+
+// filterCredentials drops credentials a scoped principal may not act on.
+func (s *Server) filterCredentials(ctx context.Context, cs []*model.Credential) []*model.Credential {
+	u := auth.UserFrom(ctx)
+	if u == nil || len(u.Scope) == 0 {
+		return cs
+	}
+	out := []*model.Credential{}
+	for _, c := range cs {
+		if s.credentialScopeString(ctx, c.Scope) {
+			out = append(out, c)
 		}
 	}
 	return out

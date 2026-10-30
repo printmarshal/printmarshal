@@ -39,6 +39,13 @@ optional group scope and an optional expiry. It is created once by an admin
 and the secret (`pmt_` + 64 hex characters) is shown exactly once; the server
 keeps only its SHA-256, the same way it keeps sessions.
 
+Tokens cannot manage authentication: `/api/auth/*`, user and token management, and the
+directory sign-in settings (`/api/settings/directory*`) are refused to a token with any role,
+so a service account can never turn itself into a human login that outlives its own expiry
+or revocation. A scoped token may create, change or delete only credentials bound to a device
+or group inside its scope, never a global one, and sees only those in `GET /api/credentials`.
+The live stream (`/api/stream`) delivers a scoped principal only events about its devices.
+
 ```bash
 # create (admin session)
 curl -s -H "Authorization: Bearer $SESSION" -H 'Content-Type: application/json' \

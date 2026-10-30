@@ -212,6 +212,11 @@ echo '<34>1 2026-10-28T21:14:02Z printer-7 lpd - - - Toner cartridge missing' | 
 GET /api/sync/{collection}?since=<cursor>&limit=<1..1000>
 ```
 
+A group-scoped principal (an API token with `scope`) receives only the devices, alerts and
+configuration writes of devices in its groups, and no tombstones for devices it could not
+see; the `jobs` and `audit` collections are fleet-wide and are refused (403) to a scoped
+principal. Use an unscoped token for a full mirror.
+
 Collections: `devices`, `alerts`, `jobs`, `config-writes` (viewer) and `audit`
 (operator, the same gate as `GET /api/audit`).
 

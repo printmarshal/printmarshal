@@ -73,7 +73,7 @@ func TestClientCredentialsTokenIsCached(t *testing.T) {
 // of the header.
 func TestMailSubjectCannotInjectHeaders(t *testing.T) {
 	msg := mailMessage("pm@example.com", []string{"ops@example.com"}, "x\r\nBcc: evil@example.com\r\n", "body")
-	if strings.Contains(msg, "Bcc:") || strings.Count(msg, "\r\n\r\n") != 1 {
+	if strings.Contains(msg, "\r\nBcc:") || strings.Count(msg, "\r\n\r\n") != 1 {
 		t.Fatalf("subject injected a header:\n%s", msg)
 	}
 	if !strings.Contains(msg, "Subject: x Bcc: evil@example.com") && !strings.Contains(msg, "Subject: x  Bcc: evil@example.com") {
