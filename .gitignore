@@ -7,5 +7,10 @@
 *.db-shm
 secret.key
 .DS_Store
-/.claude/
+/.claude/*
+!/.claude/settings.json
+!/.claude/hooks/
+!/.claude/skills/
+!/.claude/agents/
+/.claude/settings.local.json
 /deploy/printmarshal.env
