@@ -58,7 +58,7 @@ Duration strings use Go duration syntax: `30s`, `5m`, `720h`; `30d` is not suppo
 | `discovery.scanWorkers` | `int` | — | 64 | Concurrent active-scan liveness probes. |
 | `discovery.maxAddresses` | `int` | — | 4096 | Scan expansion cap unless the request sets allowLarge. |
 | `discovery.targets` | `[]string` | `PM_DISCOVERY_TARGETS` | empty | Default scheduled active-scan IPs, ranges or IPv4 CIDRs. |
-| `discovery.reverseDns.enabled` | `bool` | `PM_REVERSE_DNS_ENABLED` | false | Run PTR lookups to fill `Device.DNSName` (`dnsName`); off by default and never overwrites `Device.Hostname`. |
+| `discovery.reverseDns.enabled` | `bool` | `PM_REVERSE_DNS_ENABLED` | false | Run PTR lookups to fill `Device.DNSName` (`dnsName`); off by default and never overwrites `Device.Hostname`. This and the five options below are defaults for the runtime `reverseDns` settings (Settings → Polling & discovery, `PATCH /api/settings`), which apply without a restart. |
 | `discovery.reverseDns.server` | `string` | `PM_REVERSE_DNS_SERVER` | empty → system resolver | Custom DNS server (`host` or `host:port`, port 53 added if omitted). |
 | `discovery.reverseDns.shortNames` | `bool` | `PM_REVERSE_DNS_SHORT_NAMES` | true | Store only the first DNS label (strip domain suffix). |
 | `discovery.reverseDns.timeout` | `Duration` | `PM_REVERSE_DNS_TIMEOUT` | 1s | Context timeout per reverse/forward lookup. |
