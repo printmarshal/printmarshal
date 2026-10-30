@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"testing"
@@ -140,5 +141,29 @@ func TestRegistryOrderAndProfileSupports(t *testing.T) {
 	}
 	if reg.Named("b") == nil || reg.Named("zzz") != nil {
 		t.Error("Named lookup")
+	}
+}
+
+func TestIdentifyRecordsDriversThatDidNotAnswer(t *testing.T) {
+	snmp := &fake{name: "snmp", caps: []model.Capability{model.CapIdentify}, prio: 10, identErr: errors.New("request timeout (after 1 retries)")}
+	hp := &fake{name: "hp", caps: []model.Capability{model.CapIdentify}, prio: 5, identity: &model.Identity{Make: "HP", Model: "M283", Method: "hp"}}
+	xerox := &fake{name: "xerox", caps: []model.Capability{model.CapIdentify}, prio: 5, identErr: fmt.Errorf("enterprise 11 is not xerox: %w", ErrNotApplicable)}
+	id, _, err := newEngine(snmp, hp, xerox).Identify(context.Background(), "10.0.0.3", model.Creds{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.Method != "hp" || id.Model != "M283" {
+		t.Fatalf("merged identity: %+v", id)
+	}
+	// The generic driver's failure is recorded; a plugin for another vendor is not.
+	if len(id.Errors) != 1 || id.Errors["snmp"] != "request timeout (after 1 retries)" {
+		t.Fatalf("errors: %+v", id.Errors)
+	}
+	// A fully answered identification carries no errors at all.
+	snmp.identErr = nil
+	snmp.identity = &model.Identity{Make: "HP", Method: "snmp"}
+	id, _, err = newEngine(snmp, hp, xerox).Identify(context.Background(), "10.0.0.3", model.Creds{})
+	if err != nil || id.Errors != nil {
+		t.Fatalf("errors after a clean identification: %+v (%v)", id.Errors, err)
 	}
 }

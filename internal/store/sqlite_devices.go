@@ -15,7 +15,7 @@ import (
 const deviceCols = `id, address, hostname, dns_name, dns_name_suspect, dns_checked_at, mac, serial, uuid, make, model, device_type, firmware, sys_descr, sys_name,
  enterprise_id, admin_url, capabilities, discovery_methods, identify_methods, display_name, display_name_source, dns_sync, location, asset_tag, notes,
  state, status, supplies, trays, counters, severity, consecutive_failures, first_seen, last_seen, last_polled, created_at, updated_at,
- web_url_probed, web_url_override`
+ web_url_probed, web_url_override, identify_errors`
 
 type rowScanner interface{ Scan(dest ...any) error }
 
@@ -23,6 +23,7 @@ func scanDevice(r rowScanner) (*model.Device, error) {
 	var (
 		d                                  model.Device
 		caps, disc, ident, supplies, trays string
+		identErrs                          string
 		status, counters                   sql.NullString
 		firstSeen, lastSeen, created, upd  string
 		lastPolled, dnsCheckedAt           sql.NullString
@@ -33,10 +34,11 @@ func scanDevice(r rowScanner) (*model.Device, error) {
 	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.DNSName, &dnsNameSuspect, &dnsCheckedAt, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
 		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.DisplayNameSource, &dnsSync, &d.Location, &d.AssetTag,
 		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd,
-		&d.WebURLProbed, &d.WebURLOverride)
+		&d.WebURLProbed, &d.WebURLOverride, &identErrs)
 	if err != nil {
 		return nil, err
 	}
+	fromJSON(sql.NullString{String: identErrs, Valid: true}, &d.IdentifyErrors)
 	d.DNSNameSuspect = dnsNameSuspect != 0
 	d.DNSCheckedAt = parseTimeP(dnsCheckedAt)
 	d.DNSSync = dnsSync != 0
@@ -133,10 +135,10 @@ func (s *SQLite) UpsertDevice(ctx context.Context, id *model.Identity, caps map[
 	n := now()
 	if existing == nil {
 		d := &model.Device{ID: newID()}
-		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(40)+`)`,
+		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(41)+`)`,
 			d.ID, id.Address, id.Hostname, "", 0, nil, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
 			id.SysDescr, id.SysName, id.EnterpriseID, id.AdminURL, toJSON(caps), toJSON(discoveryMethods), toJSON(identMethods),
-			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "")
+			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "", identifyErrorsJSON(id, nil))
 		if err != nil {
 			return nil, false, err
 		}
@@ -160,18 +162,47 @@ func (s *SQLite) UpsertDevice(ctx context.Context, id *model.Identity, caps map[
 	disc := appendUnique(existing.DiscoveryMethods, discoveryMethods...)
 	ident := appendUnique(existing.IdentifyMethods, identMethods...)
 	_, err = s.db.ExecContext(ctx, `UPDATE devices SET address=?, hostname=?, mac=?, serial=?, uuid=?, make=?, model=?, device_type=?,
-		firmware=?, sys_descr=?, sys_name=?, enterprise_id=?, admin_url=?, capabilities=?, discovery_methods=?, identify_methods=?,
+		firmware=?, sys_descr=?, sys_name=?, enterprise_id=?, admin_url=?, capabilities=?, discovery_methods=?, identify_methods=?, identify_errors=?,
 		last_seen=?, updated_at=? WHERE id=?`,
 		id.Address, pick(id.Hostname, existing.Hostname), strings.ToLower(pick(id.MAC, existing.MAC)), pick(id.Serial, existing.Serial),
 		pick(id.UUID, existing.UUID), pick(id.Make, existing.Make), pickModel(id.Model, existing.Model), pick(id.DeviceType, existing.DeviceType),
 		pick(id.Firmware, existing.Firmware), pick(id.SysDescr, existing.SysDescr), pick(id.SysName, existing.SysName),
-		maxInt(id.EnterpriseID, existing.EnterpriseID), pick(id.AdminURL, existing.AdminURL), toJSON(merged), toJSON(disc), toJSON(ident),
+		maxInt(id.EnterpriseID, existing.EnterpriseID), pick(id.AdminURL, existing.AdminURL), toJSON(merged), toJSON(disc), toJSON(ident), identifyErrorsJSON(id, existing),
 		n, n, existing.ID)
 	if err != nil {
 		return nil, false, err
 	}
 	dev, err := s.GetDevice(ctx, existing.ID)
 	return dev, false, err
+}
+
+// identifyErrorsJSON serialises why drivers did not answer on this
+// identification; it replaces the previous value so the record always
+// describes the last scan. Only failures that mean something for this device
+// are kept: the generic SNMP driver (the baseline every printer should
+// answer) and any driver that identified the device before. A scanner
+// protocol failing on a plain printer, or a vendor plugin failing on another
+// vendor's device, is expected and would only be noise.
+func identifyErrorsJSON(id *model.Identity, existing *model.Device) string {
+	kept := map[string]string{}
+	for drv, why := range id.Errors {
+		if drv == "snmp" || (existing != nil && contains(existing.IdentifyMethods, drv)) {
+			kept[drv] = why
+		}
+	}
+	if len(kept) == 0 {
+		return "{}"
+	}
+	return toJSON(kept)
+}
+
+func contains(list []string, v string) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
 }
 
 func maxInt(a, b int) int {

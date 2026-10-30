@@ -20,14 +20,20 @@ type Config struct {
 	DSN      string `json:"dsn"`      // SQLite file path (defaults to <dataDir>/printmarshal.db) or a postgres:// URL
 
 	Poll struct {
-		SNMPPort       int      `json:"snmpPort"`     // 161; override for simulators
-		IPPEndpoints   []string `json:"ippEndpoints"` // printf templates with %s for the host; empty = defaults
-		Interval       Duration `json:"interval"`     // scheduled poll cadence
-		Concurrency    int      `json:"concurrency"`  // max simultaneous device reads
-		SNMPTimeout    Duration `json:"snmpTimeout"`
-		SNMPRetries    int      `json:"snmpRetries"`
-		IPPTimeout     Duration `json:"ippTimeout"`
-		IPPInsecureTLS bool     `json:"ippInsecureTls"`
+		SNMPPort     int      `json:"snmpPort"`     // 161; override for simulators
+		IPPEndpoints []string `json:"ippEndpoints"` // printf templates with %s for the host; empty = defaults
+		Interval     Duration `json:"interval"`     // scheduled poll cadence
+		Concurrency  int      `json:"concurrency"`  // max simultaneous device reads
+		SNMPTimeout  Duration `json:"snmpTimeout"`
+		SNMPRetries  int      `json:"snmpRetries"`
+		// SNMPSessionsPerDevice caps the SNMP sessions open to one address at
+		// a time across the generic driver, the vendor plugins and the scan
+		// probe (0 = unlimited). Printers' SNMP agents are small; an
+		// identification burst of a dozen parallel walks makes them drop or
+		// delay requests, which then time out at random (issue #19).
+		SNMPSessionsPerDevice int      `json:"snmpSessionsPerDevice"`
+		IPPTimeout            Duration `json:"ippTimeout"`
+		IPPInsecureTLS        bool     `json:"ippInsecureTls"`
 		// IPPWriteRequireTLS refuses to send Set-Printer-Attributes over
 		// plaintext; writes then need an IPPS (or HTTPS) endpoint on the device.
 		IPPWriteRequireTLS bool `json:"ippWriteRequireTLS"`
@@ -315,6 +321,7 @@ func Default() *Config {
 	c.Poll.SNMPPort = 161
 	c.Poll.SNMPTimeout = Duration(2 * time.Second)
 	c.Poll.SNMPRetries = 1
+	c.Poll.SNMPSessionsPerDevice = 2
 	c.Poll.IPPTimeout = Duration(4 * time.Second)
 	c.Poll.IPPInsecureTLS = true
 	c.Discovery.Enabled = false
@@ -395,6 +402,9 @@ func Load(path string) (*Config, error) {
 	envDur("PM_POLL_INTERVAL", &c.Poll.Interval)
 	envInt("PM_POLL_CONCURRENCY", &c.Poll.Concurrency)
 	envInt("PM_SNMP_PORT", &c.Poll.SNMPPort)
+	envDur("PM_SNMP_TIMEOUT", &c.Poll.SNMPTimeout)
+	envInt("PM_SNMP_RETRIES", &c.Poll.SNMPRetries)
+	envInt("PM_SNMP_SESSIONS_PER_DEVICE", &c.Poll.SNMPSessionsPerDevice)
 	if v := os.Getenv("PM_IPP_ENDPOINTS"); v != "" {
 		c.Poll.IPPEndpoints = strings.Split(v, ",")
 	}

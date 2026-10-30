@@ -65,3 +65,24 @@ func TestReverseDNSConfig(t *testing.T) {
 		t.Fatalf("env overrides not applied: %+v", r)
 	}
 }
+
+func TestSNMPTuningEnv(t *testing.T) {
+	def := Default().Poll
+	if def.SNMPTimeout.D() != 2*time.Second || def.SNMPRetries != 1 || def.SNMPSessionsPerDevice != 2 {
+		t.Fatalf("unexpected defaults: timeout=%s retries=%d sessions=%d", def.SNMPTimeout.D(), def.SNMPRetries, def.SNMPSessionsPerDevice)
+	}
+	path := filepath.Join(t.TempDir(), "pm.json")
+	if err := os.WriteFile(path, []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PM_SNMP_TIMEOUT", "5s")
+	t.Setenv("PM_SNMP_RETRIES", "3")
+	t.Setenv("PM_SNMP_SESSIONS_PER_DEVICE", "1")
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Poll.SNMPTimeout.D() != 5*time.Second || c.Poll.SNMPRetries != 3 || c.Poll.SNMPSessionsPerDevice != 1 {
+		t.Fatalf("env not applied: %+v", c.Poll)
+	}
+}

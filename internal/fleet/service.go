@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -397,11 +398,17 @@ func (s *Service) runDiscovery(ctx context.Context, jc *jobs.Context) error {
 			if created {
 				msg = "discovered"
 			}
+			data := map[string]any{"methods": c.Methods, "model": dev.Model, "created": created}
+			if len(dev.IdentifyErrors) > 0 {
+				// Say which drivers did not answer rather than silently recording a partial read (issue #19).
+				msg += "; no answer from " + strings.Join(sortedKeys(dev.IdentifyErrors), ", ")
+				data["identifyErrors"] = dev.IdentifyErrors
+			}
 			// Read-only first poll so the record has status straight away.
 			if _, _, perr := s.PollDevice(ictx, dev); perr != nil {
 				msg += "; poll: " + perr.Error()
 			}
-			jc.Result(dev.ID, c.Address, "ok", msg, map[string]any{"methods": c.Methods, "model": dev.Model, "created": created})
+			jc.Result(dev.ID, c.Address, "ok", msg, data)
 		}(c)
 	}
 	wg.Wait()
@@ -653,4 +660,13 @@ func (s *Service) HandleTrap(ctx context.Context, sourceIP string, description s
 	if _, err := s.SubmitPoll(ctx, []string{dev.ID}, "trap"); err != nil {
 		s.Log.Warn("trap poll", "err", err)
 	}
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -69,6 +70,11 @@ var ErrUnsupported = errors.New("no driver supports this capability for this dev
 // identity for an address (it answered discovery but is not a manageable
 // printer, or nothing answered). Callers treat it as "skip", not failure.
 var ErrNotIdentified = errors.New("not identified as a manageable printer")
+
+// ErrNotApplicable is wrapped by an Identifier that does not serve this kind
+// of device at all (a vendor plugin seeing another manufacturer). Such a
+// result is expected and is not recorded as an identification error.
+var ErrNotApplicable = errors.New("driver does not apply to this device")
 
 // Registry holds drivers and resolves them per capability (spec §6 "driver registry").
 type Registry struct {
@@ -237,6 +243,12 @@ func (e *Engine) Identify(ctx context.Context, address string, creds model.Creds
 		if r.err != nil || r.id == nil {
 			if r.err != nil {
 				errs = append(errs, fmt.Errorf("%s: %w", r.drv.Name(), r.err))
+				if !errors.Is(r.err, ErrNotApplicable) {
+					if merged.Errors == nil {
+						merged.Errors = map[string]string{}
+					}
+					merged.Errors[r.drv.Name()] = shortErr(r.err)
+				}
 			}
 			continue
 		}
@@ -443,4 +455,13 @@ func ServedBy(d *model.Device, cap model.Capability) string {
 		return ""
 	}
 	return d.Capabilities[cap]
+}
+
+// shortErr trims an error for storage on the device record.
+func shortErr(err error) string {
+	msg := strings.Join(strings.Fields(err.Error()), " ")
+	if len(msg) > 200 {
+		msg = msg[:197] + "..."
+	}
+	return msg
 }
