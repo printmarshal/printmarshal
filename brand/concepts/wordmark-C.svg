@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 753.5 124" width="753.5" height="124" role="img" aria-label="PrintMarshal">
+  <title>PrintMarshal wordmark, option C, draft</title>
+  <desc>DRAFT concept, not final. Live text: needs the Google Fonts below (outline before production).</desc>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400&amp;family=Sora:wght@600&amp;display=swap');
+    .wmC-p { font-family: 'Courier Prime', ui-monospace, monospace; font-weight: 400; font-size: 120px; letter-spacing: -3px; fill: #14171E; }
+    .wmC-m { font-family: 'Sora', system-ui, sans-serif; font-weight: 600; font-size: 100px; letter-spacing: -2px; fill: #D7A442; }
+  </style>
+  <text y="92"><tspan class="wmC-p" x="9.8">print</tspan><tspan class="wmC-m" x="356.6">Marshal</tspan></text>
+</svg>
