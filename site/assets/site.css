@@ -1706,16 +1706,15 @@ details.disclosure + details.disclosure {
 }
 
 details.disclosure summary {
-  padding: 16px 20px;
+  /* Block, not flex: flex would spread the inline <code> in a question across the row. */
+  position: relative;
+  padding: 16px 44px 16px 20px;
   font-family: var(--font-display);
   font-size: 1.08rem;
   font-weight: 600;
   color: var(--text-primary);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  display: block;
   list-style: none;
 }
 
@@ -1725,6 +1724,10 @@ details.disclosure summary::-webkit-details-marker {
 
 details.disclosure summary::after {
   content: "+";
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
   font-family: var(--font-mono);
   font-size: 1.1rem;
   color: var(--tint);
