@@ -1,5 +1,6 @@
 // Line icon set from the design system: 24px grid, 1.75 stroke, round caps.
 import type { SVGProps } from 'react'
+import appIcon from '../assets/app-icon.svg'
 
 type P = SVGProps<SVGSVGElement> & { size?: number }
 
@@ -65,18 +66,17 @@ export const Ic = {
   unknown: (p: P) => <I {...p}><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01" /></I>,
 }
 
-/** Brand mark: shield, rank chevron, brass glint ("Guard Chevron"). */
-export function Mark({ size = 26, dark = false, title }: { size?: number; dark?: boolean; title?: string }) {
-  const glint = dark ? '#EFC065' : '#D7A442'
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden={title ? undefined : true} role={title ? 'img' : undefined} aria-label={title}>
-      <path d="M24 3 42 9v14c0 11-8 18.5-18 22C14 41.5 6 34 6 23V9z" fill="#2E54E6" />
-      <path d="M14 31 24 23 34 31v6l-10-8-10 8z" fill="#FFFFFF" />
-      <path d="M24 8.5l1.9 4.1 4.1 1.9-4.1 1.9-1.9 4.1-1.9-4.1-4.1-1.9 4.1-1.9z" fill={glint} />
-    </svg>
-  )
+/** Brand mark: the app icon (layered MFP with the shield-P), see brand/README.md. */
+export function Mark({ size = 26, title }: { size?: number; dark?: boolean; title?: string }) {
+  return <img src={appIcon} width={size} height={size} alt={title ?? ''} aria-hidden={title ? undefined : true} style={{ display: 'block', borderRadius: size * 0.22 }} />
 }
 
+/** Wordmark: lowercase mono "print" in the surface ink beside "Marshal" in Barlow and Cobalt. */
 export function Wordmark({ size = 17 }: { size?: number }) {
-  return <span className="wm" style={{ fontSize: size }}>Print<span style={{ color: 'var(--accent)' }}>Marshal</span></span>
+  return (
+    <span className="wm" style={{ fontSize: size }}>
+      <span className="wm-print">print</span>
+      <span className="wm-marshal">Marshal</span>
+    </span>
+  )
 }

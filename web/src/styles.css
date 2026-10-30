@@ -31,7 +31,9 @@ h1,h2,h3{margin:0}
 .cap{font-size:12px;color:var(--text-3)}
 .muted{color:var(--text-3)}.small{font-size:12px}.num{font-variant-numeric:tabular-nums}
 .mono{font-family:var(--mono);font-size:12px}
-.wm{font-family:var(--display);font-weight:700;letter-spacing:-.015em;line-height:1;white-space:nowrap}
+.wm{line-height:1;white-space:nowrap;display:inline-flex;align-items:baseline}
+.wm-print{font-family:var(--mono);font-weight:500;color:var(--text);letter-spacing:0}
+.wm-marshal{font-family:var(--display);font-weight:600;color:var(--accent);letter-spacing:-.01em;margin-left:.1em}
 .lbl{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;font-weight:500}
 .i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .error{color:var(--crit)}

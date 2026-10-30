@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="PrintMarshal mark"><title>PrintMarshal mark</title><path fill-rule="evenodd" d="M24 3 42 9v14c0 11-8 18.5-18 22C14 41.5 6 34 6 23V9z M14 31 24 23 34 31v6l-10-8-10 8z M24 8.5l1.9 4.1 4.1 1.9-4.1 1.9-1.9 4.1-1.9-4.1-4.1-1.9 4.1-1.9z" fill="#FFFFFF"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-label="PrintMarshal">
+  <title>PrintMarshal shield glyph</title>
+  <path d="M12 1.5 L22 5 V13 C22 19.5 17.5 24.5 12 26.5 C6.5 24.5 2 19.5 2 13 V5 Z" transform="translate(8.0,4.0) scale(2.0000)" fill="#FFFFFF"/>
+  <path d="M571 484Q571 421 542.5 373.0Q514 325 462.5 298.5Q411 272 344 272H202Q197 272 197 267V12Q197 7 193.5 3.5Q190 0 185 0H68Q63 0 59.5 3.5Q56 7 56 12V689Q56 694 59.5 697.5Q63 701 68 701H350Q416 701 466.0 674.0Q516 647 543.5 597.5Q571 548 571 484ZM431 481Q431 525 403.0 552.0Q375 579 329 579H202Q197 579 197 574V390Q197 385 202 385H329Q375 385 403.0 411.5Q431 438 431 481Z" transform="translate(22.59,45.00) scale(0.03000,-0.03000)" fill="#14171E"/>
+</svg>

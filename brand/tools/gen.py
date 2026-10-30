@@ -1,5 +1,10 @@
-# Generates every file in brand/ from the three mark paths and Barlow Bold.
-# Usage: python3 -m venv v && v/bin/pip install fonttools uharfbuzz && BARLOW=/path/Barlow-Bold.ttf v/bin/python brand/tools/gen.py brand
+# Generates every file in brand/ for the 30 Oct 2026 identity: the layered-MFP
+# app icon with the shield-P (from gen_icons.py) and the lowercase wordmark,
+# "print" in IBM Plex Mono Medium beside "Marshal" in Barlow SemiBold.
+#
+# Usage: python3 -m venv v && v/bin/pip install fonttools uharfbuzz
+#        FONTS=/dir/with/IBMPlexMono-Medium.ttf+Barlow-SemiBold.ttf v/bin/python brand/tools/gen.py brand
+# Fonts: https://github.com/google/fonts (ofl/ibmplexmono, ofl/barlow), SIL OFL.
 
 import os, re, subprocess, sys
 from fontTools.ttLib import TTFont
@@ -8,159 +13,172 @@ from fontTools.pens.transformPen import TransformPen
 import uharfbuzz as hb
 
 SP = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.abspath(sys.argv[1])
+sys.path.insert(0, SP)
+import gen_icons  # noqa: E402
+
+OUT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "brand")
 PNG = os.path.join(OUT, "png")
 os.makedirs(PNG, exist_ok=True)
+FONTS = os.environ.get("FONTS", SP)
 
-# Steel & Signal palette (docs/branding-prompt.md, web/src/styles.css)
 GRAPHITE, GUNMETAL, SLATE, MIST = "#14171E", "#2A313D", "#5B6676", "#E8ECF2"
-COBALT, DEEP, BRASS, GLOW = "#2E54E6", "#1E3AA8", "#D7A442", "#EFC065"
-COBALT_ON_DARK = "#8DA4F2"
-WHITE = "#FFFFFF"
+COBALT, DEEP, TINT, WHITE = "#2E54E6", "#1E3AA8", "#8DA4F2", "#FFFFFF"
 
-SHIELD = "M24 3 42 9v14c0 11-8 18.5-18 22C14 41.5 6 34 6 23V9z"
-CHEVRON = "M14 31 24 23 34 31v6l-10-8-10 8z"
-STAR = "M24 8.5l1.9 4.1 4.1 1.9-4.1 1.9-1.9 4.1-1.9-4.1-4.1-1.9 4.1-1.9z"
 
-def mark_paths(glint=BRASS, shield=COBALT, chevron=WHITE):
-    return (f'<path d="{SHIELD}" fill="{shield}"/>'
-            f'<path d="{CHEVRON}" fill="{chevron}"/>'
-            f'<path d="{STAR}" fill="{glint}"/>')
+class Face:
+    def __init__(self, path):
+        self.tt = TTFont(path)
+        self.upem = self.tt["head"].unitsPerEm
+        self.cap = self.tt["OS/2"].sCapHeight
+        self.xh = self.tt["OS/2"].sxHeight
+        self.glyphs = self.tt.getGlyphSet()
+        self.order = self.tt.getGlyphOrder()
+        blob = hb.Blob.from_file_path(path)
+        self.font = hb.Font(hb.Face(blob))
+        self.font.scale = (self.upem, self.upem)
 
-def mark_mono(color):
-    # one ink: chevron and star are knocked out of the shield
-    return f'<path fill-rule="evenodd" d="{SHIELD} {CHEVRON} {STAR}" fill="{color}"/>'
+    def shape(self, text, size, x0, y_base, color, tracking=0.0):
+        buf = hb.Buffer(); buf.add_str(text); buf.guess_segment_properties()
+        hb.shape(self.font, buf, {"kern": True, "liga": True})
+        s = size / self.upem
+        x = x0
+        paths = []
+        for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
+            pen = SVGPathPen(self.glyphs)
+            tp = TransformPen(pen, (s, 0, 0, -s, x + pos.x_offset * s, y_base - pos.y_offset * s))
+            self.glyphs[self.order[info.codepoint]].draw(tp)
+            if pen.getCommands():
+                paths.append(pen.getCommands())
+            x += pos.x_advance * s + tracking * size
+        x -= tracking * size
+        return f'<path d="{" ".join(paths)}" fill="{color}"/>', x
 
-def svg(vb_w, vb_h, body, title):
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {vb_w:g} {vb_h:g}" '
-            f'width="{vb_w:g}" height="{vb_h:g}" role="img" aria-label="{title}">'
-            f'<title>{title}</title>{body}</svg>\n')
+
+MONO = Face(os.path.join(FONTS, "IBMPlexMono-Medium.ttf"))
+BARLOW = Face(os.path.join(FONTS, "Barlow-SemiBold.ttf"))
+
+
+def svg(w, h, body, title):
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w:g} {h:g}" width="{w:g}" height="{h:g}" '
+            f'role="img" aria-label="{title}"><title>{title}</title>{body}</svg>\n')
+
 
 def write(name, content):
     with open(os.path.join(OUT, name), "w") as f:
         f.write(content)
     print("wrote", name)
 
-# ---- wordmark: "PrintMarshal" in Barlow Bold, letter-spacing -0.015em, kerned by HarfBuzz
-# Barlow-Bold.ttf (SIL OFL) from https://github.com/google/fonts/tree/main/ofl/barlow
-FONT = os.environ.get("BARLOW", os.path.join(SP, "Barlow-Bold.ttf"))
-tt = TTFont(FONT)
-upem = tt["head"].unitsPerEm
-cap = tt["OS/2"].sCapHeight
-glyphset = tt.getGlyphSet()
-blob = hb.Blob.from_file_path(FONT); face = hb.Face(blob); font = hb.Font(face)
-font.scale = (upem, upem)
 
-def shape(text, size, x0, y_base, color, tracking=-0.015):
-    buf = hb.Buffer(); buf.add_str(text); buf.guess_segment_properties()
-    hb.shape(font, buf, {"kern": True, "liga": True})
-    s = size / upem
-    x = x0
-    paths = []
-    order = tt.getGlyphOrder()
-    for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
-        gname = order[info.codepoint]
-        pen = SVGPathPen(glyphset)
-        tp = TransformPen(pen, (s, 0, 0, -s, x + pos.x_offset * s, y_base - pos.y_offset * s))
-        glyphset[gname].draw(tp)
-        d = pen.getCommands()
-        if d:
-            paths.append(d)
-        x += pos.x_advance * s + tracking * size
-    x -= tracking * size  # no tracking after the last glyph
-    return f'<path d="{" ".join(paths)}" fill="{color}"/>', x
-
-def wordmark(size, x0, y_base, c1, c2):
-    p1, x1 = shape("Print", size, x0, y_base, c1)
-    p2, x2 = shape("Marshal", size, x1 - 0.015 * size, y_base, c2)  # keep tracking across the join
+# ---- wordmark: "print" (mono, the surface ink) + "Marshal" (Barlow, Cobalt), one baseline
+def wordmark(size, x0, y_base, c_print, c_marshal):
+    p1, x1 = MONO.shape("print", size, x0, y_base, c_print)
+    p2, x2 = BARLOW.shape("Marshal", size, x1 + 0.10 * size, y_base, c_marshal, tracking=-0.01)
     return p1 + p2, x2
 
-def wordmark_svg(c1, c2, title):
-    size = 100; capv = cap * size / upem
+
+def wordmark_svg(c_print, c_marshal, title="PrintMarshal"):
+    size = 100
+    capv = BARLOW.cap * size / BARLOW.upem
+    desc = 0.22 * size  # "p" descender
     pad = 8
-    body, xend = wordmark(size, pad, pad + capv, c1, c2)
-    # descender room is nil (no descenders in the word); keep a little air below
-    return svg(round(xend + pad, 1), round(capv + 2 * pad, 1), body, title)
+    body, xend = wordmark(size, pad, pad + capv, c_print, c_marshal)
+    return svg(round(xend + pad, 1), round(capv + desc + 2 * pad, 1), body, title)
 
-write("wordmark.svg", wordmark_svg(GRAPHITE, COBALT, "PrintMarshal"))
-write("wordmark-on-dark.svg", wordmark_svg(MIST, COBALT_ON_DARK, "PrintMarshal"))
-write("wordmark-mono.svg", wordmark_svg(GRAPHITE, GRAPHITE, "PrintMarshal"))
-write("wordmark-reversed.svg", wordmark_svg(WHITE, WHITE, "PrintMarshal"))
 
-# ---- mark
-write("mark.svg", svg(48, 48, mark_paths(BRASS), "PrintMarshal mark"))
-write("mark-on-dark.svg", svg(48, 48, mark_paths(GLOW), "PrintMarshal mark"))
-write("mark-mono.svg", svg(48, 48, mark_mono(GRAPHITE), "PrintMarshal mark"))
-write("mark-reversed.svg", svg(48, 48, mark_mono(WHITE), "PrintMarshal mark"))
+write("wordmark.svg", wordmark_svg(GRAPHITE, COBALT))
+write("wordmark-on-dark.svg", wordmark_svg(MIST, TINT))
+write("wordmark-mono.svg", wordmark_svg(GRAPHITE, GRAPHITE))
+write("wordmark-reversed.svg", wordmark_svg(WHITE, WHITE))
 
-# ---- horizontal lockup: mark 48 high, wordmark cap height centred on the mark's centre
-def horizontal(glint, c1, c2, title):
-    size = 32; capv = cap * size / upem
-    pad = 6; gap = 14
-    mark_x = pad
-    text_x = mark_x + 48 + gap
-    y_base = pad + 24 + capv / 2 - 0.5  # optical centre: shield mass sits slightly high
-    body = f'<g transform="translate({mark_x} {pad})">{mark_paths(glint)}</g>'
-    wm, xend = wordmark(size, text_x, y_base, c1, c2)
+
+# ---- the mark: the app icon (rounded) and the shield-P glyph for one-ink uses
+def embed(svg_text, x, y, w, h):
+    inner = re.sub(r"^<svg[^>]*>", "", svg_text.strip())
+    inner = re.sub(r"</svg>\s*$", "", inner)
+    inner = re.sub(r"<title>.*?</title>", "", inner, count=1, flags=re.S)
+    vb = re.search(r'viewBox="([^"]+)"', svg_text).group(1)
+    return f'<svg x="{x:g}" y="{y:g}" width="{w:g}" height="{h:g}" viewBox="{vb}">{inner}</svg>'
+
+
+ICON = {k: gen_icons.icon(k, w) for k, w in gen_icons.WAYS.items()}
+GLYPH_MONO = gen_icons.glyph(GRAPHITE, WHITE)
+GLYPH_REV = gen_icons.glyph(WHITE, GRAPHITE)
+
+write("mark.svg", ICON["d1"])
+write("mark-on-dark.svg", ICON["d3"])
+write("mark-mono.svg", GLYPH_MONO)
+write("mark-reversed.svg", GLYPH_REV)
+write("app-icon.svg", ICON["d1"])
+write("app-icon-mist.svg", ICON["d2"])
+write("app-icon-black.svg", ICON["d3"])
+
+
+# ---- horizontal lockup: icon 48 high, wordmark beside it
+def horizontal(mark_svg, c_print, c_marshal, title="PrintMarshal"):
+    size = 30
+    capv = BARLOW.cap * size / BARLOW.upem
+    pad, gap = 6, 14
+    y_base = pad + 24 + capv / 2
+    body = embed(mark_svg, pad, pad, 48, 48)
+    wm, xend = wordmark(size, pad + 48 + gap, y_base, c_print, c_marshal)
     return svg(round(xend + pad, 1), 48 + 2 * pad, body + wm, title)
 
-write("logo-horizontal.svg", horizontal(BRASS, GRAPHITE, COBALT, "PrintMarshal"))
-write("logo-horizontal-on-dark.svg", horizontal(GLOW, MIST, COBALT_ON_DARK, "PrintMarshal"))
 
-def horizontal_mono(color, title):
-    size = 32; capv = cap * size / upem; pad = 6; gap = 14
-    y_base = pad + 24 + capv / 2 - 0.5
-    body = f'<g transform="translate({pad} {pad})">{mark_mono(color)}</g>'
-    wm, xend = wordmark(size, pad + 48 + gap, y_base, color, color)
-    return svg(round(xend + pad, 1), 48 + 2 * pad, body + wm, title)
+write("logo-horizontal.svg", horizontal(ICON["d1"], GRAPHITE, COBALT))
+write("logo-horizontal-on-dark.svg", horizontal(ICON["d1"], MIST, TINT))
+write("logo-horizontal-mono.svg", horizontal(GLYPH_MONO, GRAPHITE, GRAPHITE))
+write("logo-horizontal-reversed.svg", horizontal(GLYPH_REV, WHITE, WHITE))
 
-write("logo-horizontal-mono.svg", horizontal_mono(GRAPHITE, "PrintMarshal"))
-write("logo-horizontal-reversed.svg", horizontal_mono(WHITE, "PrintMarshal"))
 
-# ---- stacked lockup: mark 64 high centred over the wordmark
-def stacked(glint, c1, c2, title):
-    size = 28; capv = cap * size / upem; pad = 8; gap = 12
-    wm, xend = wordmark(size, 0, 0, c1, c2)
-    text_w = xend
-    W = text_w + 2 * pad
-    mark_s = 64 / 48
-    mark_x = (W - 64) / 2
-    body = f'<g transform="translate({mark_x:.2f} {pad}) scale({mark_s:.4f})">{mark_paths(glint)}</g>'
-    y_base = pad + 64 + gap + capv
-    wm, _ = wordmark(size, pad, y_base, c1, c2)
-    return svg(round(W, 1), round(y_base + pad, 1), body + wm, title)
+# ---- stacked lockup: icon 72 centred over the wordmark
+def stacked(mark_svg, c_print, c_marshal, title="PrintMarshal"):
+    size = 28
+    capv = BARLOW.cap * size / BARLOW.upem
+    pad, gap = 8, 12
+    _, xend = wordmark(size, 0, 0, c_print, c_marshal)
+    W = xend + 2 * pad
+    body = embed(mark_svg, (W - 72) / 2, pad, 72, 72)
+    y_base = pad + 72 + gap + capv
+    wm, _ = wordmark(size, pad, y_base, c_print, c_marshal)
+    return svg(round(W, 1), round(y_base + 0.22 * size + pad, 1), body + wm, title)
 
-write("logo-stacked.svg", stacked(BRASS, GRAPHITE, COBALT, "PrintMarshal"))
-write("logo-stacked-on-dark.svg", stacked(GLOW, MIST, COBALT_ON_DARK, "PrintMarshal"))
 
-# ---- app icon / org avatar: mark on a graphite tile
-def app_icon():
-    body = (f'<rect width="512" height="512" rx="112" fill="{GRAPHITE}"/>'
-            f'<g transform="translate(80 72) scale(7.3333)">{mark_paths(GLOW)}</g>')
-    return svg(512, 512, body, "PrintMarshal")
-write("app-icon.svg", app_icon())
+write("logo-stacked.svg", stacked(ICON["d1"], GRAPHITE, COBALT))
+write("logo-stacked-on-dark.svg", stacked(ICON["d1"], MIST, TINT))
 
-def badge():
-    # compact "PM" badge for tiles and avatars where the full word cannot fit:
-    # the mark itself is the badge; on a cobalt tile for contrast with the app icon
-    body = (f'<rect width="512" height="512" rx="112" fill="{COBALT}"/>'
-            f'<g transform="translate(80 72) scale(7.3333)">{mark_paths(GLOW, shield=DEEP)}</g>')
-    return svg(512, 512, body, "PrintMarshal")
-write("app-icon-cobalt.svg", badge())
+
+# ---- GitHub social preview, 1280 x 640
+def social():
+    size = 96
+    capv = BARLOW.cap * size / BARLOW.upem
+    _, xend = wordmark(size, 0, 0, MIST, TINT)
+    icon_s, gap = 176, 40
+    total = icon_s + gap + xend
+    x0 = (1280 - total) / 2
+    y0 = 180
+    body = f'<rect width="1280" height="640" fill="{GRAPHITE}"/>'
+    body += embed(ICON["d1"], x0, y0, icon_s, icon_s)
+    wm, _ = wordmark(size, x0 + icon_s + gap, y0 + icon_s / 2 + capv / 2, MIST, TINT)
+    tag = "Printer fleet security and configuration, self-hosted and open source."
+    _, tend = BARLOW.shape(tag, 34, 0, 0, SLATE)
+    line, _ = BARLOW.shape(tag, 34, (1280 - tend) / 2, 470, "#9AA7B8")
+    return svg(1280, 640, body + wm + line, "PrintMarshal")
+
+
+write("social-preview.svg", social())
+
 
 # ---- PNG export through headless Chrome
 CHROME = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-def export(svg_name, png_name, width, height=None, background="transparent"):
+
+
+def export(svg_name, png_name, width, height=None):
     src = os.path.join(OUT, svg_name)
-    # read the viewBox to keep the aspect ratio
-    head = open(src).read(300)
-    vb = head.split('viewBox="')[1].split('"')[0].split()
+    text = open(src).read()
+    vb = re.search(r'viewBox="([^"]+)"', text).group(1).split()
     vw, vh = float(vb[2]), float(vb[3])
     if height is None:
         height = round(width * vh / vw)
-    # Screenshot a copy of the SVG sized to the export, so the page itself is
-    # the image and nothing can be captured before it has loaded.
-    text = open(src).read()
     text = re.sub(r'width="[^"]*" height="[^"]*"', f'width="{width}" height="{height}"', text, count=1)
     tmp = os.path.join(SP, "render.svg")
     with open(tmp, "w") as f:
@@ -173,31 +191,18 @@ def export(svg_name, png_name, width, height=None, background="transparent"):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=90)
     print("exported", png_name, width, height)
 
-export("app-icon.svg", "org-avatar-1024.png", 1024)
+
+write("org-avatar.svg", gen_icons.icon("d1", gen_icons.WAYS["d1"], radius=0))
+export("org-avatar.svg", "org-avatar-1024.png", 1024)
 for s in (512, 256, 128, 64, 32, 16):
     export("app-icon.svg", f"app-icon-{s}.png", s)
 export("mark.svg", "mark-512.png", 512)
-export("mark.svg", "mark-1024.png", 1024)  # transparent avatar: the shield alone
+export("mark.svg", "mark-1024.png", 1024)
 export("mark-on-dark.svg", "mark-on-dark-512.png", 512)
-export("mark.svg", "favicon-32.png", 32)
+export("app-icon.svg", "favicon-32.png", 32)
 export("logo-horizontal.svg", "logo-horizontal-1600.png", 1600)
 export("logo-horizontal-on-dark.svg", "logo-horizontal-on-dark-1600.png", 1600)
 export("logo-stacked.svg", "logo-stacked-1200.png", 1200)
 export("logo-stacked-on-dark.svg", "logo-stacked-on-dark-1200.png", 1200)
-# GitHub social preview (1280x640): graphite ground, horizontal lockup, anchor line
-def social():
-    size = 32; capv = cap * size / upem
-    wm, xend = wordmark(size, 0, 0, MIST, COBALT_ON_DARK)
-    lock_w = 48 + 14 + xend
-    scale = 2.6
-    x0 = (1280 - lock_w * scale) / 2
-    y0 = 200
-    y_base = 24 + capv / 2 - 0.5
-    wm, _ = wordmark(size, 48 + 14, y_base, MIST, COBALT_ON_DARK)
-    tag, tag_end = shape("The command-and-security console for your printer fleet.", 36, 0, 0, SLATE, tracking=0)
-    tag, _ = shape("The command-and-security console for your printer fleet.", 36, (1280 - tag_end) / 2, 470, "#9AA7B8", tracking=0)
-    body = (f'<rect width="1280" height="640" fill="{GRAPHITE}"/>'
-            f'<g transform="translate({x0:.1f} {y0}) scale({scale})">{mark_paths(GLOW)}{wm}</g>{tag}')
-    return svg(1280, 640, body, "PrintMarshal")
-write("social-preview.svg", social())
 export("social-preview.svg", "social-preview-1280x640.png", 1280, 640)
+os.remove(os.path.join(SP, "render.svg"))

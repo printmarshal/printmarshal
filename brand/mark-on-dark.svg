@@ -1,1 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="PrintMarshal mark"><title>PrintMarshal mark</title><path d="M24 3 42 9v14c0 11-8 18.5-18 22C14 41.5 6 34 6 23V9z" fill="#2E54E6"/><path d="M14 31 24 23 34 31v6l-10-8-10 8z" fill="#FFFFFF"/><path d="M24 8.5l1.9 4.1 4.1 1.9-4.1 1.9-1.9 4.1-1.9-4.1-4.1-1.9 4.1-1.9z" fill="#EFC065"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="PrintMarshal">
+  <title>PrintMarshal app icon, Black</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1C2029"/><stop offset="1" stop-color="#07080B"/></linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+    <linearGradient id="blk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE3EF"/></linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3D63F0"/><stop offset="1" stop-color="#1E3AA8"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="26" stdDeviation="26" flood-color="#000000" flood-opacity="0.55"/></filter>
+    <clipPath id="clip"><rect width="1024" height="1024" rx="230"/></clipPath>
+  </defs>
+  <g clip-path="url(#clip)">
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <rect width="1024" height="1024" fill="url(#gloss)"/>
+    <g transform="translate(299.0,51.0) scale(5.6016)" opacity="0.35"><g fill="#8DA4F2"><rect x="30" y="7" width="34" height="11" rx="3"/><rect x="20" y="20" width="88" height="10" rx="2.5"/><rect x="20" y="33" width="88" height="39" rx="4"/><rect x="20" y="75" width="88" height="19" rx="3"/><rect x="20" y="97" width="88" height="21" rx="3"/><rect x="26" y="120" width="8" height="5" rx="1.5"/><rect x="94" y="120" width="8" height="5" rx="1.5"/></g><rect x="97" y="35" width="24" height="12" rx="2.5" fill="#8DA4F2" stroke="#0E1016" stroke-width="3"/><g fill="#0E1016"><rect x="30" y="43" width="50" height="8" rx="1.5"/><rect x="54" y="83" width="20" height="3.5" rx="1.5"/><rect x="54" y="106" width="20" height="3.5" rx="1.5"/></g></g>
+    <g transform="translate(175.0,154.0) scale(5.6016)" opacity="1.0" filter="url(#shadow)"><g fill="url(#blk)"><rect x="30" y="7" width="34" height="11" rx="3"/><rect x="20" y="20" width="88" height="10" rx="2.5"/><rect x="20" y="33" width="88" height="39" rx="4"/><rect x="20" y="75" width="88" height="19" rx="3"/><rect x="20" y="97" width="88" height="21" rx="3"/><rect x="26" y="120" width="8" height="5" rx="1.5"/><rect x="94" y="120" width="8" height="5" rx="1.5"/></g><rect x="97" y="35" width="24" height="12" rx="2.5" fill="url(#blk)" stroke="#0E1016" stroke-width="3"/><g fill="#0E1016"><rect x="30" y="43" width="50" height="8" rx="1.5"/><rect x="54" y="83" width="20" height="3.5" rx="1.5"/><rect x="54" y="106" width="20" height="3.5" rx="1.5"/></g></g>
+    <path d="M12 1.5 L22 5 V13 C22 19.5 17.5 24.5 12 26.5 C6.5 24.5 2 19.5 2 13 V5 Z" transform="translate(60.0,529.0) scale(14.9167)" fill="url(#shield)" filter="url(#shadow)"/>
+    <path d="M12 1.5 L22 5 V13 C22 19.5 17.5 24.5 12 26.5 C6.5 24.5 2 19.5 2 13 V5 Z" transform="translate(60.0,529.0) scale(14.9167)" fill="url(#gloss)"/>
+    <path d="M571 484Q571 421 542.5 373.0Q514 325 462.5 298.5Q411 272 344 272H202Q197 272 197 267V12Q197 7 193.5 3.5Q190 0 185 0H68Q63 0 59.5 3.5Q56 7 56 12V689Q56 694 59.5 697.5Q63 701 68 701H350Q416 701 466.0 674.0Q516 647 543.5 597.5Q571 548 571 484ZM431 481Q431 525 403.0 552.0Q375 579 329 579H202Q197 579 197 574V390Q197 385 202 385H329Q375 385 403.0 411.5Q431 438 431 481Z" transform="translate(169.40,815.00) scale(0.22200,-0.22200)" fill="#FFFFFF"/>
+  </g>
+</svg>
