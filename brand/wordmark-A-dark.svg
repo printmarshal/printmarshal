@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 654.5 124" width="654.5" height="124" role="img" aria-label="PrintMarshal">
+  <title>PrintMarshal wordmark, option A (dark), draft</title>
+  <desc>Live text: needs the Google Fonts below (outline before production). The Graphite rect is a preview backdrop; delete it for production use.</desc>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&amp;family=Barlow:wght@600&amp;display=swap');
+    .wmAd-p { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 500; font-size: 100px; letter-spacing: 0px; fill: #E8ECF2; }
+    .wmAd-m { font-family: 'Barlow', system-ui, sans-serif; font-weight: 600; font-size: 100px; letter-spacing: -1px; fill: #8DA4F2; }
+  </style>
+  <rect id="preview-backdrop" width="654.5" height="124" rx="10" fill="#14171E"/><text y="92"><tspan class="wmAd-p" x="4.1">print</tspan><tspan class="wmAd-m" x="314.1">Marshal</tspan></text>
+</svg>

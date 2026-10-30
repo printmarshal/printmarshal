@@ -6,7 +6,7 @@ Sketches on `logo-sketches-round7-2026-10-30.svg` (rendered as `.png`), each at 
 and 24 px.
 
 - **D1. Layered MFP, shield with P.** Cobalt icon; ghost machine behind, shaded white machine in
-  front, a Deep shield at the bottom-left corner with a white Barlow P. A later app keeps the shield
+  front, a Deep shield at the bottom-left corner with a white Barlow P. A variant keeps the shield
   and changes the letter. At 24 px it reduces to the shield alone.
 - **D2. The same, reversed.** Mist icon; the machine in Cobalt with the light showing through the
   gaps, a paler ghost behind, and a white shield with the P in Cobalt. Same palette, swapped.

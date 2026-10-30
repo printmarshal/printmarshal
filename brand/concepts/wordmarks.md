@@ -2,7 +2,7 @@
 
 Direction from the owner: lowercase "print" in a typewriter / monospace voice, plain Graphite on
 light and Mist on dark; "Marshal" in a different, modern typeface and a different colour, since
-Marshal will be the company name. No camel-case bump between the words; both words share one
+No camel-case bump between the words; both words share one
 baseline. Spelling stays PrintMarshal / Marshal, one L.
 
 Three options, each as `wordmark-X.svg` (on light) and `wordmark-X-dark.svg` (on dark). The SVGs use
@@ -23,7 +23,7 @@ heavier than JetBrains Mono 400 and Courier Prime 400, which thin out.
 
 **Recommendation: Option A.** It satisfies the brief with faces the brand already owns, it is the
 most legible at header size, and it keeps Marshal in Cobalt, the colour the product uses for every
-primary action, which ties the company name to the "do" colour. Option B is the alternative if a more
+primary action, which ties the second word to the "do" colour. Option B is the alternative if a more
 developer-tool feel is wanted. C is included to show the Brass route; it reads warmer but weaker next
 to the UI.
 

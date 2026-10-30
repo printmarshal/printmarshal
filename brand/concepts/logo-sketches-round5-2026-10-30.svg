@@ -205,7 +205,7 @@
       <rect x="60" width="24" height="24" rx="5.5" fill="#1E3AA8"/>
       <text class="tile" x="72" y="17.5" font-size="12.5" fill="#FFFFFF" text-anchor="middle">PM</text></g>
     <text x="16" y="262" class="label">O2. Filled MFP, "PM" tile</text>
-    <text x="16" y="284" class="note">Same, with a wider "PM" tile. Later apps change the tile</text>
+    <text x="16" y="284" class="note">Same, with a wider "PM" tile. Variants change the tile</text>
     <text x="16" y="302" class="note">letters and the picture, like Word, Excel, Outlook.</text>
   </g>
   <g transform="translate(790,910)">
@@ -225,7 +225,7 @@
       <rect x="60" width="24" height="24" rx="5.5" fill="#2E54E6"/>
       <text class="tile" x="72" y="18.5" font-size="18" fill="#FFFFFF" text-anchor="middle">P</text></g>
     <text x="16" y="262" class="label">O3. Graphite with a Cobalt tile</text>
-    <text x="16" y="284" class="note">The suite colour lives in the tile: Cobalt for print,</text>
-    <text x="16" y="302" class="note">another colour per app, on a shared Graphite base.</text>
+    <text x="16" y="284" class="note">The accent colour lives in the tile: Cobalt for print,</text>
+    <text x="16" y="302" class="note">another colour per variant, on a shared Graphite base.</text>
   </g>
 </svg>
