@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 900" width="1180" height="900" font-family="system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif">
+  <title>PrintMarshal app icon sketches, round 6: O1 with depth</title>
+  <style>
+    @font-face { font-family: 'IBM Plex Mono'; src: url('file:///private/tmp/claude-502/-Users-ktaynaz-printmarshal/c4ba53fc-560e-4883-8781-3cbcdf33ad31/scratchpad/fonts/IBMPlexMono-Medium.ttf'); font-weight: 500; }
+    @font-face { font-family: 'Barlow'; src: url('file:///private/tmp/claude-502/-Users-ktaynaz-printmarshal/c4ba53fc-560e-4883-8781-3cbcdf33ad31/scratchpad/fonts/Barlow-Bold.ttf'); font-weight: 700; }
+    .label { font-size:18px; font-weight:600; fill:#14171E; }
+    .note { font-size:13px; fill:#5B6676; }
+    .mono { font-family:'IBM Plex Mono', ui-monospace, monospace; font-weight:500; }
+    .tile { font-family:'Barlow', system-ui, sans-serif; font-weight:700; }
+  </style>
+  <defs>
+    <linearGradient id="gCobalt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A6FF0"/><stop offset="1" stop-color="#1E3AA8"/></linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+    <linearGradient id="gBlock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#DCE3EF"/></linearGradient>
+    <linearGradient id="gBlockWarm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E9EDF5"/></linearGradient>
+    <linearGradient id="gTile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2748C9"/><stop offset="1" stop-color="#15287A"/></linearGradient>
+    <linearGradient id="gTileGlass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B3291" stop-opacity="0.88"/><stop offset="1" stop-color="#0F1F63" stop-opacity="0.92"/></linearGradient>
+    <linearGradient id="gSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#AEBBD3"/><stop offset="1" stop-color="#8E9DBA"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#081547" flood-opacity="0.40"/></filter>
+    <filter id="shadowSoft" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#081547" flood-opacity="0.35"/></filter>
+    <filter id="shadowS" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#081547" flood-opacity="0.40"/></filter>
+
+    <!-- Filled MFP blocks; block fill and gap colour come from CSS variables on the use element -->
+    <symbol id="mfp" viewBox="0 0 128 128">
+      <g style="fill:var(--blk,#FFFFFF)">
+        <rect x="30" y="7" width="34" height="11" rx="3"/>
+        <rect x="20" y="20" width="88" height="10" rx="2.5"/>
+        <rect x="20" y="33" width="88" height="39" rx="4"/>
+        <rect x="20" y="75" width="88" height="19" rx="3"/>
+        <rect x="20" y="97" width="88" height="21" rx="3"/>
+        <rect x="26" y="120" width="8" height="5" rx="1.5"/>
+        <rect x="94" y="120" width="8" height="5" rx="1.5"/>
+      </g>
+      <rect x="97" y="35" width="24" height="12" rx="2.5" style="fill:var(--blk,#FFFFFF);stroke:var(--bg);stroke-width:3"/>
+      <g style="fill:var(--bg)">
+        <rect x="30" y="43" width="50" height="8" rx="1.5"/>
+        <rect x="54" y="83" width="20" height="3.5" rx="1.5"/>
+        <rect x="54" y="106" width="20" height="3.5" rx="1.5"/>
+      </g>
+    </symbol>
+    <!-- Darker bottom bands for the pressed / physical variant -->
+    <symbol id="bands" viewBox="0 0 128 128">
+      <g style="fill:var(--band,#C3CDE0)">
+        <rect x="30" y="14" width="34" height="4" rx="1.5"/>
+        <rect x="20" y="26" width="88" height="4" rx="1.5"/>
+        <rect x="20" y="67" width="88" height="5" rx="2"/>
+        <rect x="20" y="89" width="88" height="5" rx="2"/>
+        <rect x="20" y="113" width="88" height="5" rx="2"/>
+      </g>
+    </symbol>
+    <!-- Side faces for the extruded variant: a slab to the right of each block -->
+    <symbol id="sides" viewBox="0 0 128 128">
+      <g style="fill:var(--side,#A9B6CE)">
+        <path d="M64 7 l6 -4 v11 l-6 4 z"/>
+        <path d="M108 20 l6 -4 v10 l-6 4 z"/>
+        <path d="M108 33 l6 -4 v39 l-6 4 z"/>
+        <path d="M108 75 l6 -4 v19 l-6 4 z"/>
+        <path d="M108 97 l6 -4 v21 l-6 4 z"/>
+      </g>
+      <g style="fill:var(--top,#F6F8FC)">
+        <path d="M30 7 l6 -4 h34 l-6 4 z"/>
+        <path d="M20 20 l6 -4 h88 l-6 4 z"/>
+        <path d="M20 33 l6 -4 h88 l-6 4 z"/>
+        <path d="M20 75 l6 -4 h88 l-6 4 z"/>
+        <path d="M20 97 l6 -4 h88 l-6 4 z"/>
+      </g>
+    </symbol>
+    <symbol id="shield" viewBox="0 0 24 28">
+      <path d="M12 1.5 L22 5 V13 C22 19.5 17.5 24.5 12 26.5 C6.5 24.5 2 19.5 2 13 V5 Z"/>
+    </symbol>
+  </defs>
+
+  <rect width="1180" height="900" fill="#F4F6F9"/>
+  <text x="30" y="40" font-size="24" font-weight="700" fill="#14171E">PrintMarshal app icon sketches, round 6: O1 with depth (30 Oct 2026, drafts)</text>
+  <text x="30" y="62" class="note">The filled MFP and corner tile from round 5, worked toward the Fluent / Office look: shading, shadows, extrusion, layering. D to F change the tile so it is ours, not theirs.</text>
+
+  <!-- A: Fluent shading and shadows -->
+  <g transform="translate(30,80)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadow)"><use href="#mfp" x="36" y="22" width="150" height="150"/></g>
+      <g filter="url(#shadow)"><rect x="16" y="112" width="68" height="68" rx="15" fill="url(#gTile)"/><rect x="16" y="112" width="68" height="34" rx="15" fill="url(#gloss)"/></g>
+      <text class="tile" x="50" y="165" font-size="52" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadowSoft)"><use href="#mfp" x="18" y="11" width="75" height="75"/></g>
+      <g filter="url(#shadowSoft)"><rect x="8" y="56" width="34" height="34" rx="7.5" fill="url(#gTile)"/></g>
+      <text class="tile" x="25" y="82.5" font-size="26" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadowS)"><use href="#mfp" x="9" y="5" width="36" height="36"/></g>
+      <g filter="url(#shadowS)"><rect x="4" y="27" width="17" height="17" rx="4" fill="url(#gTile)"/></g>
+      <text class="tile" x="12.5" y="40" font-size="13" fill="#FFFFFF" text-anchor="middle">P</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gTile)"/>
+      <text class="tile" x="72" y="18.5" font-size="18" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <text x="16" y="262" class="label">A. Shaded and shadowed</text>
+    <text x="16" y="284" class="note">Each block shades white to Mist; the machine and the</text>
+    <text x="16" y="302" class="note">tile cast soft shadows; a highlight across the tile.</text>
+    <text x="16" y="320" class="note">The closest to Office, which is the worry.</text>
+  </g>
+
+  <!-- B: Pressed / physical bands -->
+  <g transform="translate(410,80)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g style="--blk:#FFFFFF;--bg:#2E54E6;--band:#C3CDE0" filter="url(#shadowSoft)"><use href="#mfp" x="36" y="22" width="150" height="150"/><use href="#bands" x="36" y="22" width="150" height="150"/></g>
+      <g filter="url(#shadowSoft)"><rect x="16" y="112" width="68" height="68" rx="15" fill="#1E3AA8"/><rect x="16" y="168" width="68" height="12" rx="6" fill="#132768"/></g>
+      <text class="tile" x="50" y="163" font-size="52" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g style="--blk:#FFFFFF;--bg:#2E54E6;--band:#C3CDE0"><use href="#mfp" x="18" y="11" width="75" height="75"/><use href="#bands" x="18" y="11" width="75" height="75"/></g>
+      <rect x="8" y="56" width="34" height="34" rx="7.5" fill="#1E3AA8"/><rect x="8" y="84" width="34" height="6" rx="3" fill="#132768"/>
+      <text class="tile" x="25" y="81.5" font-size="26" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g style="--blk:#FFFFFF;--bg:#2E54E6;--band:#C3CDE0"><use href="#mfp" x="9" y="5" width="36" height="36"/><use href="#bands" x="9" y="5" width="36" height="36"/></g>
+      <rect x="4" y="27" width="17" height="17" rx="4" fill="#1E3AA8"/>
+      <text class="tile" x="12.5" y="40" font-size="13" fill="#FFFFFF" text-anchor="middle">P</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="#1E3AA8"/>
+      <text class="tile" x="72" y="18.5" font-size="18" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <text x="16" y="262" class="label">B. Pressed blocks</text>
+    <text x="16" y="284" class="note">Flat white blocks with a darker band along each bottom</text>
+    <text x="16" y="302" class="note">edge, so the drawers read as solid, pressable parts.</text>
+    <text x="16" y="320" class="note">Depth without gradients; survives small sizes.</text>
+  </g>
+
+  <!-- C: Extruded -->
+  <g transform="translate(790,80)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g style="--blk:#FFFFFF;--bg:#2E54E6;--side:#9FAECB;--top:#F6F8FC" filter="url(#shadowSoft)"><use href="#sides" x="32" y="26" width="150" height="150"/><use href="#mfp" x="32" y="26" width="150" height="150"/></g>
+      <g filter="url(#shadowSoft)"><path d="M16 127 a15 15 0 0 1 15 -15 h38 a15 15 0 0 1 15 15 v38 a15 15 0 0 1 -15 15 h-38 a15 15 0 0 1 -15 -15 z" fill="#1E3AA8"/><path d="M84 127 l6 -5 v38 l-6 5 z" fill="#132768"/><path d="M31 112 l6 -5 h38 l-6 5 z" fill="#3B5FE0"/></g>
+      <text class="tile" x="50" y="165" font-size="52" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g style="--blk:#FFFFFF;--bg:#2E54E6;--side:#9FAECB;--top:#F6F8FC"><use href="#sides" x="16" y="13" width="75" height="75"/><use href="#mfp" x="16" y="13" width="75" height="75"/></g>
+      <rect x="8" y="56" width="34" height="34" rx="7.5" fill="#1E3AA8"/>
+      <text class="tile" x="25" y="82.5" font-size="26" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g style="--blk:#FFFFFF;--bg:#2E54E6;--side:#9FAECB;--top:#F6F8FC"><use href="#sides" x="8" y="6" width="36" height="36"/><use href="#mfp" x="8" y="6" width="36" height="36"/></g>
+      <rect x="4" y="27" width="17" height="17" rx="4" fill="#1E3AA8"/>
+      <text class="tile" x="12.5" y="40" font-size="13" fill="#FFFFFF" text-anchor="middle">P</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="#1E3AA8"/>
+      <text class="tile" x="72" y="18.5" font-size="18" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <text x="16" y="262" class="label">C. Extruded</text>
+    <text x="16" y="284" class="note">Every block gets a top face and a right face, a quarter</text>
+    <text x="16" y="302" class="note">turn toward isometric. Most physical read of the set,</text>
+    <text x="16" y="320" class="note">and the least like Office.</text>
+  </g>
+
+  <!-- D: Layered (fleet) -->
+  <g transform="translate(30,480)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g style="--blk:#AFC0F5;--bg:#2E54E6" opacity="0.55"><use href="#mfp" x="58" y="10" width="140" height="140"/></g>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadow)"><use href="#mfp" x="34" y="30" width="140" height="140"/></g>
+      <g filter="url(#shadow)"><rect x="16" y="112" width="68" height="68" rx="15" fill="url(#gTile)"/></g>
+      <text class="tile" x="50" y="165" font-size="52" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g style="--blk:#AFC0F5;--bg:#2E54E6" opacity="0.55"><use href="#mfp" x="29" y="5" width="70" height="70"/></g>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadowSoft)"><use href="#mfp" x="17" y="15" width="70" height="70"/></g>
+      <g filter="url(#shadowSoft)"><rect x="8" y="56" width="34" height="34" rx="7.5" fill="url(#gTile)"/></g>
+      <text class="tile" x="25" y="82.5" font-size="26" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6"><use href="#mfp" x="9" y="5" width="36" height="36"/></g>
+      <rect x="4" y="27" width="17" height="17" rx="4" fill="url(#gTile)"/>
+      <text class="tile" x="12.5" y="40" font-size="13" fill="#FFFFFF" text-anchor="middle">P</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="url(#gTile)"/>
+      <text class="tile" x="72" y="18.5" font-size="18" fill="#FFFFFF" text-anchor="middle">P</text></g>
+    <text x="16" y="262" class="label">D. Layered, a second machine behind</text>
+    <text x="16" y="284" class="note">A translucent MFP behind the main one: Office's stacked</text>
+    <text x="16" y="302" class="note">pages, but here it says a fleet. The ghost drops</text>
+    <text x="16" y="320" class="note">out from 48 px down.</text>
+  </g>
+
+  <!-- E: Mono lowercase p tile -->
+  <g transform="translate(410,480)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadow)"><use href="#mfp" x="36" y="22" width="150" height="150"/></g>
+      <g filter="url(#shadow)"><rect x="16" y="112" width="68" height="68" rx="15" fill="#14171E"/></g>
+      <text class="mono" x="50" y="164" font-size="54" fill="#FFFFFF" text-anchor="middle">p</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadowSoft)"><use href="#mfp" x="18" y="11" width="75" height="75"/></g>
+      <g filter="url(#shadowSoft)"><rect x="8" y="56" width="34" height="34" rx="7.5" fill="#14171E"/></g>
+      <text class="mono" x="25" y="82" font-size="27" fill="#FFFFFF" text-anchor="middle">p</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6"><use href="#mfp" x="9" y="5" width="36" height="36"/></g>
+      <rect x="4" y="27" width="17" height="17" rx="4" fill="#14171E"/>
+      <text class="mono" x="12.5" y="40" font-size="13.5" fill="#FFFFFF" text-anchor="middle">p</text>
+      <rect x="60" width="24" height="24" rx="5.5" fill="#14171E"/>
+      <text class="mono" x="72" y="18.5" font-size="19" fill="#FFFFFF" text-anchor="middle">p</text></g>
+    <text x="16" y="262" class="label">E. Graphite tile, mono "p"</text>
+    <text x="16" y="284" class="note">A's depth, but the tile is Graphite with the lowercase</text>
+    <text x="16" y="302" class="note">mono "p" from the wordmark and W2. Our letterform,</text>
+    <text x="16" y="320" class="note">our colour: the clearest step away from Office.</text>
+  </g>
+
+  <!-- F: Shield tile -->
+  <g transform="translate(790,480)">
+    <rect width="360" height="380" rx="12" fill="#FFFFFF" stroke="#E8ECF2"/>
+    <g transform="translate(20,20)"><rect width="200" height="200" rx="46" fill="url(#gCobalt)"/><rect width="200" height="200" rx="46" fill="url(#gloss)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadow)"><use href="#mfp" x="36" y="22" width="150" height="150"/></g>
+      <g fill="#14171E" filter="url(#shadow)"><use href="#shield" x="14" y="106" width="70" height="82"/></g>
+      <text class="mono" x="49" y="162" font-size="40" fill="#FFFFFF" text-anchor="middle">p</text></g>
+    <g transform="translate(240,20)"><rect width="100" height="100" rx="23" fill="url(#gCobalt)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6" filter="url(#shadowSoft)"><use href="#mfp" x="18" y="11" width="75" height="75"/></g>
+      <g fill="#14171E" filter="url(#shadowSoft)"><use href="#shield" x="7" y="53" width="35" height="41"/></g>
+      <text class="mono" x="24.5" y="81" font-size="20" fill="#FFFFFF" text-anchor="middle">p</text></g>
+    <g transform="translate(240,140)"><rect width="48" height="48" rx="11" fill="url(#gCobalt)"/>
+      <g style="--blk:url(#gBlock);--bg:#2E54E6"><use href="#mfp" x="9" y="5" width="36" height="36"/></g>
+      <g fill="#14171E"><use href="#shield" x="3" y="25" width="18" height="21"/></g>
+      <text class="mono" x="12" y="39.5" font-size="10" fill="#FFFFFF" text-anchor="middle">p</text>
+      <g fill="#14171E"><use href="#shield" x="60" y="0" width="24" height="24"/></g>
+      <text class="mono" x="72" y="16.5" font-size="12" fill="#FFFFFF" text-anchor="middle">p</text></g>
+    <text x="16" y="262" class="label">F. Shield tile</text>
+    <text x="16" y="284" class="note">The corner tile becomes a Graphite shield with the mono</text>
+    <text x="16" y="302" class="note">"p" inside: the Office structure, but the badge is a</text>
+    <text x="16" y="320" class="note">shield, so no one reads it as Microsoft.</text>
+  </g>
+</svg>
