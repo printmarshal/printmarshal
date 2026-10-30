@@ -140,6 +140,14 @@ func (s *SQLite) migrate() error {
 	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (7, ?)`, now()); err != nil {
 		return err
 	}
+	// Migration 8: why each driver did not answer on the last identification
+	// (issue #19).
+	if err := s.addColumn("devices", "identify_errors", "identify_errors TEXT NOT NULL DEFAULT '{}'"); err != nil {
+		return fmt.Errorf("migrate devices.identify_errors: %w", err)
+	}
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (8, ?)`, now()); err != nil {
+		return err
+	}
 	return nil
 }
 

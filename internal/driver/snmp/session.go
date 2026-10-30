@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gosnmp/gosnmp"
@@ -36,6 +37,96 @@ type Options struct {
 	Port    uint16
 	Timeout time.Duration
 	Retries int
+	// Gate, when set, bounds how many sessions this dialer and every other
+	// dialer sharing the Gate hold open to one address at a time. Without
+	// it an identification fans out to the generic driver plus every vendor
+	// plugin at once, and a printer's small SNMP agent drops or delays the
+	// burst, so reads time out at random (issue #19).
+	Gate *Gate
+}
+
+// Gate limits concurrent SNMP sessions per address. The zero limit means no
+// limit. Share one Gate between every dialer that talks to the same fleet.
+type Gate struct {
+	limit int
+	mu    sync.Mutex
+	slots map[string]*gateSlot
+}
+
+type gateSlot struct {
+	sem  chan struct{}
+	refs int
+}
+
+// NewGate returns a Gate allowing up to perAddress open sessions per address
+// (0 or less: unlimited).
+func NewGate(perAddress int) *Gate {
+	if perAddress < 0 {
+		perAddress = 0
+	}
+	return &Gate{limit: perAddress, slots: map[string]*gateSlot{}}
+}
+
+// acquire blocks until a slot for address is free or ctx ends. The returned
+// release must be called exactly once.
+func (g *Gate) acquire(ctx context.Context, address string) (func(), error) {
+	if g == nil || g.limit <= 0 {
+		return func() {}, nil
+	}
+	g.mu.Lock()
+	sl := g.slots[address]
+	if sl == nil {
+		sl = &gateSlot{sem: make(chan struct{}, g.limit)}
+		g.slots[address] = sl
+	}
+	sl.refs++
+	g.mu.Unlock()
+	drop := func() {
+		g.mu.Lock()
+		sl.refs--
+		if sl.refs == 0 {
+			delete(g.slots, address)
+		}
+		g.mu.Unlock()
+	}
+	select {
+	case sl.sem <- struct{}{}:
+	case <-ctx.Done():
+		drop()
+		return nil, ctx.Err()
+	}
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			<-sl.sem
+			drop()
+		})
+	}, nil
+}
+
+// InFlight reports the open sessions to address (tests and diagnostics).
+func (g *Gate) InFlight(address string) int {
+	if g == nil {
+		return 0
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if sl := g.slots[address]; sl != nil {
+		return len(sl.sem)
+	}
+	return 0
+}
+
+// gatedSession releases its Gate slot when closed.
+type gatedSession struct {
+	Session
+	release func()
+}
+
+func (s *gatedSession) Close() error {
+	err := s.Session.Close()
+	s.release()
+	return err
 }
 
 // DefaultOptions are suitable for LAN printers.
@@ -53,27 +144,40 @@ type Dialer func(ctx context.Context, address string, creds model.Creds) (Sessio
 // that answered ("v3", "v2c").
 func NewDialer(opts Options) Dialer {
 	return func(ctx context.Context, address string, creds model.Creds) (Session, string, error) {
-		var errs []error
-		if creds.V3 != nil {
-			s, err := open(ctx, address, opts, gosnmp.Version3, "", creds.V3)
-			if err == nil {
-				return s, "v3", nil
-			}
-			errs = append(errs, fmt.Errorf("v3: %w", err))
+		release, err := opts.Gate.acquire(ctx, address)
+		if err != nil {
+			return nil, "", err
 		}
-		communities := creds.Communities
-		if len(communities) == 0 {
-			communities = []string{"public"}
+		s, variant, err := dial(ctx, address, opts, creds)
+		if err != nil {
+			release()
+			return nil, "", err
 		}
-		for _, c := range communities {
-			s, err := open(ctx, address, opts, gosnmp.Version2c, c, nil)
-			if err == nil {
-				return s, "v2c", nil
-			}
-			errs = append(errs, err)
-		}
-		return nil, "", errors.Join(errs...)
+		return &gatedSession{Session: s, release: release}, variant, nil
 	}
+}
+
+func dial(ctx context.Context, address string, opts Options, creds model.Creds) (Session, string, error) {
+	var errs []error
+	if creds.V3 != nil {
+		s, err := open(ctx, address, opts, gosnmp.Version3, "", creds.V3)
+		if err == nil {
+			return s, "v3", nil
+		}
+		errs = append(errs, fmt.Errorf("v3: %w", err))
+	}
+	communities := creds.Communities
+	if len(communities) == 0 {
+		communities = []string{"public"}
+	}
+	for _, c := range communities {
+		s, err := open(ctx, address, opts, gosnmp.Version2c, c, nil)
+		if err == nil {
+			return s, "v2c", nil
+		}
+		errs = append(errs, err)
+	}
+	return nil, "", errors.Join(errs...)
 }
 
 func open(ctx context.Context, address string, opts Options, version gosnmp.SnmpVersion, community string, v3 *model.V3Creds) (Session, error) {

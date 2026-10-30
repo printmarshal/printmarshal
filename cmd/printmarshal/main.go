@@ -33,6 +33,7 @@ import (
 	"printmarshal/internal/jobs"
 	"printmarshal/internal/model"
 	"printmarshal/internal/plugins"
+	"printmarshal/internal/plugins/vendorkit"
 	"printmarshal/internal/printprovider"
 	"printmarshal/internal/secrets"
 	"printmarshal/internal/security"
@@ -121,6 +122,9 @@ func run(cfgPath string) error {
 	}
 	snmpOpts.Timeout = cfg.Poll.SNMPTimeout.D()
 	snmpOpts.Retries = cfg.Poll.SNMPRetries
+	// One gate for every SNMP dialer so a printer never sees more than
+	// snmpSessionsPerDevice sessions at once (issue #19).
+	snmpOpts.Gate = snmp.NewGate(cfg.Poll.SNMPSessionsPerDevice)
 	snmpDial := snmp.NewDialer(snmpOpts)
 	reg.Register(snmp.New(snmpDial))
 	ippOpts := ipp.DefaultOptions()
@@ -136,7 +140,10 @@ func run(cfgPath string) error {
 	if v := os.Getenv("PM_FIRMWARE_SIM_TARGETS"); v != "" { // simulator-only firmware delivery (docs/firmware.md)
 		reg.Register(fwsim.New(strings.Split(v, ","), fwsim.Options{}))
 	}
-	plugins.RegisterAll(reg, log) // vendor plugins: enrichment at the edge (spec §6)
+	// Vendor plugins: enrichment at the edge (spec §6). They share the SNMP
+	// dialer (port, timeout, retries, gate) and IPP transport of the generic
+	// drivers rather than LAN defaults of their own.
+	plugins.RegisterAllWith(reg, log, vendorkit.Options{SNMP: snmpDial, IPP: ipp.NewTransport(ippOpts), HTTP: vendorkit.NewHTTP(vendorkit.DefaultHTTPOptions())})
 	eng := engine.New(reg, log, cfg.Poll.Concurrency)
 
 	bus := events.NewBus() // single event contract: live stream + durable notifications (docs/events.md)
@@ -155,7 +162,7 @@ func run(cfgPath string) error {
 	defer runner.Stop()
 
 	// Cheap liveness probe for active scans: one SNMP system-group read.
-	probeOpts := snmp.Options{Port: snmpOpts.Port, Timeout: 1 * time.Second, Retries: 1}
+	probeOpts := snmp.Options{Port: snmpOpts.Port, Timeout: 1 * time.Second, Retries: 1, Gate: snmpOpts.Gate}
 	probeDial := snmp.NewDialer(probeOpts)
 	probe := func(ctx context.Context, addr string) bool {
 		creds, _ := st.ResolveCreds(ctx, "", nil)

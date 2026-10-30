@@ -159,7 +159,9 @@ function DeviceDetailBody({ id, user }: { id: string; user: User }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px' }}>
                   <div><div className="cap">Device state</div><div>{d.status ? `${d.status.state}${d.status.severity !== 'ok' ? ' · ' + d.status.severity : ''}` : '—'}</div></div>
                   <div><div className="cap">Uptime</div><div className="num">{d.status?.uptimeSecs ? `${Math.floor(d.status.uptimeSecs / 86400)} d ${Math.floor((d.status.uptimeSecs % 86400) / 3600)} h` : '—'}</div></div>
-                  <div><div className="cap">Reachability</div><div>{d.identifyMethods.map((m) => m.toUpperCase()).join(' · ') || '—'}</div></div>
+                  <div><div className="cap">Reachability</div><div>{d.identifyMethods.map((m) => m.toUpperCase()).join(' · ') || '—'}</div>
+                    {Object.entries(d.identifyErrors || {}).map(([drv, why]) => <div key={drv} className="cap" style={{ color: 'var(--warn)', marginTop: 2, whiteSpace: 'normal' }} title={why}>{drv.toUpperCase()} did not answer on the last scan: {why}</div>)}
+                  </div>
                   <div><div className="cap">Error flags</div><div>{d.status?.errors?.length ? d.status.errors.join(', ') : 'none'}</div></div>
                 </div>
               </div>

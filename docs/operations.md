@@ -351,8 +351,9 @@ PM_ADMIN_PASSWORD=change-me ./bin/printmarshal
 | `poll.concurrency` | `PM_POLL_CONCURRENCY` | `32` | Max simultaneous device reads (engine-wide limiter, also bounds config-apply jobs) |
 | `poll.snmpPort` | `PM_SNMP_PORT` | `161` | SNMP agent port on devices (simulators use 1161) |
 | `poll.ippEndpoints` | `PM_IPP_ENDPOINTS` | `http://%s:631/ipp/print`, `…:631/ipp`, `…:631/ipp/printer`, `…:631/`, `https://%s:443/ipp/print`, `http://%s:80/ipp/print` | IPP URL templates tried in order; `%s` is the host |
-| `poll.snmpTimeout` | — | `2s` | Per-request SNMP timeout |
-| `poll.snmpRetries` | — | `1` | SNMP retries after a timeout |
+| `poll.snmpTimeout` | `PM_SNMP_TIMEOUT` | `2s` | Per-request SNMP timeout (also used by the vendor plugins) |
+| `poll.snmpRetries` | `PM_SNMP_RETRIES` | `1` | SNMP retries after a timeout |
+| `poll.snmpSessionsPerDevice` | `PM_SNMP_SESSIONS_PER_DEVICE` | `2` | SNMP sessions open to one device at a time across the generic driver, the vendor plugins and the scan probe (0 = unlimited); keeps an identification from flooding a printer's SNMP agent |
 | `poll.ippTimeout` | — | `4s` | HTTP timeout for IPP and eSCL requests |
 | `poll.ippInsecureTls` | — | `true` | Accept printers' self-signed certificates for IPPS/eSCL over HTTPS |
 | `poll.ippWriteRequireTLS` | `PM_IPP_WRITE_REQUIRE_TLS` | `false` | Refuse IPP `Set-Printer-Attributes` over plaintext; writes always try IPPS/HTTPS first and pin the device certificate on first contact (docs/security.md) |
