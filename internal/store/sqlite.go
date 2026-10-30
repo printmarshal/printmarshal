@@ -199,18 +199,33 @@ func (s *SQLite) migrateFixedWidthTimestamps() error {
 	if done > 0 {
 		return nil
 	}
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
 	tables := make([]string, 0, len(timestampColumns))
 	for t := range timestampColumns {
 		tables = append(tables, t)
 	}
 	sort.Strings(tables)
+	// Only columns that exist at this schema version: later migrations add
+	// timestamp columns of their own (devices.dns_checked_at, migration 6)
+	// and those hold no legacy values to rewrite. Looked up before the
+	// transaction opens, since SQLite serves one connection at a time.
+	present := map[string]map[string]bool{}
+	for _, t := range tables {
+		cols, err := s.columns(t)
+		if err != nil {
+			return err
+		}
+		present[t] = cols
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 	for _, t := range tables {
 		for _, c := range timestampColumns[t] {
+			if !present[t][c] {
+				continue
+			}
 			q := fmt.Sprintf(`UPDATE %s SET %s = substr(strftime('%%Y-%%m-%%dT%%H:%%M:%%fZ', %s), 1, 23) || '000000Z'
 				WHERE %s IS NOT NULL AND %s <> '' AND length(%s) <> 30 AND strftime('%%Y-%%m-%%dT%%H:%%M:%%fZ', %s) IS NOT NULL`, t, c, c, c, c, c, c)
 			if _, err := tx.Exec(q); err != nil {
@@ -222,6 +237,27 @@ func (s *SQLite) migrateFixedWidthTimestamps() error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// columns returns the set of column names PRAGMA table_info lists for table.
+func (s *SQLite) columns(table string) (map[string]bool, error) {
+	rows, err := s.db.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notnull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
+			return nil, err
+		}
+		out[name] = true
+	}
+	return out, rows.Err()
 }
 
 // addColumn adds a column with ALTER TABLE unless PRAGMA table_info already
