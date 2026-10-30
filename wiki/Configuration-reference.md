@@ -41,8 +41,9 @@ Duration strings use Go duration syntax: `30s`, `5m`, `720h`; `30d` is not suppo
 | `poll.ippEndpoints` | `[]string` | `PM_IPP_ENDPOINTS` | empty; built-in endpoint list below | Read endpoint templates in order; %s is the device host. Writes derive TLS-first candidates. |
 | `poll.interval` | `Duration` | `PM_POLL_INTERVAL` | 5m | Scheduled polling cadence; minimum scheduler interval 30s. |
 | `poll.concurrency` | `int` | `PM_POLL_CONCURRENCY` | 32 | Engine limiter capacity and per-job device worker limit, fixed from startup config. |
-| `poll.snmpTimeout` | `Duration` | — | 2s | SNMP request timeout. |
-| `poll.snmpRetries` | `int` | — | 1 | Retries after an SNMP request timeout. |
+| `poll.snmpTimeout` | `Duration` | `PM_SNMP_TIMEOUT` | 2s | SNMP request timeout. |
+| `poll.snmpRetries` | `int` | `PM_SNMP_RETRIES` | 1 | Retries after an SNMP request timeout. |
+| `poll.snmpSessionsPerDevice` | `int` | `PM_SNMP_SESSIONS_PER_DEVICE` | 2 | SNMP sessions open to one device at a time, shared by the generic driver, every vendor plugin and the scan probe; 0 = unlimited. Identification asks all of them at once, and a printer's small SNMP agent drops that burst, so reads time out at random (issue #19). The vendor plugins also use `snmpPort`, `snmpTimeout` and `snmpRetries`. |
 | `poll.ippTimeout` | `Duration` | — | 4s | HTTP request timeout for IPP and eSCL. |
 | `poll.ippInsecureTls` | `bool` | — | true | Skip normal certificate verification on IPP/eSCL; IPP writes additionally use in-memory first-contact pinning. |
 | `poll.ippWriteRequireTLS` | `bool` | `PM_IPP_WRITE_REQUIRE_TLS` | false | IPPWriteRequireTLS refuses to send Set-Printer-Attributes over plaintext; writes then need an IPPS (or HTTPS) endpoint on the device. |

@@ -104,6 +104,11 @@ type Device struct {
 	Capabilities     map[Capability]string `json:"capabilities"`
 	DiscoveryMethods []string              `json:"discoveryMethods"`
 	IdentifyMethods  []string              `json:"identifyMethods"`
+	// IdentifyErrors is, per driver, why it did not answer on the most recent
+	// identification (replaced on every scan, never merged), so a printer that
+	// stopped answering SNMP shows the reason instead of silently keeping its
+	// earlier values (issue #19).
+	IdentifyErrors map[string]string `json:"identifyErrors,omitempty"`
 
 	// Operator fields — never overwritten by a scan.
 	DisplayName       string `json:"displayName"`
@@ -243,6 +248,10 @@ type Identity struct {
 	// Capabilities this driver can serve for the device it just identified.
 	Capabilities []Capability
 	Method       string // driver name
+	// Errors records, per driver, why a driver that applies to this device
+	// did not answer during the identification that produced this identity
+	// (filled by the engine when it merges driver results; issue #19).
+	Errors map[string]string
 }
 
 // Alert is a condition PrintMarshal raised about a device (spec §8.3).

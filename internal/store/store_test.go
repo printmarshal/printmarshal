@@ -351,3 +351,46 @@ func testConsumablesStockAndLinks(t *testing.T, s testStore) {
 		t.Errorf("dashboard low stock = %d", ds.LowStock)
 	}
 }
+
+// Issue #19: why a driver did not answer is kept from the latest scan only,
+// and a scan that could not read a field never blanks the earlier value.
+func testIdentifyErrorsFollowLatestScan(t *testing.T, s testStore) {
+	ctx := context.Background()
+	full := &model.Identity{Address: "10.0.0.19", Serial: "SN19", Make: "HP", Model: "M283", Firmware: "1.0", Method: "snmp,hp"}
+	d, _, err := s.UpsertDevice(ctx, full, nil, []string{"scan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.IdentifyErrors) != 0 {
+		t.Fatalf("clean scan should record no errors: %+v", d.IdentifyErrors)
+	}
+	// eSCL never identified this printer, so its failure is expected and dropped;
+	// SNMP (the baseline) and HP (which identified it before) are kept.
+	partial := &model.Identity{Address: "10.0.0.19", Serial: "SN19", Make: "HP", Method: "ipp", Errors: map[string]string{"snmp": "request timeout (after 1 retries)", "hp": "no snmp/ipp answer: request timeout", "escl": "http 404"}}
+	d, _, err = s.UpsertDevice(ctx, partial, nil, []string{"scan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.IdentifyErrors["snmp"] != "request timeout (after 1 retries)" || d.IdentifyErrors["hp"] == "" || len(d.IdentifyErrors) != 2 {
+		t.Fatalf("errors not stored as expected: %+v", d.IdentifyErrors)
+	}
+	if strings.Join(d.IdentifyMethods, ",") != "snmp,hp,ipp" {
+		t.Fatalf("methods accumulate: %v", d.IdentifyMethods)
+	}
+	// A brand-new device only ever records the SNMP baseline.
+	fresh, _, err := s.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.20", Serial: "SN20", Method: "ipp", Errors: map[string]string{"snmp": "timeout", "escl": "http 404", "hp": "no snmp/ipp answer"}}, nil, []string{"scan"})
+	if err != nil || len(fresh.IdentifyErrors) != 1 || fresh.IdentifyErrors["snmp"] != "timeout" {
+		t.Fatalf("new device errors: %+v (%v)", fresh.IdentifyErrors, err)
+	}
+	if d.Model != "M283" || d.Firmware != "1.0" {
+		t.Fatalf("earlier values must survive a partial read: %+v", d)
+	}
+	got, err := s.GetDevice(ctx, d.ID)
+	if err != nil || got.IdentifyErrors["snmp"] == "" {
+		t.Fatalf("errors not read back: %+v (%v)", got.IdentifyErrors, err)
+	}
+	d, _, err = s.UpsertDevice(ctx, full, nil, []string{"scan"})
+	if err != nil || len(d.IdentifyErrors) != 0 {
+		t.Fatalf("a later clean scan should clear the errors: %+v (%v)", d.IdentifyErrors, err)
+	}
+}

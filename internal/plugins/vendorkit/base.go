@@ -18,7 +18,7 @@ import (
 
 // ErrNotVendor is returned by Identify when the device is reachable but is not
 // made by (or badged for) the plugin's manufacturer.
-var ErrNotVendor = errors.New("device is not this plugin's vendor")
+var ErrNotVendor = fmt.Errorf("device is not this plugin's vendor: %w", engine.ErrNotApplicable)
 
 // Standard objects the base reads beyond the ones the SNMP driver exports.
 const (
