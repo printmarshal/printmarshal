@@ -6,8 +6,8 @@ on `logo-sketches-round3-2026-10-30.svg` (rendered as `.png`), each at 160 px, 9
 
 ## The MFP drawing
 One drawing is shared by every variant: a document feeder on top, the scanner lid, a control panel
-standing out on the right, the output slot, a front door, three paper drawers with handles, and
-casters. From 32 px down a reduced drawing is used (no feeder, two drawers) so it stays a machine
+standing out on the right, the output slot, a front door, two paper drawers with handles, and
+casters. From 32 px down a reduced drawing is used (no feeder, same two drawers, fewer lines) so it stays a machine
 rather than a smudge. Uniform stroke, rounded joins, so it sits with the lowercase mono "print" in
 the wordmark.
 

@@ -19,8 +19,8 @@
         <rect x="20" y="30" width="88" height="86" rx="5"/>
         <path d="M96 33 H118 a2 2 0 0 1 2 2 V40 a2 2 0 0 1 -2 2 H100"/>
         <rect x="30" y="41" width="50" height="9" rx="1.5"/>
-        <path d="M20 72 H108 M20 87 H108 M20 102 H108"/>
-        <path d="M56 79.5 H72 M56 94.5 H72 M56 109.5 H72"/>
+        <path d="M20 74 H108 M20 95 H108"/>
+        <path d="M54 84.5 H74 M54 105.5 H74"/>
       </g>
       <g class="k" stroke="currentColor" stroke-width="5"><path d="M30 116 V121 M98 116 V121"/></g>
     </symbol>
@@ -46,7 +46,7 @@
 
   <rect width="1180" height="900" fill="#F4F6F9"/>
   <text x="30" y="40" font-size="24" font-weight="700" fill="#14171E">PrintMarshal app icon sketches, round 3: MFP outline with shield (30 Oct 2026, drafts)</text>
-  <text x="30" y="62" class="note">Apple-style rounded icon. The MFP has a document feeder, scanner lid, side control panel, output slot, front door and three paper drawers. Small sizes use a reduced MFP.</text>
+  <text x="30" y="62" class="note">Apple-style rounded icon. The MFP has a document feeder, scanner lid, side control panel, output slot, front door and two paper drawers. Small sizes use a reduced MFP.</text>
 
   <!-- Tile 1: Cobalt icon, white MFP, brass shield embossed on the front door -->
   <g transform="translate(30,80)">
