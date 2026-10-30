@@ -84,6 +84,7 @@ type fakeDevices struct {
 	offline  map[string]bool
 	state    map[string]string
 	polled   map[string]int
+	onPoll   func(id string) // called once, outside the lock, on the next poll
 	storeCtx store.Store
 }
 
@@ -103,6 +104,12 @@ func (f *fakeDevices) accept(id, version string) {
 
 func (f *fakeDevices) Poll(ctx context.Context, d *model.Device) (*model.Device, error) {
 	f.mu.Lock()
+	if hook := f.onPoll; hook != nil {
+		f.onPoll = nil
+		f.mu.Unlock()
+		hook(d.ID)
+		f.mu.Lock()
+	}
 	f.polled[d.ID]++
 	if v, ok := f.pending[d.ID]; ok {
 		if f.polled[d.ID] > f.polls[d.ID] {
@@ -466,9 +473,13 @@ func TestPauseAndCancelSkipPending(t *testing.T) {
 	if paused.Pending == 0 || c.PauseReason != model.PauseOperator {
 		t.Fatalf("paused: %+v reason=%s", paused, c.PauseReason)
 	}
-	// Nothing moves while paused.
-	time.Sleep(50 * time.Millisecond)
-	if _, rows = h.waitFor(status(model.CampaignPaused)); Summarize(rows) != paused {
+	// Nothing moves while paused: once the worker is parked in wait() with the
+	// campaign paused, only Resume or Cancel can wake it, so the counts taken
+	// then are final (no sleep-and-hope; issue #20).
+	_, rows = h.waitFor(func(c *model.Campaign, _ []*model.CampaignDevice) bool {
+		return c.Status == model.CampaignPaused && h.svc.isWaiting(c.ID)
+	})
+	if Summarize(rows) != paused {
 		t.Fatalf("paused campaign kept working: %+v -> %+v", paused, Summarize(rows))
 	}
 	if _, err := h.svc.Cancel(context.Background(), c.ID, "op"); err != nil {
@@ -489,6 +500,49 @@ func TestPauseAndCancelSkipPending(t *testing.T) {
 	}
 	if j, _ := h.runner.Wait(context.Background(), c.JobID); j == nil || j.FinishedAt == nil {
 		t.Errorf("job should finish after cancel: %+v", j)
+	}
+}
+
+// TestPauseMidDeviceFinishesOnlyThatDevice pauses while a claimed device is in
+// its pre-flight poll: that device finishes and is verified (a firmware write
+// is never interrupted), and no further pending device starts, even though
+// the batch loop had not yet re-read the campaign (issue #20).
+func TestPauseMidDeviceFinishesOnlyThatDevice(t *testing.T) {
+	h := newHarness(t)
+	pkg := h.pkg("Acme", nil, "3.0", "")
+	var devs []*model.Device
+	for i := 0; i < 4; i++ {
+		devs = append(devs, h.device(fmt.Sprintf("m%d", i), "Acme", "X1", "2.0"))
+	}
+	c := h.campaign(pkg, devs, func(c *model.Campaign) { c.CanaryCount = 0; c.Concurrency = 1 })
+	pauseErr := make(chan error, 1)
+	h.dev.onPoll = func(string) { // first pre-flight poll: the row is already claimed
+		_, err := h.svc.Pause(context.Background(), c.ID, "op")
+		pauseErr <- err
+	}
+	h.start(c, false)
+	if err := <-pauseErr; err != nil {
+		t.Fatal(err)
+	}
+	c, rows := h.waitFor(func(c *model.Campaign, devs []*model.CampaignDevice) bool {
+		sum := Summarize(devs)
+		return c.Status == model.CampaignPaused && sum.Updating == 0 && sum.Verifying == 0 && h.svc.isWaiting(c.ID)
+	})
+	sum := Summarize(rows)
+	if sum.Succeeded != 1 || sum.Pending != 3 || c.PauseReason != model.PauseOperator {
+		t.Fatalf("after pause: %+v reason=%s", sum, c.PauseReason)
+	}
+	for _, r := range rows {
+		if r.Status == model.CampaignDevicePending && r.StartedAt != nil {
+			t.Errorf("pending device %s was started", r.DeviceID)
+		}
+	}
+	if _, err := h.svc.Resume(context.Background(), c.ID, "op"); err != nil {
+		t.Fatal(err)
+	}
+	_, rows = h.waitFor(status(model.CampaignCompleted))
+	if sum := Summarize(rows); sum.Succeeded != 4 {
+		t.Fatalf("after resume: %+v", sum)
 	}
 }
 
