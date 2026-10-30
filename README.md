@@ -1,160 +1,86 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="brand/logo-horizontal-on-dark.svg">
-    <img src="brand/logo-horizontal.svg" alt="PrintMarshal" width="440">
+    <img src="brand/logo-horizontal.svg" alt="PrintMarshal" width="420">
   </picture>
 </p>
 
-<p align="center"><strong>The command-and-security console for your printer fleet.</strong></p>
+<p align="center"><strong>Know where your printer fleet is exposed.</strong><br>
+A self-hosted, open-source console for printer fleet security, configuration and monitoring.</p>
 
 <p align="center">
+  <a href="https://github.com/printmarshal/printmarshal/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/printmarshal/printmarshal/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-2E54E6"></a>
   <img alt="Go 1.27" src="https://img.shields.io/badge/Go-1.27-2E54E6">
   <img alt="React + TypeScript" src="https://img.shields.io/badge/UI-React%20%2B%20TypeScript-2E54E6">
   <img alt="SQLite or PostgreSQL" src="https://img.shields.io/badge/store-SQLite%20%7C%20PostgreSQL-2A313D">
-  <a href="wiki/Home.md"><img alt="Wiki" src="https://img.shields.io/badge/docs-wiki-D7A442"></a>
 </p>
 
-**PrintMarshal** is a self-hosted, vendor-agnostic platform for managing a fleet of
-network printers across their full lifecycle: **discover, inventory, monitor,
-configure, secure, update firmware, and retire.**
+<p align="center">
+  <a href="https://printmarshal.app">Website</a> ·
+  <a href="https://github.com/printmarshal/printmarshal/wiki">Wiki</a> ·
+  <a href="https://github.com/printmarshal/printmarshal/wiki/Installation-and-deployment">Install</a> ·
+  <a href="https://github.com/printmarshal/printmarshal/wiki/API-reference">API</a> ·
+  <a href="https://github.com/printmarshal/printmarshal/security/policy">Security policy</a>
+</p>
 
-PrintMarshal manages *devices*, not print jobs. It is **not** a print-accounting,
-quota, cost-allocation, or pull-printing tool, and it depends on no manufacturer's
-management software. The administrator and developer documentation lives in the
-[wiki](wiki/Home.md); the brand assets are in [`brand/`](brand/README.md).
+Printers hold network credentials, TLS certificates and open management ports, yet most
+teams only notice them when the toner runs out. PrintMarshal discovers your fleet over
+standard SNMP, IPP and eSCL, audits each device's security without counting an unreadable
+setting as a pass, previews configuration changes as a diff before writing, and verifies
+every write by reading the device back. It runs on your own host, speaks open standards to
+any printer, and depends on no manufacturer's management software.
 
-## Status
+<p align="center">
+  <img src="site/assets/screens/security-compliance.png" alt="Fleet security overview in the PrintMarshal console, showing compliance scores, failing checks and unknown items across devices" width="860">
+  <br><sub>Fleet security overview, simulator data.</sub>
+</p>
 
-**All seven phases of the [build spec](docs/printmarshal-build-spec.md) are
-implemented**: foundations and read-only monitoring (1–2), configuration read/write
-(3–4), security (5), firmware (6) and vendor plugins plus the optional print-provider
-add-on (7), together with the enterprise-integration hardening from the research
-audit (event bus, durable notifications, authentication and transport controls,
-SIEM export, operational endpoints). Everything that touches a printer is read-only
-unless an operator explicitly runs a gated, dry-run-by-default, audited write
-(configuration apply, security remediation, credential rotation, certificate
-install, firmware delivery) through a driver that implements the write-side
-capability. Standards drivers (SNMP, IPP, eSCL) have been validated live against
-an HP Color LaserJet MFP M283fdw; writes have been exercised only against the
-simulator.
+## What it does
 
-What works today:
+- **Discovers and inventories** the fleet with mDNS, WS-Discovery and bounded active scans,
+  reconciled by serial, UUID, MAC and address, with operator-set fields a scan never
+  overwrites. [Discovery and inventory](https://github.com/printmarshal/printmarshal/wiki/Discovery-and-inventory)
+- **Monitors** status, supplies, trays, counters and firmware on a schedule, keeps telemetry,
+  listens for SNMP traps, and raises alerts to Slack, Teams, Discord, webhooks or email.
+  [Monitoring and alerts](https://github.com/printmarshal/printmarshal/wiki/Monitoring-and-alerts)
+- **Assesses security** against policies with pass, fail and *unknown* results, probes TLS and
+  open ports, enrols certificates over SCEP, EST or ACME, and remediates with a dry run first.
+  [Security](https://github.com/printmarshal/printmarshal/wiki/Security)
+- **Manages configuration** as normalised documents: snapshots, device-to-device diff, named
+  profiles, drift reports, and gated writes that run as audited jobs with rollback.
+  [Configuration management](https://github.com/printmarshal/printmarshal/wiki/Configuration-management)
+- **Runs firmware campaigns** in waves with a canary gate, maintenance windows, failure
+  auto-pause and read-back verification. [Firmware](https://github.com/printmarshal/printmarshal/wiki/Firmware)
+- **Tracks consumables** as a stock inventory linked to the devices that use each part, with
+  forecasts, replacement detection and CSV import and export.
+  [Consumables and stock](https://github.com/printmarshal/printmarshal/wiki/Consumables-and-stock)
+- **Reports** on utilisation, fleet health, supplies, alerts and firmware over any date range,
+  as JSON or CSV. [Reports](docs/reports.md)
+- **Shows evidence, not promises.** A research catalogue of 15 brands and 495 model identifiers
+  records what each vendor documents, what PrintMarshal has observed, and what is unknown,
+  and never collapses them into "supported". [Catalogue](docs/catalogue.md)
+- **Integrates** through a REST and WebSocket API, local accounts or OpenID Connect, SAML,
+  LDAP/Active Directory and RADIUS sign-in, scoped API tokens, and SIEM export over syslog
+  or HTTP with an incremental sync API for CMDB and ITSM tools.
+  [Identity and access](https://github.com/printmarshal/printmarshal/wiki/Identity-and-access) ·
+  [Events, notifications and integrations](https://github.com/printmarshal/printmarshal/wiki/Events-notifications-and-integrations)
+- **Optionally serves print queues** through a CUPS / IPP Everywhere bridge on the host, off
+  by default. [Print provider](https://github.com/printmarshal/printmarshal/wiki/Print-provider)
 
-- **Discovery** — mDNS/DNS-SD and WS-Discovery zero-config, plus active scans of IPs,
-  ranges and CIDR blocks with a bounded worker pool and an explicit cap on large scans.
-- **Identification** over SNMP (system group, Host Resources MIB, Printer MIB), IPP
-  (`Get-Printer-Attributes`) and eSCL (scanner capabilities, which also marks MFPs), merged into one record and de-duplicated by serial → UUID →
-  MAC → address. Each device gets a *capability profile* recording which driver serves
-  which capability.
-- **Monitoring** — scheduled and on-demand polls of status, supplies, trays, counters and
-  firmware; time-series telemetry; an SNMP trap listener that reconciles pushed events
-  with a poll.
-- **Alerts** — raised/cleared/acknowledged with severity; device-reported alerts from
-  `prtAlertTable`; supply thresholds; a fleet-level "out of paper" rule that only fires
-  when every tray of a size is empty; offline detection; consumable stock alerts.
-  Notifications via Slack/Teams/Discord/generic webhooks and SMTP.
-- **Consumables** ([spec](docs/consumables-feature-spec.md)) — a stock inventory of
-  spare toner / ink / drums / fusers / kits, each linked to the devices that use it
-  (matched by part number, else type + colour + compatible model; manual links are
-  never overridden), with operator-owned on-hand quantities and thresholds, inline
-  edit with batch save, a complete audited stock history, low/out-of-stock alerts, a
-  fleet-wide installed-supply view, replacement detection with off / prompt /
-  automatic stock decrement, consumption forecasting ("days remaining", "reorder
-  soon", or an honest "unknown" until there is enough history), and CSV import/export.
-  Stock management only: cost and reorder fields are optional references.
-- **Configuration** ([docs](docs/configuration.md)) — normalised config documents read
-  over IPP (`Get-Printer-Attributes`) and SNMP (system group, Printer MIB) and merged
-  per key, snapshots, device-vs-device diff, named profiles, drift reports, and gated
-  writes (IPP `Set-Printer-Attributes`, SNMP SET) that run as jobs with a dry run,
-  per-setting results, rollback/revert and an audit entry for every write.
-- **Firmware** ([docs](docs/firmware.md)) — fleet-wide version inventory with
-  "outdated" detection against registered packages, uploaded packages verified by
-  SHA-256 on every use, and staged update campaigns run as jobs: canary wave with an
-  explicit confirmation gate before the remainder, concurrency limit, failure-threshold
-  auto-pause, maintenance windows, dry runs that never deliver, post-update
-  verification by re-polling the device, an audit entry per delivery, restart
-  recovery and honest rollback/recovery notes. Delivery is a driver capability
-  (`firmware_update`): the standard driver targets the simulator or an explicit
-  allow-list only; real devices need a vendor plugin.
-- **Device model catalogue** ([docs](docs/catalogue.md)) — a shipped research catalogue
-  of 126 enterprise printer families (495 base model identifiers, 15 brands) with each
-  vendor's documented management routes, per-model operation evidence and its source
-  registry; every discovered device is matched to a family (exact / family / brand-only /
-  none) and shown with what is *documented*, what PrintMarshal's drivers have *observed*,
-  and what is *unknown* — kept separate, never collapsed into "supported". Operators can
-  record lab/production validation per family (audited).
-- **Reports** ([docs](docs/reports.md)) — utilisation (pages per day per device,
-  group and fleet, reset-aware), fleet health (reachability, outages, worst
-  severity per day), supplies (consumption rate and days-to-empty projections,
-  replacements, stock movement), alerts (volume by day/source/device, mean time
-  to acknowledge and clear) and firmware version distribution, over any date
-  range, scoped to a group or device, as JSON or CSV; compliance reporting is a
-  documented hook awaiting the security feature.
-- **Device web page** — one click from a device to its own administration UI: an
-  operator override, the URL the device advertises when it is a real web page, or a
-  probe of https/http on the device, in that order.
-- **Inventory** — operator fields (display name, location, asset tag, notes) that scans
-  never overwrite, lifecycle states with validated transitions, static and rule-based
-  groups, search/sort/filter, CSV export of devices and supplies.
-- **Security** ([docs](docs/security.md)) — policies of desired security settings with
-  eight operators and severity-weighted compliance scores, assessed from drivers plus
-  vendor-neutral TLS and port probes; dry-run-by-default remediation that never removes
-  the last management path and audits every write; SCEP / EST / ACME (dns-01)
-  certificate enrollment with expiry alerts; SNMP community and admin password
-  rotation that never exposes the secret.
-- **Print provider (optional, off by default)** ([docs](docs/print-provider.md)) — a
-  CUPS / IPP Everywhere bridge for a Linux host that should also serve print queues
-  for discovered printers: plan, dry run, sync as an audited job, per-device removal.
-  It only configures CUPS on the PrintMarshal host and never changes a printer; it is
-  a convenience, not print management.
-- **Events and notifications** ([docs](docs/events.md)) — one event catalogue and
-  bus feeding the live stream and a durable, retried notification outbox (dead-letter
-  rows are visible and requeueable); Slack / Discord / generic webhooks, Teams
-  Workflows (Adaptive Cards) and SMTP with PLAIN, LOGIN or XOAUTH2 (Microsoft 365,
-  Google Workspace) authentication.
-- **Identity and access** ([docs](docs/auth.md)) — local accounts, optional OpenID
-  Connect single sign-on (authorization code + PKCE, discovery, RS256/ES256 ID-token
-  verification with the standard library, role mapping from IdP claims, domain
-  allow-list) for Entra ID / Okta / Keycloak and the like, plus the legacy enterprise
-  methods: SAML 2.0 (SP metadata, redirect/POST bindings, signature, audience,
-  validity and replay checks, Entra ID / Okta / ADFS / Keycloak notes), LDAP /
-  Active Directory (service-account search or direct bind, StartTLS / LDAPS,
-  groups → roles) and RADIUS PAP (RFC 2865/2869, stdlib only) behind the same login
-  form. Every external account is bound by issuer + subject, never by username.
-  API tokens are first-class service accounts (admin-issued, secret shown once,
-  expiring, revocable, unable to touch authentication or users), and group scopes
-  confine a token to the devices in named groups across every device route, nested
-  target and device-owned resource. Every sign-in, denial and token change is a
-  security event in the audit log.
-- **Exports and SIEM** ([docs](docs/export.md)) — every security event, alert
-  and dead notification forwarded from the event bus to RFC 5424 syslog (UDP /
-  TCP / TLS, with structured data, CEF or JSON payloads), a rotating JSON-lines
-  file and/or an HTTP collector (batched, bearer token from the environment,
-  retries), through a bounded queue that never blocks the bus; a UDP syslog
-  receiver that keeps what printers send per device; and an incremental sync API
-  (`GET /api/sync/{collection}?since=`) with an opaque `(updatedAt, id)` cursor
-  and tombstones so CMDB / ITSM tools mirror devices, alerts, audit, jobs and
-  configuration writes without missing or repeating a row.
-- **Platform** — REST + WebSocket API, role-based users (viewer / operator / admin),
-  encrypted credential store whose secrets are write-only through the API, an audit log
-  that also flows to the event bus, sign-in throttling, session revocation on password
-  change, same-origin streams that re-check their session, trap source trust and rate
-  limits, `/readyz` and Prometheus `/metrics`, resumable jobs with per-device results,
-  a React web UI, a printer simulator for development/CI, Docker / Kubernetes / Helm /
-  systemd packaging.
-  encrypted credential store whose secrets are write-only through the API, an audit log,
-  resumable jobs with per-device results, a React web UI, a printer simulator for
-  development/CI, Docker packaging.
-- **Purpose-bound credentials and verified writes** — every credential is `read`
-  (default), `write` or `both`; configuration, remediation, certificate and firmware
-  writes use only write credentials and are refused on a device that has none bound,
-  and every real write is read back and reported as `verified` / `diverged` /
-  `unverifiable`, not merely accepted (see `docs/configuration.md`).
+Vendor plugins for Brother, Canon, Epson, Fujifilm, HP, Konica Minolta, Kyocera, Lexmark, OKI,
+Ricoh, Sharp, Toshiba and Xerox enrich what the standards drivers see; see
+[Vendor plugins and drivers](https://github.com/printmarshal/printmarshal/wiki/Vendor-plugins-and-drivers).
+
+## What it is not
+
+PrintMarshal manages *devices*, not print jobs. It is not a print-accounting, quota,
+cost-allocation or pull-printing product, and it has no cloud component: nothing leaves
+your network unless you configure a notifier or an export.
 
 ## Quick start
 
-Requirements: Go 1.27.3+ (matching `go.mod`), Node 20+ (only to build the UI; the Dockerfile uses `golang:1.27-alpine` and `node:22-alpine`), or Docker.
+Requirements: Go 1.27.3+ (matching `go.mod`) and Node 20+ to build the UI, or Docker.
 
 ```bash
 make web        # build the SPA into internal/web/dist (once, or after UI changes)
@@ -176,53 +102,34 @@ PM_SNMP_PORT=1161 PM_IPP_ENDPOINTS='http://%s:6631/ipp/print' PM_ADMIN_PASSWORD=
 
 ## Deploying
 
-Everything below is covered in depth in the **[operations guide](docs/operations.md)**
-(install options, full configuration reference, networking, backups, upgrades,
-troubleshooting, hardening and sizing).
-
 ```bash
-make docker                                   # builds printmarshal:<version> (multi-stage, non-root, /healthz check)
+make docker                                   # multi-stage image, non-root, /healthz check
 docker run -d --name printmarshal --network host \
   -e PM_ADMIN_PASSWORD=change-me -v pm-data:/data printmarshal:latest
 ```
 
-- **Docker Compose** (small sites): `docker compose -f deploy/docker-compose.yml up -d --build`.
-- **Kubernetes**: plain manifests in [`deploy/kubernetes/`](deploy/kubernetes/)
-  (`kubectl apply -k deploy/kubernetes`) or the Helm chart in
-  [`deploy/helm/printmarshal/`](deploy/helm/printmarshal/).
-- **Bare Linux host**: [`deploy/systemd/`](deploy/systemd/) unit and environment file.
-- **Backups**: [`deploy/scripts/backup.sh`](deploy/scripts/backup.sh) / `restore.sh`
-  (the database *and* `secret.key` together, or stored credentials are lost).
+- **Docker Compose**: `docker compose -f deploy/docker-compose.yml up -d --build`
+- **Kubernetes**: manifests in [`deploy/kubernetes/`](deploy/kubernetes/) or the Helm chart in
+  [`deploy/helm/printmarshal/`](deploy/helm/printmarshal/)
+- **Bare Linux host**: the [`deploy/systemd/`](deploy/systemd/) unit and environment file
+- **Backups**: [`deploy/scripts/backup.sh`](deploy/scripts/backup.sh) and `restore.sh` (the
+  database *and* `secret.key` together, or stored credentials are lost)
 
-The container and the Kubernetes pod use **host networking** because multicast
-discovery (mDNS, WS-Discovery) and SNMP traps do not cross a bridge or overlay
-network (spec §12); the manifests explain the trade-off and the alternatives.
+The container and the pod use **host networking**, because multicast discovery and SNMP traps
+do not cross a bridge or overlay network. Install options, networking, upgrades, hardening and
+sizing are in the [operations guide](docs/operations.md) and the
+[wiki](https://github.com/printmarshal/printmarshal/wiki/Installation-and-deployment).
 
 ## Configuration
 
-Defaults are sensible for a small site. Override with a JSON file (`-config` or
-`PM_CONFIG`, see [`deploy/printmarshal.example.json`](deploy/printmarshal.example.json))
-and/or environment variables:
-
-| Variable | Meaning | Default |
-| --- | --- | --- |
-| `PM_LISTEN` | HTTP listen address | `:8080` |
-| `PM_DATA_DIR` | SQLite database and encryption key | `./data` |
-| `PM_DATABASE` / `PM_DSN` | `sqlite` (file in the data dir) or `postgres` with a `postgres://…` DSN — see [operations guide](docs/operations.md#postgresql) | `sqlite` |
-| `PM_ADMIN_PASSWORD` | Initial admin password (first start only) | generated |
-| `PM_SECRET_KEY` | Base64 32-byte key for credentials at rest | generated into `data/secret.key` |
-| `PM_POLL_INTERVAL` | Scheduled poll cadence | `5m` |
-| `PM_POLL_CONCURRENCY` | Max simultaneous device reads | `32` |
-| `PM_DISCOVERY_ENABLED` / `PM_DISCOVERY_INTERVAL` / `PM_DISCOVERY_TARGETS` | Scheduled discovery | off / `1h` / none |
-| `PM_TRAP_ENABLED` / `PM_TRAP_LISTEN` | SNMP trap listener (`trap.allowedSources`, `trap.ratePerMinute` in the file) | on / `0.0.0.0:1162` |
-| `PM_SECURE_COOKIES` | Mark the session cookie `Secure` (set it behind TLS) | `false` (warns on non-loopback listen) |
-| `PM_SNMP_PORT`, `PM_IPP_ENDPOINTS` | Device ports (for simulators) | `161`, standard IPP paths |
-| `PM_LOG_LEVEL`, `PM_LOG_FORMAT` | `debug|info|warn|error`, `text|json` | `info`, `text` |
-
-Notifiers (webhooks, SMTP) are configured in the JSON file; SMTP passwords are read
-from the environment variable named in `passwordEnv`, never from the file. The
-complete list of settings (every JSON field, its `PM_*` override and default) is in
-the [operations guide](docs/operations.md#configuration-reference).
+Defaults suit a small site. Override with a JSON file (`-config` or `PM_CONFIG`, see
+[`deploy/printmarshal.example.json`](deploy/printmarshal.example.json)) and `PM_*`
+environment variables: listen address, data directory, SQLite or PostgreSQL, poll cadence and
+concurrency, discovery, the trap listener, SNMP tuning and logging. Every setting, its
+override and its default is in the
+[configuration reference](https://github.com/printmarshal/printmarshal/wiki/Configuration-reference).
+Secrets are never read from the file: SMTP and collector passwords come from the environment
+variable the file names, and device credentials live in the encrypted store.
 
 ## Development
 
@@ -231,41 +138,38 @@ make test                       # go vet + unit, contract, integration and safet
 cd web && npm run dev           # UI dev server on :5173 proxying /api to :8080
 ```
 
-Layout:
-
 ```
-cmd/printmarshal      server entry point          cmd/pm-sim        SNMP+IPP printer simulator
-internal/engine       capability model, driver registry, identify/poll
-internal/driver/snmp  SNMP driver (RFC 3418/2863/2790/3805)   internal/driver/ipp  IPP driver (RFC 8010/8011, PWG 5100.13)
-internal/discovery    mDNS, WS-Discovery, active scan          internal/fleet       orchestration: discovery runs, polls, alerts
-internal/store        Store interface + SQLite / PostgreSQL     internal/jobs        worker pool, resumable jobs
-internal/alerts       rules + durable notifier                  internal/trap        SNMP trap listener
-internal/events       event catalogue, envelope and bus         internal/catalog     device model catalogue
-internal/configmgmt   configuration (phases 3–4)                internal/security    policies, remediation, PKI (phase 5)
-internal/firmware     packages and campaigns (phase 6)          internal/plugins     vendor plugins (phase 7)
-internal/reports      report aggregates                         internal/printprovider  optional CUPS bridge
-internal/api          REST + WebSocket                          internal/auth        users, sessions, roles
-web/                  React/TypeScript SPA (built into internal/web/dist and embedded)
-testdata/fixtures     recorded-style SNMP images used by tests and the simulator
+cmd/printmarshal      server entry point           cmd/pm-sim            SNMP + IPP printer simulator
+internal/engine       capability model, registry   internal/driver/      snmp, ipp, escl standards drivers
+internal/discovery    mDNS, WS-Discovery, scans    internal/fleet        discovery runs, polls, alerts
+internal/store        SQLite / PostgreSQL          internal/jobs         worker pool, resumable jobs
+internal/configmgmt   configuration                internal/security     policies, remediation, PKI
+internal/firmware     packages and campaigns       internal/plugins      vendor plugins
+internal/api          REST + WebSocket             internal/auth         users, sessions, SSO, tokens
+internal/events       catalogue and bus            internal/printprovider optional CUPS bridge
+web/                  React + TypeScript SPA, built into internal/web/dist and embedded
 ```
 
-See [`docs/decisions.md`](docs/decisions.md) for the stack decisions and
-[`docs/adding-a-driver.md`](docs/adding-a-driver.md) for how vendor plugins attach.
+[`docs/decisions.md`](docs/decisions.md) records the stack decisions,
+[`docs/adding-a-driver.md`](docs/adding-a-driver.md) explains how a vendor plugin attaches,
+and the [Development](https://github.com/printmarshal/printmarshal/wiki/Development) wiki page
+covers the test layout and the simulator. Issues and pull requests are welcome.
 
 ## Principles
 
-- **Vendor-agnostic core, vendor plugins at the edge.** The core speaks open
-  standards to any printer; manufacturer-specific behaviour lives in optional
-  plugins.
-- **Standards first** — SNMP (Printer MIB, Host Resources MIB), IPP / IPP Everywhere,
-  eSCL, mDNS / DNS-SD.
-- **Read-only by default.** Configuration, security, and firmware *writes* are
-  explicit, gated, dry-runnable, auditable, and reversible where possible.
-- **Never overwrite operator data.** Fields a person sets (name, location, asset tag,
-  notes) are never overwritten by an automated scan.
-- **Secrets encrypted; least-privilege access; full audit trail.**
+- **Read-only by default.** Discovery and polling never write to a device. Configuration,
+  security and firmware writes are explicit, dry-run first, audited, and read back.
+- **Unknown is not pass.** A setting a device will not reveal is reported as unknown and
+  excluded from the score, never counted as compliant.
+- **Vendor-agnostic core, vendor plugins at the edge.** Open standards to every printer;
+  manufacturer-specific behaviour in optional plugins.
+- **Never overwrite operator data.** Names, locations, asset tags and notes a person sets
+  survive every scan.
+- **Secrets encrypted, least privilege, full audit trail.**
 
-Only discover and manage printers you own or are authorised to manage.
+Only discover and manage printers you own or are authorised to manage. To report a
+vulnerability, use the [security policy](https://github.com/printmarshal/printmarshal/security/policy)
+rather than a public issue.
 
 ## License
 
