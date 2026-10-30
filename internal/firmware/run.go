@@ -265,7 +265,9 @@ func (s *Service) updateDevice(ctx context.Context, jc *jobs.Context, c *model.C
 		return
 	}
 	row.FromVersion, row.ToVersion = dev.Firmware, pkg.Version
-	s.setRow(ctx, row, model.CampaignDeviceUpdating, "checking compatibility")
+	if !s.claim(ctx, c, row) {
+		return // paused or cancelled since the batch was planned; the loop re-reads and parks
+	}
 
 	v := fwversion.Check(pkg, dev, c.AllowDowngrade)
 	switch {

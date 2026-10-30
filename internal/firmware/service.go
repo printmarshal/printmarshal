@@ -84,9 +84,10 @@ type Service struct {
 	// DataDir holds package files under <DataDir>/firmware/<id>/ (defaults to Cfg.DataDir).
 	DataDir string
 
-	mu     sync.Mutex
-	wakes  map[string]chan struct{}
-	active map[string]bool
+	mu      sync.Mutex
+	wakes   map[string]chan struct{}
+	active  map[string]bool
+	waiting map[string]bool // campaigns whose worker is parked in wait()
 	// lifecycle serialises Start/Confirm/Pause/Resume/Cancel so two
 	// overlapping requests cannot both read "draft" and each queue a worker
 	// (code review H-008). A campaign row also records the id of the one job
@@ -99,7 +100,7 @@ type Service struct {
 func New(d fleet.Deps) *Service {
 	s := &Service{Deps: d, Clock: func() time.Time { return time.Now().UTC() },
 		VerifyTimeout: 15 * time.Minute, VerifyInterval: 20 * time.Second, ControlPoll: time.Minute, RetryDelay: 2 * time.Second,
-		wakes: map[string]chan struct{}{}, active: map[string]bool{}}
+		wakes: map[string]chan struct{}{}, active: map[string]bool{}, waiting: map[string]bool{}}
 	if d.Log == nil {
 		s.Log = slog.Default()
 	}
@@ -203,8 +204,47 @@ func (s *Service) isActive(id string) bool {
 	return s.active[id]
 }
 
+// claim moves row from pending to updating, but only while the campaign is
+// still running. It holds the lifecycle lock, the one Pause and Cancel commit
+// under, so the two cannot interleave: either the operator's change lands
+// first and the row stays pending (the worker loop then re-reads the campaign
+// and parks), or the claim lands first and the row already reads "updating"
+// by the time the pause is visible, so the device finishes and is verified as
+// Pause promises. Without this a device the batch had already dispatched could
+// start its update after the operator paused (issue #20).
+func (s *Service) claim(ctx context.Context, c *model.Campaign, row *model.CampaignDevice) bool {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
+	cur, err := s.Store.GetCampaign(ctx, c.ID)
+	if err != nil || cur.Status != model.CampaignRunning || cur.JobID != c.JobID {
+		return false
+	}
+	s.setRow(ctx, row, model.CampaignDeviceUpdating, "checking compatibility")
+	return true
+}
+
+func (s *Service) setWaiting(id string, on bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if on {
+		s.waiting[id] = true
+		return
+	}
+	delete(s.waiting, id)
+}
+
+// isWaiting reports whether the campaign's worker is parked in wait(): with
+// the campaign paused, nothing can move until Resume or Cancel wakes it.
+func (s *Service) isWaiting(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.waiting[id]
+}
+
 // wait blocks until d elapses, the campaign is woken, or ctx ends.
 func (s *Service) wait(ctx context.Context, id string, d time.Duration) error {
+	s.setWaiting(id, true)
+	defer s.setWaiting(id, false)
 	t := time.NewTimer(d)
 	defer t.Stop()
 	select {
