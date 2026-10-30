@@ -1,5 +1,7 @@
 # PrintMarshal — brand & identity prompt
 
+> **Historical.** This is the brief that produced the first identity (the Guard Chevron shield). It was replaced on 30 October 2026 by the layered-MFP icon and the lowercase wordmark described in [`brand/README.md`](../brand/README.md); the brief stays as a record of the original intent.
+
 Paste everything below into a Claude design session (logo / brand generator).
 
 ---

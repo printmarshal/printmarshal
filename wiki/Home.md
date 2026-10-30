@@ -1,3 +1,5 @@
+![PrintMarshal](https://raw.githubusercontent.com/printmarshal/printmarshal/main/brand/logo-horizontal.svg)
+
 # PrintMarshal administrator and developer wiki
 
 PrintMarshal is a self-hosted manager for network printers and multifunction devices: discover, inventory, monitor, configure, assess security, and orchestrate firmware campaigns. It manages devices rather than users' print jobs. Print accounting, quotas, cost allocation, secure release and pull printing are outside the core. An optional [print-provider add-on](Print-provider.md) manages queues on the server's local CUPS installation.

@@ -1,44 +1,50 @@
 # PrintMarshal brand
 
-The visual identity for PrintMarshal: the **Guard Chevron** mark, the wordmark,
-the lockups, the app icon and the "Steel & Signal" colour system. Everything in
-this folder is original work for this project; it references no printer vendor
-or other company. The same mark and tokens drive the product UI
-(`web/src/components/icons.tsx`, `web/src/styles.css`), so what you see in the
-app is what you see here.
+The visual identity for PrintMarshal: the **app icon** (a layered multifunction
+printer carrying a shield with a P), the lowercase **wordmark**, the lockups
+and the "Steel & Signal" colour system. Everything here is original work for
+this project; it references no printer vendor or other company. The same icon
+and tokens drive the product UI (`web/src/components/icons.tsx`,
+`web/src/styles.css`) and the website (`site/`), so what you see in the app is
+what you see here.
 
-## The mark
+## The icon
 
-A shield (guard, security) carrying a rank chevron (command, the marshal) with
-a brass star at its crown (the marshal's badge). It is a flat silhouette that
-reads at 16 px and works as a single ink.
+A multifunction printer drawn as white blocks, with the icon background showing
+through the gaps as its outline: document feeder, scanner lid, side control
+panel, output slot and two paper drawers. A second, translucent machine sits
+behind it (a fleet, not one device). A shield at the bottom-left corner carries
+the letter **P**. Three colourways share one drawing:
 
 | File | Use |
 | --- | --- |
-| `mark.svg` | On light backgrounds. Cobalt shield, white chevron, brass star. |
-| `mark-on-dark.svg` | On dark backgrounds. Same, with the brighter Brass Glow star. |
-| `mark-mono.svg` | One colour (Graphite). The chevron and star are knocked out, so it works on any light surface. |
-| `mark-reversed.svg` | One colour (white) for dark surfaces, print reversals, embroidery. |
+| `icons/app-icon-d1.svg` (= `app-icon.svg`, `mark.svg`) | **Cobalt.** The default: app icon, favicon source, lockups, organisation avatar. |
+| `icons/app-icon-d2.svg` (= `app-icon-mist.svg`) | **Mist.** Light docks and light pages where the Cobalt tile would shout. |
+| `icons/app-icon-d3.svg` (= `app-icon-black.svg`, `mark-on-dark.svg`) | **Black.** Dark docks and the console's own dark surface. |
+| `icons/glyph-shield-p*.svg` (= `mark-mono.svg`, `mark-reversed.svg`) | The shield-P alone, one ink, for favicons, tab bars, the sidebar and print. |
+| `icons/org-avatar.svg` | The Cobalt icon without rounded corners, for places that round the corners themselves (GitHub). |
+
+The letter is outlined from Barlow Bold, so no font is needed to render the
+icon. Rendered PNGs are in `icons/png/` (1024 px down to 16 px) and `png/`.
+From 32 px down the full icon is still legible; at 16 px use the glyph.
 
 ## Wordmark and lockups
 
-"PrintMarshal" is set in **Barlow Bold** (SIL Open Font License) with
-−1.5 % tracking, "Print" in Graphite and "Marshal" in Cobalt Steel. The text is
-converted to outlines in every SVG, so no font needs to be installed.
+The wordmark is two words on one baseline with no camel-case bump:
+**print** in IBM Plex Mono Medium, set in the surface ink (Graphite on light,
+Mist on dark), and **Marshal** in Barlow SemiBold, set in Cobalt (Cobalt Tint
+on dark). Both are SIL Open Font License faces; the SVGs carry outlines.
 
 | File | Use |
 | --- | --- |
 | `logo-horizontal.svg` / `-on-dark.svg` | Primary lockup: README headers, web pages, slides, banners. |
-| `logo-horizontal-mono.svg` / `-reversed.svg` | One-colour versions of the primary lockup. |
+| `logo-horizontal-mono.svg` / `-reversed.svg` | One-colour versions, with the shield-P glyph in place of the icon. |
 | `logo-stacked.svg` / `-on-dark.svg` | Square-ish spaces: cards, splash screens, posters. |
-| `wordmark.svg` / `-on-dark.svg` / `-mono.svg` / `-reversed.svg` | Text only, where the mark already appears nearby. |
-| `app-icon.svg` | App icon, favicon source, **GitHub organisation avatar**: the mark on a Graphite tile. |
-| `app-icon-cobalt.svg` | Alternate tile in Cobalt Steel for places where the graphite tile disappears. |
+| `wordmark.svg` / `-on-dark.svg` / `-mono.svg` / `-reversed.svg` | Text only, where the icon already appears nearby. |
 | `social-preview.svg` | GitHub social preview (1280 × 640): lockup and anchor line on Graphite. |
 
-Rendered PNGs are in `png/`: the organisation avatar at 1024 px, the app icon
-from 512 px down to 16 px, the mark at 512 px, both lockups at 1600 / 1200 px
-and the social preview. `favicon-32.png` is the mark alone for tab strips.
+In HTML the wordmark is live text (`.wm-print` / `.wm-marshal` in the app and
+the site) so it follows the surface colour and the user's font rendering.
 
 ## Colour: Steel & Signal
 
@@ -51,35 +57,40 @@ and the social preview. `favicon-32.png` is the mark alone for tab strips.
 | **Primary brand** | **Cobalt Steel** | `#2E54E6` |
 | Primary depth | Deep Cobalt | `#1E3AA8` |
 | Primary on dark | Cobalt Tint | `#8DA4F2` |
-| **Badge accent** | **Brass** | `#D7A442` |
-| Badge highlight | Brass Glow | `#EFC065` |
+| Status accent | Brass | `#D7A442` |
 
-Cobalt Steel is the brand colour. Brass belongs to the badge: use it for the
-star and nothing else, so it is never confused with the product's amber
-*warning* state. The operational status colours (good, warning, critical,
-info, offline) live in the UI tokens and are not identity colours.
+Cobalt Steel is the brand colour and the only colour in the identity besides
+the neutrals. Brass is not an identity colour any more: it stays in the UI
+tokens for the product's amber *warning* state and must not appear on the icon
+or the wordmark.
 
 ## Typography
 
-- Display and wordmark: **Barlow** 600–700.
-- UI and body: **IBM Plex Sans**; code and identifiers: **IBM Plex Mono**.
+- Wordmark: **IBM Plex Mono** 500 for "print", **Barlow** 600 for "Marshal".
+- Display: **Barlow** 600–700. UI and body: **IBM Plex Sans**; code and
+  identifiers: **IBM Plex Mono**.
 
 ## Rules
 
-- **Clear space:** keep a margin of at least the star's height (one quarter
-  of the mark's height) free around every lockup.
-- **Minimum size:** mark 16 px; horizontal lockup 120 px wide; stacked lockup
-  96 px wide. Below that, use the mark alone.
-- Do not recolour the shield, rotate the mark, add effects, outline the
-  wordmark or set the name in another typeface. Do not place the full-colour
-  mark on Cobalt; use the reversed mark there.
-- The name is written **PrintMarshal**, one word, capital P and M; "PM" is
-  acceptable in running text after the first mention.
+- **Clear space:** keep a margin of at least a quarter of the icon's height
+  free around every lockup.
+- **Minimum size:** icon 24 px (glyph below that); horizontal lockup 140 px
+  wide; stacked lockup 96 px wide.
+- Do not recolour the icon, rotate it, add effects beyond its own shading,
+  outline the wordmark or set the name in another typeface. Do not place the
+  Cobalt icon on Cobalt; use the Mist or Black colourway there.
+- The name is written **PrintMarshal**, one word, when it is typed; the
+  wordmark alone shows it as `print` + `Marshal`.
 
 ## Regenerating
 
-The SVGs and PNGs are produced by a small Python script that shapes the
-wordmark with HarfBuzz, traces the glyphs with fontTools and renders the PNGs
-with headless Chrome. The mark's three paths are the source of truth and are
-identical to the ones in `web/src/components/icons.tsx`; change them in both
-places together.
+```sh
+python3 -m venv v && v/bin/pip install fonttools uharfbuzz
+python3 brand/tools/gen_icons.py brand/icons && sh brand/tools/export_icons.sh brand/icons
+FONTS=/dir/with/IBMPlexMono-Medium.ttf+Barlow-SemiBold.ttf v/bin/python brand/tools/gen.py brand
+```
+
+`gen_icons.py` draws the icons (the P is already outlined in the script);
+`export_icons.sh` renders their PNGs with headless Chrome and `sips`; `gen.py`
+sets the wordmark from the two font files and composes the lockups and the
+social preview. `concepts/` keeps the sketch rounds that led here.

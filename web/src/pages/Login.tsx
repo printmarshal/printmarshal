@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import type { User } from '../types'
-import { Mark } from '../components/icons'
+import { Mark, Wordmark } from '../components/icons'
 import { Btn } from '../components/ui'
 
 /** One enabled sign-in method from GET /api/auth/providers. */
@@ -38,7 +38,7 @@ export default function Login({ onLogin }: { onLogin: (u: User) => void }) {
   return (
     <div className="login">
       <form onSubmit={submit} aria-label="Sign in">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Mark size={30} /><b className="wm" style={{ fontSize: 18 }}>Sign in to Print<span style={{ color: 'var(--accent)' }}>Marshal</span></b></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Mark size={30} /><b style={{ fontSize: 18, display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>Sign in to <Wordmark size={18} /></b></div>
         <span className="cap mono">{location.host} · self-hosted</span>
         {redirect.length > 0 && (
           <>

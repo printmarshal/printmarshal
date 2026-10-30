@@ -10,8 +10,6 @@ carrying a P. The P is the Barlow Bold glyph, outlined here so no font is needed
 """
 import os, sys
 
-OUT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "brand/icons")
-os.makedirs(OUT, exist_ok=True)
 
 # Barlow Bold "P", 1000 units per em, y up (SIL Open Font License).
 P_GLYPH = ("M571 484Q571 421 542.5 373.0Q514 325 462.5 298.5Q411 272 344 272H202Q197 272 197 267V12"
@@ -73,7 +71,7 @@ WAYS = {
 }
 
 
-def icon(key, w):
+def icon(key, w, radius=230):
     S = 1024
     g = f'''<defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{w['bg'][0]}"/><stop offset="1" stop-color="{w['bg'][1]}"/></linearGradient>
@@ -81,7 +79,7 @@ def icon(key, w):
     <linearGradient id="blk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{w['blk'][0]}"/><stop offset="1" stop-color="{w['blk'][1]}"/></linearGradient>
     <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{w['shield'][0]}"/><stop offset="1" stop-color="{w['shield'][1]}"/></linearGradient>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="26" stdDeviation="26" flood-color="{w['shadow'][0]}" flood-opacity="{w['shadow'][1]}"/></filter>
-    <clipPath id="clip"><rect width="{S}" height="{S}" rx="230"/></clipPath>
+    <clipPath id="clip"><rect width="{S}" height="{S}" rx="{radius}"/></clipPath>
   </defs>
   <g clip-path="url(#clip)">
     <rect width="{S}" height="{S}" fill="url(#bg)"/>'''
@@ -108,13 +106,22 @@ def glyph(fill, p, border=None):
             f'  {shield(8, 4, 48, fill, extra)}\n  {letter_p(32, 45, 30, p)}\n</svg>\n')
 
 
-for key, w in WAYS.items():
-    with open(os.path.join(OUT, f"app-icon-{key}.svg"), "w") as f:
-        f.write(icon(key, w))
-with open(os.path.join(OUT, "glyph-shield-p.svg"), "w") as f:
-    f.write(glyph("#1E3AA8", "#FFFFFF"))
-with open(os.path.join(OUT, "glyph-shield-p-light.svg"), "w") as f:
-    f.write(glyph("#FFFFFF", "#2E54E6", "#C9D1DE"))
-with open(os.path.join(OUT, "glyph-shield-p-mono.svg"), "w") as f:
-    f.write(glyph("#14171E", "#FFFFFF"))
-print("wrote", sorted(os.listdir(OUT)))
+def write_all(out):
+    os.makedirs(out, exist_ok=True)
+    for key, w in WAYS.items():
+        with open(os.path.join(out, f"app-icon-{key}.svg"), "w") as f:
+            f.write(icon(key, w))
+    # Full-bleed square for places that round the corners themselves (GitHub org avatar).
+    with open(os.path.join(out, "org-avatar.svg"), "w") as f:
+        f.write(icon("d1", WAYS["d1"], radius=0))
+    with open(os.path.join(out, "glyph-shield-p.svg"), "w") as f:
+        f.write(glyph("#1E3AA8", "#FFFFFF"))
+    with open(os.path.join(out, "glyph-shield-p-light.svg"), "w") as f:
+        f.write(glyph("#FFFFFF", "#2E54E6", "#C9D1DE"))
+    with open(os.path.join(out, "glyph-shield-p-mono.svg"), "w") as f:
+        f.write(glyph("#14171E", "#FFFFFF"))
+    print("wrote", sorted(os.listdir(out)))
+
+
+if __name__ == "__main__":
+    write_all(os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "brand/icons"))

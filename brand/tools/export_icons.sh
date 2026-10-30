@@ -12,6 +12,8 @@ for k in d1 d2 d3; do
     sips -s format png -z $s $s "$DIR/png/app-icon-$k-1024.png" --out "$DIR/png/app-icon-$k-$s.png" >/dev/null
   done
 done
+"$CHROME" --headless=new --disable-gpu --hide-scrollbars --window-size=1024,1024 \
+  --screenshot="$DIR/png/org-avatar-1024.png" "file://$DIR/org-avatar.svg" >/dev/null 2>&1
 for g in glyph-shield-p glyph-shield-p-light glyph-shield-p-mono; do
   "$CHROME" --headless=new --disable-gpu --hide-scrollbars --default-background-color=00000000 \
     --window-size=256,256 --screenshot="$DIR/png/$g-256.png" "file://$DIR/$g.svg" >/dev/null 2>&1
