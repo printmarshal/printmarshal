@@ -23,7 +23,7 @@ outline. A rounded tile sits at the bottom-left corner with a letter, the way Wo
 carry W, X and O.
 - **O1. "P" tile** on a Deep tile over the Cobalt icon.
 - **O2. "PM" tile**, wider, for Print Marshal specifically.
-- **O3. Graphite base with a Cobalt tile**: the suite colour lives in the tile, so each later app keeps
+- **O3. Graphite base with a Cobalt tile**: the accent colour lives in the tile, so a variant keeps
   the Graphite base and changes the tile colour, letter and picture.
 
 ## Notes

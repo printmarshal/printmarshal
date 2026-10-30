@@ -76,7 +76,7 @@ differentiator.
 ## 6. Marshal Flag
 
 **Says:** the race or parade marshal, the person with the flag who directs the field: authority
-through signal, not force. Ties to the "Signal" half of the brand name and to the company name.
+through signal, not force. Ties to the "Signal" half of the palette name.
 **Geometry:** a vertical pole stroke with a right-pointing flag of two horizontal bars (halftone
 bars, like printed lines), the lower bar shorter; the flag is Brass, the pole Graphite or Mist.
 **Small sizes:** a flag is a strong 16 px silhouette; app icon: Brass flag on Graphite.
@@ -95,7 +95,7 @@ to the M's outline (so the bars are of different lengths and splits); one bar, t
 top, in Brass, the rest Cobalt. No outline strokes at all.
 **Small sizes:** at 16 px use three bars; the M silhouette holds. App icon: bars on Graphite.
 **Mono:** all bars one colour; the signal bar can become a gap instead.
-**With the wordmark:** doubles as a standalone company mark for Marshal without the "print" word,
+**With the wordmark:** doubles as a standalone mark for Marshal without the "print" word,
 which the other six do not.
 **Risk:** scanline letterforms exist (several media and broadcast logos); the clipped-bar M is common
 enough that the exact proportions matter. Trademark search before committing, as with any monogram.
@@ -103,7 +103,7 @@ enough that the exact proportions matter. Trademark search before committing, as
 ## Where I would start
 
 - **Page Check (1)** and **Printed M (7)** are the two strongest for this product: one says what
-  the product does, the other gives the company a mark of its own that can outlive the product name.
+  the product does, the other gives Marshal a mark of its own.
 - **Marshal Flag (6)** is the most distinctive and the most on-name, and the only one that can carry
   "Marshal" without an initial; render it if the flag reads as signal rather than nation at 16 px.
 - Nozzle Grid, Paper Path, Lens on Page and Fleet Formation are sound but closer to existing icon

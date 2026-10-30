@@ -72,7 +72,7 @@
     </g>
     <text x="24" y="316" class="label">D1. Layered MFP, shield with P</text>
     <text x="24" y="338" class="note">The ghost machine behind, the shaded machine in front, and a Deep shield at the</text>
-    <text x="24" y="356" class="note">corner carrying the P. The shield and the P each follow a later app: a different</text>
+    <text x="24" y="356" class="note">corner carrying the P. The shield and the P can vary together: a different</text>
     <text x="24" y="374" class="note">letter, the same shield. At 24 px it reduces to the shield alone.</text>
   </g>
 
