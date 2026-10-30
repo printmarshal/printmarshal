@@ -8,6 +8,7 @@ import (
 
 	"printmarshal/internal/driver/ipp"
 	"printmarshal/internal/driver/snmp"
+	"printmarshal/internal/engine"
 	"printmarshal/internal/model"
 )
 
@@ -216,4 +217,47 @@ func acmeIPP(t *testing.T, mfg string) []byte {
 		t.Fatal(err)
 	}
 	return b
+}
+
+// walkCounter counts table walks so a test can prove a mismatched plugin
+// decided from the system group alone (issue #19).
+type walkCounter struct {
+	snmp.Session
+	walks int
+}
+
+func (w *walkCounter) Walk(ctx context.Context, root string) ([]snmp.PDU, error) {
+	w.walks++
+	return w.Session.Walk(ctx, root)
+}
+
+func TestIdentifyRejectsOtherEnterpriseWithoutWalking(t *testing.T) {
+	other := strings.ReplaceAll(acmeFixture, "4242", "99999")
+	wc := &walkCounter{Session: fx(t, other)}
+	dial := func(context.Context, string, model.Creds) (snmp.Session, string, error) { return wc, "v2c", nil }
+	_, err := New(spec(), Options{SNMP: dial}).Identify(context.Background(), "10.0.0.1", model.Creds{})
+	if !errors.Is(err, ErrNotVendor) {
+		t.Fatalf("want ErrNotVendor, got %v", err)
+	}
+	if wc.walks != 0 {
+		t.Fatalf("a plugin for another enterprise walked %d tables; the scalar read should have decided", wc.walks)
+	}
+}
+
+func TestAppliesFromPreflight(t *testing.T) {
+	b := New(spec(), Options{})
+	cases := []struct {
+		pf   engine.Preflight
+		want bool
+	}{
+		{engine.Preflight{SNMP: true, Enterprise: 4242}, true},
+		{engine.Preflight{SNMP: true, Enterprise: 99999}, false},
+		{engine.Preflight{SNMP: true, Enterprise: 0}, true}, // badge text may still match
+		{engine.Preflight{SNMP: false}, true},               // IPP path
+	}
+	for _, c := range cases {
+		if got := b.Applies(c.pf); got != c.want {
+			t.Errorf("Applies(%+v) = %v, want %v", c.pf, got, c.want)
+		}
+	}
 }

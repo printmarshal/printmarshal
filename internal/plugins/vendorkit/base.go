@@ -209,6 +209,23 @@ func (b *Base) Dial(ctx context.Context, address string, creds model.Creds) (snm
 	return b.Opts.SNMP(ctx, address, creds)
 }
 
+// Applies implements engine.Gated: from the engine's shared system-group read
+// alone, a plugin whose enterprise numbers do not include the device's can be
+// skipped without opening a session (issue #19). When SNMP did not answer, or
+// the agent reports no enterprise, the plugin still runs for its badge-text
+// and IPP matching.
+func (b *Base) Applies(p engine.Preflight) bool {
+	if !p.SNMP || p.Enterprise == 0 {
+		return true
+	}
+	for _, e := range b.Spec.Enterprises {
+		if p.Enterprise == e {
+			return true
+		}
+	}
+	return false
+}
+
 // Identify implements engine.Identifier. It returns ErrNotVendor for devices
 // of another manufacturer so the engine never records this plugin against them.
 func (b *Base) Identify(ctx context.Context, address string, creds model.Creds) (*model.Identity, error) {
@@ -219,7 +236,13 @@ func (b *Base) Identify(ctx context.Context, address string, creds model.Creds) 
 		if err == nil {
 			p.Session, p.Variant = s, variant
 			defer s.Close()
-			b.readSystem(ctx, p)
+			b.readSystemGroup(ctx, p)
+			if p.Enterprise != 0 && !b.claimsEnterprise(p.Enterprise) {
+				// Decide from the cheap scalar read; the table walks below
+				// are what load a small agent (issue #19).
+				return nil, fmt.Errorf("%w: sysObjectID enterprise %d is not %s", ErrNotVendor, p.Enterprise, b.Spec.Vendor)
+			}
+			b.readDeviceDetails(ctx, p)
 		} else {
 			dialErr = err
 		}
@@ -263,7 +286,17 @@ func (b *Base) Identify(ctx context.Context, address string, creds model.Creds) 
 	return id, nil
 }
 
-func (b *Base) readSystem(ctx context.Context, p *Probe) {
+func (b *Base) claimsEnterprise(e int) bool {
+	for _, x := range b.Spec.Enterprises {
+		if x == e {
+			return true
+		}
+	}
+	return false
+}
+
+// readSystemGroup reads the system scalars (one GetRequest).
+func (b *Base) readSystemGroup(ctx context.Context, p *Probe) {
 	res, err := p.Session.Get(ctx, []string{snmp.OIDSysDescr, snmp.OIDSysObjectID, snmp.OIDSysName, snmp.OIDSysLocation, OIDSysContact})
 	if err != nil {
 		return
@@ -286,6 +319,11 @@ func (b *Base) readSystem(ctx context.Context, p *Probe) {
 			p.SysContact = snmp.Str(pdu)
 		}
 	}
+}
+
+// readDeviceDetails walks the Host Resources device table and the Printer MIB
+// general table for the printer's description and serial.
+func (b *Base) readDeviceDetails(ctx context.Context, p *Probe) {
 	types := p.Walk(ctx, snmp.OIDHrDeviceType)
 	for _, t := range types {
 		if snmp.Str(t) == snmp.OIDHrDevicePrinterType {
@@ -547,7 +585,8 @@ func (b *Base) ReadConfig(ctx context.Context, d *model.Device, creds model.Cred
 	}
 	defer s.Close()
 	p := &Probe{Address: d.Address, Session: s}
-	b.readSystem(ctx, p)
+	b.readSystemGroup(ctx, p)
+	b.readDeviceDetails(ctx, p)
 	if !b.matchSNMP(p) {
 		return nil, fmt.Errorf("%w: refusing to read config", ErrNotVendor)
 	}

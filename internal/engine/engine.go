@@ -71,6 +71,29 @@ var ErrUnsupported = errors.New("no driver supports this capability for this dev
 // printer, or nothing answered). Callers treat it as "skip", not failure.
 var ErrNotIdentified = errors.New("not identified as a manageable printer")
 
+// Preflight is what one shared SNMP system-group read learned about an
+// address before the identify drivers fan out (issue #19). Without it every
+// vendor plugin opened its own session and walked the Host Resources and
+// Printer MIBs just to discover the device was another make.
+type Preflight struct {
+	// SNMP is true when the agent answered the system group.
+	SNMP bool
+	// Enterprise is the IANA number from sysObjectID (0 when not reported).
+	Enterprise int
+	SysDescr   string
+}
+
+// PreflightFunc performs that read. ok is false when nothing was learned, in
+// which case every identify driver runs as before.
+type PreflightFunc func(ctx context.Context, address string, creds model.Creds) (pf Preflight, ok bool)
+
+// Gated is implemented by identify drivers that can tell from the preflight
+// alone that they do not apply (a vendor plugin whose enterprise does not
+// match). The engine then skips them without opening a session.
+type Gated interface {
+	Applies(Preflight) bool
+}
+
 // ErrNotApplicable is wrapped by an Identifier that does not serve this kind
 // of device at all (a vendor plugin seeing another manufacturer). Such a
 // result is expected and is not recorded as an identification error.
@@ -166,8 +189,11 @@ func declares(d Driver, cap model.Capability) bool {
 
 // Engine dispatches capability requests to drivers.
 type Engine struct {
-	Registry *Registry
-	Log      *slog.Logger
+	// Preflight, when set, runs once per Identify before the drivers fan out
+	// and lets Gated drivers decline (issue #19).
+	Preflight PreflightFunc
+	Registry  *Registry
+	Log       *slog.Logger
 	// Limiter bounds concurrent device I/O (spec §11 rate limiting). nil = unbounded.
 	Limiter chan struct{}
 }
@@ -213,9 +239,21 @@ func (e *Engine) Identify(ctx context.Context, address string, creds model.Creds
 		mu      sync.Mutex
 		results []res
 	)
+	var (
+		pf     Preflight
+		havePF bool
+	)
+	if e.Preflight != nil {
+		pf, havePF = e.Preflight(ctx, address, creds)
+	}
+	var skipped []string
 	for _, drv := range e.Registry.Drivers() {
 		ident, ok := drv.(Identifier)
 		if !ok || !declares(drv, model.CapIdentify) {
+			continue
+		}
+		if g, ok := drv.(Gated); ok && havePF && !g.Applies(pf) {
+			skipped = append(skipped, drv.Name())
 			continue
 		}
 		wg.Add(1)
@@ -228,6 +266,9 @@ func (e *Engine) Identify(ctx context.Context, address string, creds model.Creds
 		}(drv, ident)
 	}
 	wg.Wait()
+	if len(skipped) > 0 && e.Log != nil {
+		e.Log.Debug("identify: drivers skipped by preflight", "address", address, "enterprise", pf.Enterprise, "snmp", pf.SNMP, "skipped", skipped)
+	}
 
 	// Deterministic merge order: by identify priority, highest first.
 	sort.SliceStable(results, func(i, j int) bool {

@@ -22,6 +22,15 @@ type fake struct {
 	statErr  error
 	supplies []model.Supply
 	calls    int
+	applies  func(Preflight) bool
+}
+
+// Applies implements Gated; a fake without an applies rule always runs.
+func (f *fake) Applies(p Preflight) bool {
+	if f.applies == nil {
+		return true
+	}
+	return f.applies(p)
 }
 
 func (f *fake) Name() string                     { return f.name }
@@ -165,5 +174,48 @@ func TestIdentifyRecordsDriversThatDidNotAnswer(t *testing.T) {
 	id, _, err = newEngine(snmp, hp, xerox).Identify(context.Background(), "10.0.0.3", model.Creds{})
 	if err != nil || id.Errors != nil {
 		t.Fatalf("errors after a clean identification: %+v (%v)", id.Errors, err)
+	}
+}
+
+func TestIdentifyPreflightSkipsPluginsForOtherVendors(t *testing.T) {
+	snmp := &fake{name: "snmp", caps: []model.Capability{model.CapIdentify}, prio: 10, identity: &model.Identity{Make: "HP", Method: "snmp"}}
+	hp := &fake{name: "hp", caps: []model.Capability{model.CapIdentify}, prio: 5, identity: &model.Identity{Make: "HP", Model: "M283", Method: "hp"},
+		applies: func(p Preflight) bool { return !p.SNMP || p.Enterprise == 0 || p.Enterprise == 11 }}
+	xerox := &fake{name: "xerox", caps: []model.Capability{model.CapIdentify}, prio: 5, identErr: errors.New("should not have been asked"),
+		applies: func(p Preflight) bool { return !p.SNMP || p.Enterprise == 0 || p.Enterprise == 253 }}
+	eng := newEngine(snmp, hp, xerox)
+	eng.Preflight = func(context.Context, string, model.Creds) (Preflight, bool) {
+		return Preflight{SNMP: true, Enterprise: 11, SysDescr: "HP Color LaserJet"}, true
+	}
+	id, _, err := eng.Identify(context.Background(), "10.0.0.3", model.Creds{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if xerox.calls != 0 || hp.calls != 1 || snmp.calls != 1 {
+		t.Fatalf("calls: xerox=%d hp=%d snmp=%d", xerox.calls, hp.calls, snmp.calls)
+	}
+	if id.Model != "M283" || id.Errors != nil {
+		t.Fatalf("identity: %+v", id)
+	}
+
+	// No enterprise reported: every plugin still runs (badge text / IPP matching).
+	xerox.identErr = fmt.Errorf("no xerox evidence: %w", ErrNotApplicable)
+	eng.Preflight = func(context.Context, string, model.Creds) (Preflight, bool) {
+		return Preflight{SNMP: true}, true
+	}
+	if _, _, err := eng.Identify(context.Background(), "10.0.0.3", model.Creds{}); err != nil {
+		t.Fatal(err)
+	}
+	if xerox.calls != 1 {
+		t.Fatalf("xerox should run without an enterprise, calls=%d", xerox.calls)
+	}
+
+	// SNMP silent: plugins run for their IPP path.
+	eng.Preflight = func(context.Context, string, model.Creds) (Preflight, bool) { return Preflight{}, true }
+	if _, _, err := eng.Identify(context.Background(), "10.0.0.3", model.Creds{}); err != nil {
+		t.Fatal(err)
+	}
+	if xerox.calls != 2 {
+		t.Fatalf("xerox should run when SNMP is silent, calls=%d", xerox.calls)
 	}
 }

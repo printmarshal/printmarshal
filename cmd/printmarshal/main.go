@@ -145,6 +145,9 @@ func run(cfgPath string) error {
 	// drivers rather than LAN defaults of their own.
 	plugins.RegisterAllWith(reg, log, vendorkit.Options{SNMP: snmpDial, IPP: ipp.NewTransport(ippOpts), HTTP: vendorkit.NewHTTP(vendorkit.DefaultHTTPOptions())})
 	eng := engine.New(reg, log, cfg.Poll.Concurrency)
+	// One shared system-group read per address decides which vendor plugins
+	// run at all, instead of every plugin probing every printer (issue #19).
+	eng.Preflight = snmp.Preflight(snmpDial)
 
 	bus := events.NewBus() // single event contract: live stream + durable notifications (docs/events.md)
 	bus.Unknown = func(t string) { log.Warn("event type is not in the catalogue", "type", t) }
