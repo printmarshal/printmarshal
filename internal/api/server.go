@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -1292,8 +1293,37 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		"names":     eff.Names,
 		"runtime":   eff,
 		"defaults":  s.Fleet.Defaults(),
+		"sources":   map[string]any{"reverseDns": reverseDNSSources(s.Cfg)},
 		"notifiers": notifiers,
 	})
+}
+
+// reverseDNSSources says, per reverse-DNS option, where its default comes
+// from: "environment" (a PM_REVERSE_DNS_* variable is set), "file" (the
+// config file changed it from the built-in value) or "default" (issue #18).
+func reverseDNSSources(cfg *config.Config) map[string]string {
+	built := config.Default().Discovery.ReverseDNS
+	cur := built
+	if cfg != nil {
+		cur = cfg.Discovery.ReverseDNS
+	}
+	src := func(env string, differs bool) string {
+		if os.Getenv(env) != "" {
+			return "environment"
+		}
+		if differs {
+			return "file"
+		}
+		return "default"
+	}
+	return map[string]string{
+		"enabled":         src("PM_REVERSE_DNS_ENABLED", cur.Enabled != built.Enabled),
+		"server":          src("PM_REVERSE_DNS_SERVER", cur.Server != built.Server),
+		"shortNames":      src("PM_REVERSE_DNS_SHORT_NAMES", cur.ShortNames != built.ShortNames),
+		"timeout":         src("PM_REVERSE_DNS_TIMEOUT", cur.Timeout != built.Timeout),
+		"refreshInterval": src("PM_REVERSE_DNS_REFRESH_INTERVAL", cur.RefreshInterval != built.RefreshInterval),
+		"forwardConfirm":  src("PM_REVERSE_DNS_FORWARD_CONFIRM", cur.ForwardConfirm != built.ForwardConfirm),
+	}
 }
 
 // patchSettings saves runtime overrides (admin). Scheduler and alert rules pick

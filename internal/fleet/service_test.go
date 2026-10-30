@@ -691,3 +691,103 @@ func TestNewResolverCustomServer(t *testing.T) {
 		t.Error("custom server should construct a PreferGo resolver with custom Dial")
 	}
 }
+
+// Issue #18: the lookup switch and its options are runtime settings, so an
+// administrator turns reverse DNS on from Settings without a config file or a
+// restart, and a saved DNS server replaces the resolver.
+func TestReverseDNSRuntimeSettings(t *testing.T) {
+	svc, _ := newTestService(t, "generic-laser.snmp")
+	fake := &fakeResolver{
+		ptrs:  map[string][]string{"10.0.0.5": {"printer-7.corp.example.com."}},
+		hosts: map[string][]string{"printer-7.corp.example.com": {"10.0.0.5"}},
+	}
+	svc.Resolver = fake
+	ctx := context.Background()
+	if svc.Cfg.Discovery.ReverseDNS.Enabled {
+		t.Fatal("reverseDns.enabled must default to false")
+	}
+	def := svc.Defaults().ReverseDNS
+	if def != svc.Cfg.Discovery.ReverseDNS || svc.Runtime(ctx).ReverseDNS != def {
+		t.Fatalf("defaults should mirror the config file: %+v vs %+v", def, svc.Runtime(ctx).ReverseDNS)
+	}
+
+	r := svc.Runtime(ctx)
+	r.ReverseDNS.Enabled = true
+	r.ReverseDNS.ShortNames = false
+	if err := svc.SaveRuntime(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	dev, _, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fake.calls.Load() == 0 || dev.DNSName != "printer-7.corp.example.com" {
+		t.Fatalf("runtime override should enable lookups with full names: calls=%d dnsName=%q", fake.calls.Load(), dev.DNSName)
+	}
+
+	// Switching it off again at runtime stops lookups on the next poll.
+	r = svc.Runtime(ctx)
+	r.ReverseDNS.Enabled = false
+	if err := svc.SaveRuntime(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	before := fake.calls.Load()
+	svc.dnsMu.Lock()
+	delete(svc.dnsRefreshed, dev.ID) // force the poll to consider a refresh
+	svc.dnsMu.Unlock()
+	if _, _, err := svc.PollDevice(ctx, dev); err != nil {
+		t.Fatal(err)
+	}
+	if fake.calls.Load() != before {
+		t.Fatalf("lookups should stop once disabled at runtime: %d -> %d", before, fake.calls.Load())
+	}
+
+	// Validation.
+	for _, bad := range []func(r *RuntimeSettings){
+		func(r *RuntimeSettings) { r.ReverseDNS.Timeout = config.Duration(10 * time.Millisecond) },
+		func(r *RuntimeSettings) { r.ReverseDNS.Timeout = config.Duration(time.Minute) },
+		func(r *RuntimeSettings) { r.ReverseDNS.RefreshInterval = config.Duration(10 * time.Second) },
+		func(r *RuntimeSettings) { r.ReverseDNS.Server = "10.0.0.53:99999" },
+		func(r *RuntimeSettings) { r.ReverseDNS.Server = "not a host" },
+	} {
+		r := svc.Runtime(ctx)
+		bad(&r)
+		if err := svc.SaveRuntime(ctx, r); err == nil {
+			t.Errorf("expected validation error for %+v", r.ReverseDNS)
+		}
+	}
+	r = svc.Runtime(ctx)
+	r.ReverseDNS.Server = " 10.0.0.53 "
+	if err := svc.SaveRuntime(ctx, r); err != nil || svc.Runtime(ctx).ReverseDNS.Server != "10.0.0.53" {
+		t.Fatalf("server should be trimmed and accepted: %v %q", err, svc.Runtime(ctx).ReverseDNS.Server)
+	}
+
+	// A reset returns every field, booleans included, to the file defaults.
+	r = svc.Runtime(ctx)
+	r.DiscoveryEnabled = true
+	r.ReverseDNS.Enabled = true
+	if err := svc.SaveRuntime(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ResetRuntime(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := svc.Runtime(ctx); got.ReverseDNS != def || got.DiscoveryEnabled != svc.Cfg.Discovery.Enabled {
+		t.Fatalf("reset should restore the file defaults: %+v", got)
+	}
+}
+
+// The production resolver follows the DNS server setting and is rebuilt only
+// when that setting changes.
+func TestResolverFollowsServerSetting(t *testing.T) {
+	svc, _ := newTestService(t, "generic-laser.snmp")
+	svc.Resolver = nil
+	a := svc.resolver("")
+	if a != svc.resolver("") {
+		t.Fatal("same server should reuse the resolver")
+	}
+	b := svc.resolver("10.0.0.53")
+	if b == a || b != svc.resolver("10.0.0.53") {
+		t.Fatal("a new server should build one new resolver")
+	}
+}
