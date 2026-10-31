@@ -163,7 +163,9 @@ func TestUtilisationUnknownSplitIsNull(t *testing.T) {
 	split, _, _ := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.41", Serial: "S1", Make: "Acme", Model: "Colour 1", SysName: "Split", Method: "snmp"}, nil, nil)
 	plain, _, _ := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.42", Serial: "S2", Make: "Acme", Model: "Laser 2", SysName: "Plain", Method: "snmp"}, nil, nil)
 	now := time.Now().UTC()
-	day := func(n int) time.Time { return now.Add(-time.Duration(n) * 24 * time.Hour).Truncate(24 * time.Hour).Add(12 * time.Hour) }
+	day := func(n int) time.Time {
+		return now.Add(-time.Duration(n) * 24 * time.Hour).Truncate(24 * time.Hour).Add(12 * time.Hour)
+	}
 	samples := []model.TelemetrySample{
 		{DeviceID: split.ID, Metric: "counter.total", Value: 100, At: day(2)},
 		{DeviceID: split.ID, Metric: "counter.total", Value: 150, At: day(1)},

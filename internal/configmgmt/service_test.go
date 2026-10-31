@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -446,8 +447,8 @@ func TestDryRunMessageNeverSaysWritten(t *testing.T) {
 		t.Fatalf("job results = %+v", results)
 	}
 	msg := results[0].Message
-	if strings.Contains(msg, "written,") || !strings.Contains(msg, "1 would be written") {
-		t.Errorf("dry-run message = %q, want \"dry run: 1 would be written, ...\" and never \"written,\"", msg)
+	if regexp.MustCompile(`\d+ written`).MatchString(msg) || !strings.Contains(msg, "1 would be written") {
+		t.Errorf("dry-run message = %q, want \"dry run: 1 would be written, ...\" and never \"N written\"", msg)
 	}
 
 	j, err = env.svc.Apply(ctx, ApplyRequest{ProfileID: p.ID, Target: target}, "alice")
