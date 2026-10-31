@@ -310,7 +310,7 @@ function RenameDialog({ deviceIds, devices, canEdit, onClose, onApplied }: { dev
       footer={
         <>
           <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-          <Btn variant="pri" disabled={applying || busy || willUpdate === 0} onClick={apply}>
+          <Btn variant="pri" disabled={applying || busy || (willUpdate === 0 && !(source === 'dns' && keepSynced !== allSyncedAtStart))} onClick={apply}>
             {applying ? 'Applying…' : `Apply (${willUpdate})`}
           </Btn>
         </>
