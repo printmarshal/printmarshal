@@ -60,6 +60,17 @@ Server
   compiles once the patch holds a map. A field with a recorded source counts as set by someone
   for the held-back rule, so DNS sync turned off or a state left at "discovered" on purpose is
   kept too. Migration 9 on both stores (SQLite `TEXT`, PostgreSQL `JSONB`, default `'{}'`).
+- *Built, step 3:* the parsed file waits in memory (`Server.imports`, under a random key in the
+  job's params) until the job takes it, so no file content is persisted; a restart fails the job
+  as usual. The job type is registered in `Handler()`, which runs after the scheduler has started,
+  so `jobs.Runner` now guards its handler map; the runner also counts a result of status `failed`
+  as a failure, so an import with failed rows ends `partial`. `fleet.LookupHostAddress` is new
+  (the forward lookup; the resolver is unexported). `peekBody` in `scope.go` truncated any body
+  over 1 MB for a scoped principal; it now puts the whole body back. `Server.importIdentify` is the
+  test seam that keeps tests from probing. Field sources are also written by `renameDevices` and
+  `setDeviceState`, the other two operator write paths, beyond the plan's list. There is no
+  per-job cancel API yet; the job stops when the runner's context ends (shutdown), writing one
+  result that says where it stopped (`outcome: cancelled`) rather than one per remaining row.
 
 Web
 - `web/src/components/ImportDialog.tsx` (new): file input, "Download template" (a header-only

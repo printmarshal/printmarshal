@@ -196,14 +196,16 @@ func devicePathID(path string) string {
 // peekBody returns the body of a POST/PUT/PATCH request when it looks like a
 // JSON value, and puts it back for the handler. The handlers decode bodies
 // without looking at Content-Type, so the scope check must not either
-// (audit NV-04); uploads and other non-JSON bodies are left alone.
+// (audit NV-04); uploads and other non-JSON bodies are left alone. The body
+// is put back whole: what was peeked, then the rest unread, so an upload
+// larger than the peek (the CSV import) reaches its handler intact.
 func peekBody(r *http.Request) []byte {
 	if r.Body == nil || r.Body == http.NoBody || (r.Method != http.MethodPost && r.Method != http.MethodPut && r.Method != http.MethodPatch) {
 		return nil
 	}
-	b, err := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
-	_ = r.Body.Close()
-	r.Body = io.NopCloser(bytes.NewReader(b))
+	orig := r.Body
+	b, err := io.ReadAll(io.LimitReader(orig, 1<<20+1))
+	r.Body = rejoinedBody{io.MultiReader(bytes.NewReader(b), orig), orig}
 	if err != nil {
 		return nil
 	}
@@ -212,6 +214,12 @@ func peekBody(r *http.Request) []byte {
 		return nil
 	}
 	return b
+}
+
+// rejoinedBody reads the peeked bytes and then the rest of the original body.
+type rejoinedBody struct {
+	io.Reader
+	io.Closer
 }
 
 // bodyTargets peeks at a JSON request body for device and group references

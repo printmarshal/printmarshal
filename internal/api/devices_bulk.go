@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"printmarshal/internal/model"
 	"printmarshal/internal/store"
@@ -146,6 +147,17 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 			v := appendNote(d.Notes, *body.Set.AppendNote)
 			patch.Notes = &v
 			changed = append(changed, "notes")
+		}
+		// Record "operator" as the source of every field the patch writes (R11).
+		now := time.Now().UTC()
+		for _, f := range changed {
+			if f == "displayName" && patch.DisplayName == nil {
+				continue // renamed by the lookup's DNS sync, which records its own source
+			}
+			if patch.FieldSources == nil {
+				patch.FieldSources = map[string]model.FieldSource{}
+			}
+			patch.FieldSources[f] = model.FieldSource{Source: model.SourceOperator, At: now}
 		}
 		res := bulkResult{ID: d.ID, Changed: changed}
 		if len(changed) == 0 {

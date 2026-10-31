@@ -181,7 +181,7 @@ func (p *planner) row(rec Record) Row {
 		row.Key = addrCell
 	case host != "":
 		row.Key = "host:" + host
-	default:
+	case serial != "":
 		row.Key = "serial:" + serial
 	}
 	skip := func(reason string) Row {
@@ -193,12 +193,14 @@ func (p *planner) row(rec Record) Row {
 	// The address: typed, or looked up from the hostname.
 	addr := ""
 	if addrCell != "" {
-		ip, err := netip.ParseAddr(addrCell)
-		if err != nil {
+		if ip, err := netip.ParseAddr(addrCell); err == nil {
+			addr = ip.Unmap().String()
+			row.Key = addr
+		} else if p.lk.DeviceByAddress(addrCell) != nil {
+			addr = addrCell // a device discovered by name is recorded under it
+		} else {
 			return skip("address is not an IP address")
 		}
-		addr = ip.Unmap().String()
-		row.Key = addr
 	} else if host != "" {
 		addr, _ = p.resolve(host)
 	}
@@ -235,6 +237,9 @@ func (p *planner) row(rec Record) Row {
 		bySerial = p.lk.DeviceBySerial(serial)
 	}
 	if byAddr != nil && bySerial != nil && byAddr.ID != bySerial.ID {
+		if !p.lk.DeviceInScope(byAddr.ID) || !p.lk.DeviceInScope(bySerial.ID) {
+			return skip(ReasonOutOfScope)
+		}
 		return skip("address and serial belong to different devices")
 	}
 	dev := byAddr
@@ -253,7 +258,6 @@ func (p *planner) row(rec Record) Row {
 		}
 		row.Outcome = OutcomeCreate
 		row.Fields, row.HeldBack = Diff(nil, values, false, nil)
-		row.HeldBack = checkState(model.StateDiscovered, row.Fields, row.HeldBack)
 		return row
 	}
 
@@ -272,7 +276,6 @@ func (p *planner) row(rec Record) Row {
 		}
 	}
 	row.Fields, row.HeldBack = Diff(dev, values, member, p.opts.Replace)
-	row.HeldBack = checkState(dev.State, row.Fields, row.HeldBack)
 	if len(row.Fields) == 0 {
 		if len(row.HeldBack) == 0 {
 			return skip("unchanged")
@@ -356,8 +359,10 @@ func (p *planner) values(c map[string]string, row *Row) (map[string]any, string)
 // Diff decides which supplied values to set on dev (nil for a new device):
 // a value equal to the current one is dropped, one over a field an operator
 // set is held back unless its column is in replace (R10), and a group is set
-// unless dev is already a member. The import job uses it again when a row
-// planned as a create meets a device identification found already recorded.
+// unless dev is already a member. A state the lifecycle cannot reach from
+// the device's (a new device starts "discovered") is held back with the
+// reason. The import job uses it again when a row planned as a create meets
+// a device that identification found already recorded.
 func Diff(dev *model.Device, values map[string]any, isMember bool, replace map[string]bool) (map[string]any, []HeldBack) {
 	fields := map[string]any{}
 	held := []HeldBack{}
@@ -380,7 +385,11 @@ func Diff(dev *model.Device, values map[string]any, isMember bool, replace map[s
 			fields[col] = v
 		}
 	}
-	return fields, held
+	from := model.StateDiscovered
+	if dev != nil {
+		from = dev.State
+	}
+	return fields, checkState(from, fields, held)
 }
 
 // checkState moves a state the lifecycle does not allow from `from` out of

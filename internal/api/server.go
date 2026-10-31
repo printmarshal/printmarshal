@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,6 +55,12 @@ type Server struct {
 	saml   *samlState // lazily built SAML service provider (saml.go)
 	// samlReplay remembers assertion IDs until they expire (saml.go).
 	samlReplay saml.ReplayCache
+	// imports holds each queued CSV import's parsed file until its job
+	// takes it (import.go); the file is never persisted.
+	imports sync.Map
+	// importIdentify replaces the import's identification in tests, so no
+	// test probes an address (import.go).
+	importIdentify func(ctx context.Context, address, hostname string) (*model.Device, bool, error)
 }
 
 // Handler builds the router.
@@ -71,6 +78,9 @@ func (s *Server) Handler() http.Handler {
 	}
 	if s.Hub != nil && s.Hub.Scope == nil {
 		s.Hub.Scope = s.streamScope
+	}
+	if s.Fleet != nil && s.Fleet.Jobs != nil {
+		s.Fleet.Jobs.Register(importJobType, s.runImport) // import.go
 	}
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -121,6 +131,7 @@ func (s *Server) Handler() http.Handler {
 	// Discovery and jobs
 	mux.Handle("POST /api/discovery/runs", s.require(model.RoleOperator, s.startDiscovery))
 	mux.Handle("GET /api/discovery/runs", s.require(model.RoleViewer, s.listDiscoveryRuns))
+	s.importRoutes(mux) // CSV import (import.go)
 	mux.Handle("POST /api/poll", s.require(model.RoleOperator, s.pollAll))
 	mux.Handle("GET /api/jobs", s.require(model.RoleViewer, s.listJobs))
 	mux.Handle("GET /api/jobs/{id}", s.require(model.RoleViewer, s.getJob))
@@ -526,7 +537,33 @@ func (s *Server) patchDevice(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
-	d, err := s.Store.PatchDevice(r.Context(), id, store.DevicePatch{DisplayName: body.DisplayName, DNSSync: body.DNSSync, Location: body.Location, AssetTag: body.AssetTag, Notes: body.Notes, WebURLOverride: body.WebURL})
+	// Record "operator" as the source of every field this edit changes (R11).
+	sources := map[string]model.FieldSource{}
+	now := time.Now().UTC()
+	mark := func(field string, changed bool) {
+		if changed {
+			sources[field] = model.FieldSource{Source: model.SourceOperator, At: now}
+		}
+	}
+	if body.DisplayName != nil {
+		mark("displayName", *body.DisplayName != before.DisplayName)
+	}
+	if body.DNSSync != nil {
+		mark("dnsSync", *body.DNSSync != before.DNSSync)
+	}
+	if body.Location != nil {
+		mark("location", *body.Location != before.Location)
+	}
+	if body.AssetTag != nil {
+		mark("assetTag", *body.AssetTag != before.AssetTag)
+	}
+	if body.Notes != nil {
+		mark("notes", *body.Notes != before.Notes)
+	}
+	if body.WebURL != nil {
+		mark("webUrl", strings.TrimSpace(*body.WebURL) != before.WebURLOverride)
+	}
+	d, err := s.Store.PatchDevice(r.Context(), id, store.DevicePatch{DisplayName: body.DisplayName, DNSSync: body.DNSSync, Location: body.Location, AssetTag: body.AssetTag, Notes: body.Notes, WebURLOverride: body.WebURL, FieldSources: sources})
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -577,6 +614,10 @@ func (s *Server) setDeviceState(w http.ResponseWriter, r *http.Request) {
 	}
 	d, err := s.Store.SetDeviceState(r.Context(), id, body.State)
 	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if d, err = s.Store.PatchDevice(r.Context(), id, store.DevicePatch{FieldSources: map[string]model.FieldSource{"state": {Source: model.SourceOperator, At: time.Now().UTC()}}}); err != nil {
 		s.fail(w, err)
 		return
 	}
@@ -811,6 +852,7 @@ func (s *Server) renameDevices(w http.ResponseWriter, r *http.Request) {
 			upd, err := s.Store.PatchDevice(r.Context(), d.ID, store.DevicePatch{
 				DisplayName:       &to,
 				DisplayNameSource: &src,
+				FieldSources:      map[string]model.FieldSource{"displayName": {Source: model.SourceOperator, At: time.Now().UTC()}},
 			})
 			if err != nil {
 				s.fail(w, err)
@@ -1119,13 +1161,24 @@ func (s *Server) startDiscovery(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, j)
 }
 
+// listDiscoveryRuns lists discovery runs and CSV imports, newest first: both
+// are ways a printer enters the inventory (R15).
 func (s *Server) listDiscoveryRuns(w http.ResponseWriter, r *http.Request) {
-	js, err := s.Store.ListJobs(r.Context(), store.JobFilter{Type: "discovery", Limit: intQuery(r, "limit", 50)})
-	if err != nil {
-		s.fail(w, err)
-		return
+	limit := intQuery(r, "limit", 50)
+	all := []*model.Job{}
+	for _, typ := range []string{"discovery", importJobType} {
+		js, err := s.Store.ListJobs(r.Context(), store.JobFilter{Type: typ, Limit: limit})
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		all = append(all, js...)
 	}
-	writeJSON(w, http.StatusOK, js)
+	sort.SliceStable(all, func(i, j int) bool { return all[i].CreatedAt.After(all[j].CreatedAt) })
+	if limit > 0 && len(all) > limit {
+		all = all[:limit]
+	}
+	writeJSON(w, http.StatusOK, all)
 }
 
 func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
