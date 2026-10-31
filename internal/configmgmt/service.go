@@ -544,7 +544,8 @@ func (s *Service) runApply(ctx context.Context, jc *jobs.Context) error {
 			}
 			msg := fmt.Sprintf("%d written, %d unchanged, %d skipped, %d failed", rec.Written, rec.Unchanged, rec.Skipped, rec.Failed)
 			if dryRun {
-				msg = "dry run: " + msg
+				// A dry run writes nothing: say what would be written (#51).
+				msg = fmt.Sprintf("dry run: %d would be written, %d unchanged, %d skipped, %d failed", rec.Written, rec.Unchanged, rec.Skipped, rec.Failed)
 			} else if rec.Written > 0 {
 				msg += fmt.Sprintf(" (%d verified, %d diverged)", rec.Verified, rec.Diverged)
 			}

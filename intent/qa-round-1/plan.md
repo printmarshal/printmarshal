@@ -25,12 +25,22 @@ Server (`internal/...`), each with a failing test first
   contributed. Test `TestUtilisationUnknownSplitIsNull`. (If the summary already sends `null`
   and only the page prints 0, the test asserts the existing behaviour and the fix is web-only;
   say so in the commit.)
+  As built: the summary types and the computation live in `internal/reports/utilisation.go`
+  (`UtilDevice.Mono`/`Color` became `*int64`, `UtilSummary.PagesKnown` added, the CSV prints an
+  empty cell for unknown); `internal/api/reports.go` did not change. The server sent `0`
+  before, so the fix is not web-only.
 - Status rating of a sleeping printer (companion to #49, from `intent.md`'s "verify the
   sleep-mode severity"): find where the control-panel status line ("Sleep mode is on.", HP
   `gdStatusDisplay` in `internal/plugins/hp/pml.go`) meets the severity rule in
   `internal/fleet` or the SNMP driver. If a sleeping printer is rated critical, add the failing
   test `TestSleepingPrinterIsNotCritical` and fix the rule; if it is not, report what rates
   those rows and stop. This step is bounded to an hour; anything larger becomes its own intent.
+  As found: the panel line is only copied into `Status.Message` (`hp.Plugin.ReadStatus`) and
+  never rated. Severity comes from `snmp.ReadStatus` in `internal/driver/snmp/driver.go`
+  (hrDeviceStatus 5 = critical, 3 = warning; hrPrinterDetectedError bits; prtAlert severity)
+  and `hp.mergeLEDMStatus` (LEDM alert severity). A sleeping printer is rated ok (the existing
+  `hp` plugin test asserts it on the M283fdw fixture); the simulated rows rated critical carry
+  the `serviceRequested` detected-error bit, not sleep. No test added, no rule changed.
 
 Web (`web/src`), no test runner exists today, so the proof is the typecheck plus a screenshot
 per fix on the simulated fleet (see Proof)
