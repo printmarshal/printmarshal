@@ -423,3 +423,39 @@ func mustProfile(t *testing.T, env *testEnv, name string) *model.Profile {
 	}
 	return p
 }
+
+// A dry run writes nothing, so its job result must never say "written" (#51):
+// it says how many settings would be written; the real apply keeps "written".
+func TestDryRunMessageNeverSaysWritten(t *testing.T) {
+	env := newTestEnv(t)
+	ctx := context.Background()
+	p := &model.Profile{Name: "lobby", Settings: []model.SettingChange{
+		{Key: "identity.location", Value: "Lobby"},
+	}}
+	if err := env.st.CreateProfile(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	target := model.ConfigTarget{DeviceIDs: []string{env.dev.ID}}
+	j, err := env.svc.Apply(ctx, ApplyRequest{ProfileID: p.ID, Target: target, DryRun: true}, "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.wait(t, j)
+	results, _ := env.st.ListJobResults(ctx, j.ID)
+	if len(results) != 1 {
+		t.Fatalf("job results = %+v", results)
+	}
+	msg := results[0].Message
+	if strings.Contains(msg, "written,") || !strings.Contains(msg, "1 would be written") {
+		t.Errorf("dry-run message = %q, want \"dry run: 1 would be written, ...\" and never \"written,\"", msg)
+	}
+
+	j, err = env.svc.Apply(ctx, ApplyRequest{ProfileID: p.ID, Target: target}, "alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.wait(t, j)
+	if results, _ := env.st.ListJobResults(ctx, j.ID); len(results) != 1 || !strings.HasPrefix(results[0].Message, "1 written,") {
+		t.Errorf("apply message = %+v", results)
+	}
+}

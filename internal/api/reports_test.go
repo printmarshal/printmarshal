@@ -151,3 +151,75 @@ func TestReportsAPI(t *testing.T) {
 		t.Errorf("consumption csv = %q", csvBody)
 	}
 }
+
+// A device that does not report a mono/colour split has unknown mono and
+// colour, sent as null and exported as an empty cell, never 0, even when
+// another device in the fleet reports a split; totals sum known values only
+// and pagesKnown counts the devices that contributed a split (#46).
+func TestUtilisationUnknownSplitIsNull(t *testing.T) {
+	ts, s := newReportServer(t)
+	ctx := context.Background()
+	viewer := login(t, ts, "viewer", "viewerpass1")
+	split, _, _ := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.41", Serial: "S1", Make: "Acme", Model: "Colour 1", SysName: "Split", Method: "snmp"}, nil, nil)
+	plain, _, _ := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.42", Serial: "S2", Make: "Acme", Model: "Laser 2", SysName: "Plain", Method: "snmp"}, nil, nil)
+	now := time.Now().UTC()
+	day := func(n int) time.Time { return now.Add(-time.Duration(n) * 24 * time.Hour).Truncate(24 * time.Hour).Add(12 * time.Hour) }
+	samples := []model.TelemetrySample{
+		{DeviceID: split.ID, Metric: "counter.total", Value: 100, At: day(2)},
+		{DeviceID: split.ID, Metric: "counter.total", Value: 150, At: day(1)},
+		{DeviceID: split.ID, Metric: "counter.mono", Value: 70, At: day(2)},
+		{DeviceID: split.ID, Metric: "counter.mono", Value: 110, At: day(1)},
+		{DeviceID: split.ID, Metric: "counter.color", Value: 30, At: day(2)},
+		{DeviceID: split.ID, Metric: "counter.color", Value: 40, At: day(1)},
+		{DeviceID: plain.ID, Metric: "counter.total", Value: 500, At: day(2)},
+		{DeviceID: plain.ID, Metric: "counter.total", Value: 520, At: day(1)},
+	}
+	if err := s.Store.AddSamples(ctx, samples); err != nil {
+		t.Fatal(err)
+	}
+	code, body := do(t, ts, viewer, "GET", "/api/reports/utilisation?days=7", "")
+	if code != 200 {
+		t.Fatalf("utilisation: %d %s", code, body)
+	}
+	var u struct {
+		Summary struct {
+			Pages, Mono, Color int64
+			HasSplit           bool
+			PagesKnown         *int `json:"pagesKnown"`
+		}
+		Devices []struct {
+			Name        string
+			Pages       int64
+			Mono, Color *int64
+		}
+	}
+	if err := json.Unmarshal([]byte(body), &u); err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]int{}
+	for i, d := range u.Devices {
+		byName[d.Name] = i
+	}
+	if len(u.Devices) != 2 {
+		t.Fatalf("devices = %+v", u.Devices)
+	}
+	sd, pd := u.Devices[byName["Split"]], u.Devices[byName["Plain"]]
+	if sd.Mono == nil || *sd.Mono != 40 || sd.Color == nil || *sd.Color != 10 {
+		t.Errorf("split device mono/colour = %v/%v, want 40/10", sd.Mono, sd.Color)
+	}
+	if pd.Mono != nil || pd.Color != nil {
+		t.Errorf("device without a split must send null mono/colour, got %v/%v", pd.Mono, pd.Color)
+	}
+	if !strings.Contains(body, `"mono":null`) {
+		t.Errorf("no null mono in %s", body)
+	}
+	if u.Summary.Pages != 70 || u.Summary.Mono != 40 || u.Summary.Color != 10 || !u.Summary.HasSplit || u.Summary.PagesKnown == nil || *u.Summary.PagesKnown != 1 {
+		t.Errorf("summary = %+v (pagesKnown %v)", u.Summary, u.Summary.PagesKnown)
+	}
+	_, csvBody := do(t, ts, viewer, "GET", "/api/reports/utilisation?days=7&format=csv", "")
+	for _, line := range strings.Split(strings.TrimSpace(csvBody), "\n") {
+		if strings.Contains(line, ",Plain,") && !strings.Contains(line, ",20,,,") {
+			t.Errorf("CSV row for a device without a split must leave mono/colour empty: %q", line)
+		}
+	}
+}
