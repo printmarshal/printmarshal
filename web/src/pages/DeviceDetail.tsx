@@ -292,6 +292,8 @@ function SuppliesCard({ d, canOperate, hist }: { d: Device; canOperate: boolean;
 
 function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; onSaved: (d: Device) => void }) {
   const [form, setForm] = useState({ displayName: d.displayName, dnsSync: !!d.dnsSync, location: d.location, assetTag: d.assetTag, notes: d.notes, webUrl: d.webUrlOverride || '' })
+  const [rdnsOff, setRdnsOff] = useState(false)
+  useEffect(() => { api.get<{ runtime?: { reverseDns?: { enabled?: boolean } } }>('/api/settings').then((st) => setRdnsOff(st.runtime?.reverseDns?.enabled === false)).catch(() => {}) }, [])
   const [msg, setMsg] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const [usingDNS, setUsingDNS] = useState(false)
@@ -337,10 +339,13 @@ function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; on
         </div>
         <div className="frow">
           <span className="cap">DNS sync</span>
-          <label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <input className="cbx" type="checkbox" checked={form.dnsSync} disabled={!canEdit} onChange={(e) => setForm({ ...form, dnsSync: e.target.checked })} />
-            Keep display name synced with DNS name
-          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <input className="cbx" type="checkbox" checked={form.dnsSync} disabled={!canEdit} onChange={(e) => setForm({ ...form, dnsSync: e.target.checked })} />
+              Keep display name synced with DNS name
+            </label>
+            {rdnsOff && <span className="cap" style={{ fontSize: 11 }}>Reverse DNS is off, so names are looked up only when you press Refresh. {canEdit ? <Link to="/settings">Turn it on in Settings</Link> : 'An administrator can turn it on in Settings'}.</span>}
+          </div>
           <Mk op />
         </div>
         <div className="frow"><label className="cap" htmlFor="f-loc">Location</label><input className="fin" id="f-loc" value={form.location} disabled={!canEdit} onChange={(e) => setForm({ ...form, location: e.target.value })} /><Mk op /></div>

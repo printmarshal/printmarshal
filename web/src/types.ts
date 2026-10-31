@@ -72,6 +72,7 @@ import type { ComplianceSummary } from './types-security'
 /** One widget's place on the dashboard; order in the list is order on the page. */
 export interface LayoutEntry { id: string; hidden?: boolean; collapsed?: boolean }
 export interface DashboardLayout { version: number; widgets: LayoutEntry[] }
+export interface BulkPatchResponse { changed: number; skipped: number; results: { id: string; changed: string[]; skipped?: string }[] }
 export interface Dashboard {
   summary: { devices: number; byState: Record<string, number>; bySeverity: Record<string, number>; offline: number; activeAlerts: number; criticalAlerts: number; lowSupplies: number; lowStock: number; runningJobs: number }
   alerts: Alert[]; jobs: Job[]; attention: Device[]

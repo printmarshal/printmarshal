@@ -124,3 +124,8 @@ Catalogue family/support views are separate from inventory identity. See [Vendor
 A target is treated as a range only when the text before its first hyphen is an IPv4 address, so hostnames such as `print-server-3` resolve as names. The “read-only decommissioned” expectation should not be broadened into a universal write guard: configuration target resolution includes explicitly named decommissioned records. The identity conflict rule is implemented on both stores, but concurrent identity upsert is not fully transactional across independent discoveries.
 
 Sources: `internal/discovery/{targets,scan,mdns,wsd}.go`, `cmd/printmarshal/main.go`, `internal/api/server.go`, `internal/model/model.go`, `internal/store/{sqlite,postgres}_devices.go`.
+
+
+## Editing many devices at once
+
+Select devices in the inventory (a group's devices by filtering on the group, then **Select all**) and use **Edit…** in the bulk toolbar. The dialog sets the operator fields the fleet shares: DNS sync on or off (keep each display name synced with its DNS name), **Rename from DNS now** (devices without a usable DNS name are skipped and say so), a location, and a note appended to each device's notes on its own paragraph, existing notes kept. Every field can be left as it is. Each changed device gets its own audit entry and a `devices.bulk` summary records the action; a group-scoped token can edit only devices in its groups. The **Rename…** dialog offers "Keep these names in sync with DNS from now on" when the source is DNS. Reverse DNS lookups are off by default: the device page says so beside DNS sync, with a link to the setting under Settings, Polling and discovery, Reverse DNS; until it is on, names are looked up only when you press Refresh.

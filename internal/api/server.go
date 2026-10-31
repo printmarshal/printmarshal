@@ -95,6 +95,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PATCH /api/devices/{id}", s.require(model.RoleOperator, s.patchDevice))
 	mux.Handle("DELETE /api/devices/{id}", s.require(model.RoleAdmin, s.deleteDevice))
 	mux.Handle("POST /api/devices/rename", s.require(model.RoleOperator, s.renameDevices))
+	mux.Handle("POST /api/devices/bulk", s.require(model.RoleOperator, s.bulkPatchDevices))
 	mux.Handle("POST /api/devices/{id}/poll", s.require(model.RoleOperator, s.pollDevice))
 	mux.Handle("POST /api/devices/{id}/refresh-hostname", s.require(model.RoleOperator, s.refreshDeviceHostname))
 	mux.Handle("POST /api/devices/{id}/state", s.require(model.RoleOperator, s.setDeviceState))
@@ -595,6 +596,19 @@ type renameResult struct {
 	Reason  string `json:"reason,omitempty"`
 }
 
+// dnsRenameTarget is the rule for naming a device from its stored DNS name:
+// the trimmed name, or a reason it cannot be used. Shared by the rename and
+// bulk-edit routes.
+func dnsRenameTarget(d *model.Device) (to, reason string) {
+	switch {
+	case strings.TrimSpace(d.DNSName) == "":
+		return "", "DNS name is empty"
+	case d.DNSNameSuspect:
+		return "", "DNS name is suspect"
+	}
+	return strings.TrimSpace(d.DNSName), ""
+}
+
 func expandRenamePattern(pattern string, d *model.Device) string {
 	dns := d.DNSName
 	if d.DNSNameSuspect {
@@ -657,15 +671,11 @@ func (s *Server) renameDevices(w http.ResponseWriter, r *http.Request) {
 		res := renameResult{ID: d.ID, From: current}
 		switch body.Source {
 		case "dns":
-			switch {
-			case strings.TrimSpace(d.DNSName) == "":
+			if to, reason := dnsRenameTarget(d); reason != "" {
 				res.Skipped = true
-				res.Reason = "DNS name is empty"
-			case d.DNSNameSuspect:
-				res.Skipped = true
-				res.Reason = "DNS name is suspect"
-			default:
-				res.To = strings.TrimSpace(d.DNSName)
+				res.Reason = reason
+			} else {
+				res.To = to
 			}
 		case "hostname":
 			if strings.TrimSpace(d.Hostname) == "" {
