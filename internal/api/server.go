@@ -48,6 +48,7 @@ type Server struct {
 	Version    string
 
 	logins *loginLimiter
+	pub    *publicState // public status board: cache and rate limiter (public.go)
 	http   *httpStats
 	oidc   *oidcState // lazily discovered OIDC provider (oidc.go)
 	saml   *samlState // lazily built SAML service provider (saml.go)
@@ -60,6 +61,9 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	if s.logins == nil {
 		s.logins = newLoginLimiter(s.Cfg.Auth.LoginFailuresPerMinute)
+	}
+	if s.pub == nil {
+		s.pub = newPublicState()
 	}
 	if s.Hub != nil && s.Hub.Authorize == nil {
 		s.Hub.Authorize = func(r *http.Request) bool { _, err := s.Auth.Authenticate(r); return err == nil }
@@ -157,6 +161,13 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PUT /api/settings/directory", s.require(model.RoleAdmin, s.putDirectorySettings))
 	mux.Handle("POST /api/settings/directory/test", s.require(model.RoleAdmin, s.testDirectory))
 	mux.Handle("GET /api/drivers", s.require(model.RoleViewer, s.listDrivers))
+
+	// Public status board (public.go). The two GET routes are the only data
+	// routes outside require: no session, no token, store reads only.
+	mux.HandleFunc("GET /api/public/status", s.getPublicStatus)
+	mux.HandleFunc("GET /api/public/status/{slug}", s.getPublicStatus)
+	mux.Handle("GET /api/settings/public-status", s.require(model.RoleAdmin, s.getPublicStatusSettings))
+	mux.Handle("PUT /api/settings/public-status", s.require(model.RoleAdmin, s.putPublicStatusSettings))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "no such endpoint")
