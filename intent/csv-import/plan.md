@@ -78,6 +78,11 @@ Server
   with the record's own credentials; a later discovery merges by address in `findByIdentity`.
   If the printer turns out to be recorded already under another address (matched by serial),
   that record takes the address and the address-only one stays for an administrator to remove.
+- *Built, review fix 2:* the job identifies the create rows first (eight at a time, each bounded by
+  60 seconds), then applies every row in file order on one goroutine, so results keep row order
+  and the row writes are sequential. `Job.Done` therefore stays at 0 during identification. A stop
+  ends new identifications; a printer already identified still gets its row applied, the job ends
+  `failed` with "stopped at row N" as its error, and the audit entry says `cancelled`.
 
 Web
 - `web/src/components/ImportDialog.tsx` (new): file input, "Download template" (a header-only

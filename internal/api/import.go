@@ -40,6 +40,9 @@ const (
 	importFieldMax = 4096
 	// importIdentifyTimeout bounds identifying one created row, as discovery does.
 	importIdentifyTimeout = 60 * time.Second
+	// importIdentifyConcurrency bounds the identifications one import runs at
+	// once: 5,000 printers that are off would otherwise take many hours.
+	importIdentifyConcurrency = 8
 )
 
 // importPayload is a queued import's parsed file and the caller it runs as.
@@ -284,32 +287,93 @@ func (s *Server) runImport(ctx context.Context, jc *jobs.Context) error {
 	}
 	plan := importcsv.Plan(p.table, lk, importcsv.Options{Replace: p.replace, Scoped: len(p.user.Scope) > 0})
 	jc.SetTotal(len(plan.Rows))
+	// Identification is slow when printers are off, so it runs first and
+	// concurrently; the rows are then applied in file order on this goroutine.
+	identified := s.identifyImportRows(uctx, plan.Rows)
 	// Writes run to completion once a row starts, and the summary is written
 	// even when the job is stopped.
 	wctx := context.WithoutCancel(uctx)
 	counts := map[string]int{}
-	cancelled := false
-	for _, row := range plan.Rows {
-		if ctx.Err() != nil {
-			cancelled = true
-			jc.Result("", "", "skipped", fmt.Sprintf("stopped at row %d: the job was cancelled; this row and the rest were not applied", row.Row),
-				map[string]any{"row": row.Row, "outcome": "cancelled"})
-			break
+	stoppedAt := 0
+	for i, row := range plan.Rows {
+		// Once stopped, only a printer already identified is applied, so its
+		// record is not left without the file's fields or an audit entry.
+		if ctx.Err() != nil && !(identified[i].done && identified[i].err == nil) {
+			if stoppedAt == 0 {
+				stoppedAt = row.Row
+			}
+			continue
 		}
-		status, deviceID, msg := s.applyImportRow(ctx, wctx, p, row)
+		status, deviceID, msg := s.applyImportRow(wctx, p, row, identified[i])
 		counts[status]++
 		jc.Result(deviceID, row.Address, status, msg, map[string]any{"row": row.Row, "outcome": row.Outcome})
 	}
+	var stopped error
+	if stoppedAt != 0 {
+		stopped = fmt.Errorf("stopped at row %d: the job was cancelled; this row and those after it were not applied, apart from printers already identified", stoppedAt)
+		jc.Result("", "", "skipped", stopped.Error(), map[string]any{"row": stoppedAt, "outcome": "cancelled"})
+	}
 	s.auditAs(wctx, p.user.Username, p.ip, "devices.import", jc.Job.ID, nil, map[string]any{
 		"rows": len(plan.Rows), "created": counts["created"], "updated": counts["updated"], "skipped": counts["skipped"],
-		"failed": counts["failed"], "replace": replaceColumns(p.replace), "cancelled": cancelled,
+		"failed": counts["failed"], "replace": replaceColumns(p.replace), "cancelled": stoppedAt != 0,
 	}, "ok")
-	return nil
+	return stopped
+}
+
+// importIdentified is what identifying one create row found. done is false
+// for a row that was not identified: not a create, or stopped before its turn.
+type importIdentified struct {
+	dev     *model.Device
+	created bool
+	err     error
+	done    bool
+}
+
+// identifyImportRows identifies the create rows, at most
+// importIdentifyConcurrency at a time, and stops starting new ones when ctx
+// ends. The result has one entry per row, at the row's index.
+func (s *Server) identifyImportRows(ctx context.Context, rows []importcsv.Row) []importIdentified {
+	out := make([]importIdentified, len(rows))
+	sem := make(chan struct{}, importIdentifyConcurrency)
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	for i, row := range rows {
+		if row.Outcome != importcsv.OutcomeCreate {
+			continue
+		}
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			return out
+		}
+		if ctx.Err() != nil {
+			return out
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			// A panic in one printer's identification must not take the
+			// process down with every other job. Only the row number is
+			// logged: nothing from the file reaches the logs.
+			defer func() {
+				if p := recover(); p != nil {
+					s.Log.Error("import identify panic", "row", row.Row, "panic", p)
+					out[i] = importIdentified{err: fmt.Errorf("internal error: %v", p), done: true}
+				}
+			}()
+			ictx, cancel := context.WithTimeout(ctx, importIdentifyTimeout)
+			defer cancel()
+			dev, created, err := s.identifyForImport(ictx, row.Address, row.Hostname)
+			out[i] = importIdentified{dev: dev, created: created, err: err, done: true}
+		}()
+	}
+	return out
 }
 
 // applyImportRow applies one planned row and returns the result's status
 // (created | updated | skipped | failed), device and message.
-func (s *Server) applyImportRow(ctx, wctx context.Context, p *importPayload, row importcsv.Row) (status, deviceID, msg string) {
+func (s *Server) applyImportRow(wctx context.Context, p *importPayload, row importcsv.Row, id importIdentified) (status, deviceID, msg string) {
 	switch row.Outcome {
 	case importcsv.OutcomeUpdate:
 		dev, err := s.Store.GetDevice(wctx, row.DeviceID)
@@ -318,14 +382,9 @@ func (s *Server) applyImportRow(ctx, wctx context.Context, p *importPayload, row
 		}
 		return s.applyImportFields(wctx, p, dev, row.Fields, row.GroupID, false)
 	case importcsv.OutcomeCreate:
-		ictx, cancel := context.WithTimeout(ctx, importIdentifyTimeout)
-		dev, created, err := s.identifyForImport(ictx, row.Address, row.Hostname)
-		cancel()
+		dev, created, err := id.dev, id.created, id.err
 		unreachable := false
 		if err != nil {
-			if ctx.Err() != nil {
-				return "failed", "", "not created: " + err.Error()
-			}
 			// The printer did not answer, the case the intent names: record
 			// it now with the file's fields. A poll or a discovery identifies
 			// the record when it answers (fleet.Service.PollDevice).
