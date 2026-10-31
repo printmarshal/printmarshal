@@ -44,6 +44,16 @@ Server
   and `bulkPatchDevices` set `FieldSources[field] = {operator, now}` for each field they change;
   the DNS sync rename in `fleet/rdns.go` sets `displayName → dns`.
 - `internal/api/export.go`: no change, but the import's alias test reads its header.
+  *Built:* the device export's header is written by `exportDevicesCSV` in `internal/api/server.go`
+  (`export.go` is the SIEM export). `importcsv.ExportHeader` keeps it as a literal list;
+  `importcsv`'s alias test checks every column is known or listed in `ExportIgnored`, and
+  `internal/api/import_test.go` checks the list equals the header the export writes.
+- *Built, step 1:* no asset-tag limit existed in `internal/api`; `internal/model/limits.go` holds
+  `MaxLocation` and `MaxNote` (moved from the bulk edit, same values) plus `MaxAssetTag` and
+  `MaxDisplayName` (200 each, applied by the import only). `Lookup.InScope` is two methods,
+  `DeviceInScope` and `GroupInScope`. A state the lifecycle cannot reach from the device's current
+  state (a new device is "discovered") is held back with "cannot move from X to Y" rather than
+  skipping the row; a scoped caller's create row needs a `group` cell in its scope.
 
 Web
 - `web/src/components/ImportDialog.tsx` (new): file input, "Download template" (a header-only

@@ -15,9 +15,7 @@ import (
 // bulk edit is the operator speaking for all of them at once.
 
 const (
-	bulkMaxDevices  = 2000
-	bulkMaxLocation = 200
-	bulkMaxNote     = 2000
+	bulkMaxDevices = 2000
 )
 
 type bulkPatchBody struct {
@@ -67,8 +65,8 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Set.Location != nil {
 		loc := strings.TrimSpace(*body.Set.Location)
-		if len(loc) > bulkMaxLocation {
-			writeErr(w, http.StatusBadRequest, fmt.Sprintf("location is over %d characters", bulkMaxLocation))
+		if len(loc) > model.MaxLocation {
+			writeErr(w, http.StatusBadRequest, fmt.Sprintf("location is over %d characters", model.MaxLocation))
 			return
 		}
 		body.Set.Location = &loc
@@ -79,8 +77,8 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadRequest, "appendNote is empty")
 			return
 		}
-		if len(note) > bulkMaxNote {
-			writeErr(w, http.StatusBadRequest, fmt.Sprintf("appendNote is over %d characters", bulkMaxNote))
+		if len(note) > model.MaxNote {
+			writeErr(w, http.StatusBadRequest, fmt.Sprintf("appendNote is over %d characters", model.MaxNote))
 			return
 		}
 		body.Set.AppendNote = &note
