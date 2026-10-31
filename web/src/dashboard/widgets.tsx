@@ -112,9 +112,9 @@ const devicesAttention: W = ({ data }) => (
   <Card title="Devices needing attention" id="na" right={<Link to="/devices?sort=severity" className="cap" style={{ color: 'var(--accent)' }}>Open in inventory →</Link>}>
     {data.attention.length === 0 ? <div className="cb"><EmptyState tone="ok" icon={<Ic.ok size={20} />} title="Nothing needs attention" text="All polled devices are healthy." /></div> : (
       <div className="tw"><table className="tbl">
-        <thead><tr><th>Status</th><th>Device</th><th>Model</th><th>Location</th><th className="r">Since</th></tr></thead>
+        <thead><tr><th>Status</th><th>Device</th><th>Model</th><th>Location</th><th>Reason</th><th className="r">Since</th></tr></thead>
         <tbody>{data.attention.map((d) => (
-          <tr key={d.id}><td><DevicePill d={d} /></td><td><Link to={`/devices/${d.id}`}>{deviceName(d)}</Link></td><td className="mono">{d.model}</td><td className="cap">{d.location || d.status?.message || '—'}</td><td className="num cap r">{since(d.status?.at)}</td></tr>
+          <tr key={d.id}><td><DevicePill d={d} /></td><td><Link to={`/devices/${d.id}`}>{deviceName(d)}</Link></td><td className="mono">{d.model}</td><td className="cap">{d.location || '—'}</td><td className="cap wrap">{d.status?.message || '—'}</td><td className="num cap r">{since(d.status?.at)}</td></tr>
         ))}</tbody>
       </table></div>
     )}
