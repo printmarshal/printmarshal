@@ -318,11 +318,18 @@ func (s *Server) auditAs(ctx context.Context, who, ip, action, target string, be
 
 // security publishes an auth.* event and mirrors it into the audit log.
 func (s *Server) security(ctx context.Context, r *http.Request, typ, who, detail, result string) {
+	s.securityChange(ctx, r, typ, who, detail, nil, nil, result)
+}
+
+// securityChange is security for a change that can be reviewed: the audit row
+// also carries before and after. They stay in the audit log; the published
+// event, which exporters forward off the system, is the same as security's.
+func (s *Server) securityChange(ctx context.Context, r *http.Request, typ, who, detail string, before, after map[string]any, result string) {
 	ip := clientIP(r)
 	if s.Bus != nil {
 		s.Bus.PublishFrom(model.Event{Type: typ, Data: map[string]any{"user": who, "detail": detail, "result": result, "ip": ip, "summary": who + ": " + detail}}, events.Origin{Source: "operator", Actor: who, IP: ip})
 	}
-	e := &model.AuditEntry{Actor: who, Action: typ, Target: detail, Result: result}
+	e := &model.AuditEntry{Actor: who, Action: typ, Target: detail, Before: before, After: after, Result: result}
 	if err := s.Store.AddAudit(ctx, e); err != nil {
 		s.Log.Error("AUDIT WRITE FAILED", "actor", who, "action", typ, "err", err)
 	}

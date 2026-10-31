@@ -38,3 +38,8 @@ The web has no test runner, so proof there is typecheck, build and screenshots.
 ## As built, group C
 The dashboard customise text needed no change: `web/src/dashboard/EditBar.tsx` already varies by role and never described a link the role lacks.
 The compliance report still does not read stored assessments. That is a moderate change, left for later: the report's store interface, aggregation, CSV rows and a results view.
+
+## As built, group B
+Supply alerts are categorised from the device's own supply data, because the alert key only carries an index. A part with no usable type or no matching supply is "other".
+Beyond the plan: an active offline alert now reads "Not reachable" even when the up/down signal is off, "Needs service" uses the warning tone for a warning-level part, and the unreachable "supply means toner" row in `alertCategory` is gone, with its test row updated.
+Left for the owner: with both up/down and alerts switched off, a stopped printer can still read "Ready" from last-known paper and toner.
