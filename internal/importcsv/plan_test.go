@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"printmarshal/internal/model"
 )
@@ -84,7 +85,11 @@ func mustParse(t *testing.T, csv string) *Table {
 	return tab
 }
 
-const held = "set by an operator; column not marked replace"
+const (
+	held         = "already has a value; column not marked replace"
+	heldOperator = "set by an operator; column not marked replace"
+	heldDNS      = "kept in sync with DNS; column not marked replace"
+)
 
 func TestPlan(t *testing.T) {
 	file := strings.Join([]string{
@@ -235,7 +240,7 @@ func TestDiff(t *testing.T) {
 	// A recorded source marks a field as chosen even at its default value.
 	off := &model.Device{ID: "o", State: model.StateDiscovered, FieldSources: map[string]model.FieldSource{"dnsSync": {Source: model.SourceOperator}, "state": {Source: model.SourceOperator}}}
 	fields, heldBack = Diff(off, map[string]any{"dnsSync": true, "state": "active"}, false, nil)
-	if len(fields) != 0 || !reflect.DeepEqual(heldBack, []HeldBack{{Field: "dnsSync", Reason: held}, {Field: "state", Reason: held}}) {
+	if len(fields) != 0 || !reflect.DeepEqual(heldBack, []HeldBack{{Field: "dnsSync", Reason: heldOperator}, {Field: "state", Reason: heldOperator}}) {
 		t.Errorf("recorded sources: %v %v", fields, heldBack)
 	}
 	// A new device takes every value.
@@ -277,5 +282,64 @@ func TestPlanEdgeKeys(t *testing.T) {
 	}
 	if r := got.Rows[3]; r.Key != "" || r.Reason != "no address; scan first" {
 		t.Errorf("no key cell: %+v", r)
+	}
+}
+
+// The hold-back rule by where the value came from: an import may overwrite
+// its own value, and the reason says truthfully why any other is kept.
+func TestHoldBackBySource(t *testing.T) {
+	at := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
+	sourced := func(field, source string) map[string]model.FieldSource {
+		return map[string]model.FieldSource{field: {Source: source, At: at}}
+	}
+	for _, tc := range []struct {
+		name   string
+		dev    model.Device
+		values map[string]any
+		reason string // "" means the value is set
+	}{
+		{"import may overwrite its own value", model.Device{Location: "Flor 2", FieldSources: sourced("location", model.SourceImport)}, map[string]any{"location": "Floor 2"}, ""},
+		{"import may overwrite its own name", model.Device{DisplayName: "Old", FieldSources: sourced("displayName", model.SourceImport)}, map[string]any{"displayName": "New"}, ""},
+		{"import may overwrite its own DNS sync", model.Device{DNSSync: true, FieldSources: sourced("dnsSync", model.SourceImport)}, map[string]any{"dnsSync": false}, ""},
+		{"operator", model.Device{Location: "Room 1", FieldSources: sourced("location", model.SourceOperator)}, map[string]any{"location": "Floor 2"}, heldOperator},
+		{"operator chose the default", model.Device{FieldSources: sourced("dnsSync", model.SourceOperator)}, map[string]any{"dnsSync": true}, heldOperator},
+		{"dns", model.Device{DisplayName: "lp-1", FieldSources: sourced("displayName", model.SourceDNS)}, map[string]any{"displayName": "Front desk"}, heldDNS},
+		{"no source, a value", model.Device{Location: "from sysLocation"}, map[string]any{"location": "Floor 2"}, held},
+		{"no source, DNS sync on", model.Device{DNSSync: true}, map[string]any{"dnsSync": false}, held},
+		{"no source, empty", model.Device{}, map[string]any{"location": "Floor 2"}, ""},
+		{"a source on another field says nothing here", model.Device{Location: "x", FieldSources: sourced("notes", model.SourceImport)}, map[string]any{"location": "Floor 2"}, held},
+		{"a source this version does not know", model.Device{Location: "x", FieldSources: sourced("location", "group:g1")}, map[string]any{"location": "Floor 2"}, held},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dev := tc.dev
+			dev.State = model.StateDiscovered
+			var col string
+			for c := range tc.values {
+				col = c
+			}
+			fields, heldBack := Diff(&dev, tc.values, false, nil)
+			if tc.reason == "" {
+				if !reflect.DeepEqual(fields, tc.values) || len(heldBack) != 0 {
+					t.Errorf("want it set: fields %v held %v", fields, heldBack)
+				}
+			} else if len(fields) != 0 || !reflect.DeepEqual(heldBack, []HeldBack{{Field: col, Reason: tc.reason}}) {
+				t.Errorf("want held back with %q: fields %v held %v", tc.reason, fields, heldBack)
+			}
+			// Marking the column replace always sets it.
+			if fields, heldBack := Diff(&dev, tc.values, false, map[string]bool{col: true}); !reflect.DeepEqual(fields, tc.values) || len(heldBack) != 0 {
+				t.Errorf("with replace: fields %v held %v", fields, heldBack)
+			}
+		})
+	}
+}
+
+// Re-importing a corrected file fixes what the last import wrote.
+func TestReimportFixesATypo(t *testing.T) {
+	lk := inventory()
+	d := lk.DeviceByAddress("10.0.0.6")
+	d.Location, d.FieldSources = "Flor 2", map[string]model.FieldSource{"location": {Source: model.SourceImport}}
+	got := Plan(mustParse(t, "address,location\n10.0.0.6,Floor 2\n"), lk, Options{})
+	if r := got.Rows[0]; r.Outcome != OutcomeUpdate || r.Fields["location"] != "Floor 2" || len(r.HeldBack) != 0 {
+		t.Errorf("re-import: %+v", r)
 	}
 }

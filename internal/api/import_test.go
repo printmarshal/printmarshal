@@ -239,7 +239,7 @@ func TestImportPreviewMakesNoFleetCall(t *testing.T) {
 	if code != http.StatusOK {
 		t.Fatalf("preview: %d %s", code, body)
 	}
-	if !strings.Contains(body, `"heldBack":[{"field":"displayName","reason":"set by an operator; column not marked replace"}]`) {
+	if !strings.Contains(body, `"heldBack":[{"field":"displayName","reason":"already has a value; column not marked replace"}]`) {
 		t.Errorf("held-back JSON shape: %s", body)
 	}
 	p := decodePlan(t, body)
