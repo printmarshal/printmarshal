@@ -256,3 +256,26 @@ func TestParseReplace(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanEdgeKeys(t *testing.T) {
+	lk := inventory()
+	lk.devices = append(lk.devices, &model.Device{ID: "dN", Address: "print-server-3", State: model.StateDiscovered})
+	file := "address,serial,location\n" +
+		"print-server-3,,Floor 1\n" + // a device discovered by name is recorded under it
+		"other-name,,Floor 1\n" + // a name the inventory does not hold is a bad address
+		"10.0.0.7,SD,Floor 1\n" + // the disagreement would reveal a device outside the scope
+		",,Floor 1\n" // no key cell at all
+	got := Plan(mustParse(t, file), lk, Options{})
+	if r := got.Rows[0]; r.Outcome != OutcomeUpdate || r.DeviceID != "dN" || r.Key != "print-server-3" {
+		t.Errorf("address recorded by name: %+v", r)
+	}
+	if r := got.Rows[1]; r.Reason != "address is not an IP address" {
+		t.Errorf("unknown name: %+v", r)
+	}
+	if r := got.Rows[2]; r.Reason != ReasonOutOfScope || r.DeviceID != "" {
+		t.Errorf("conflict with an out-of-scope device: %+v", r)
+	}
+	if r := got.Rows[3]; r.Key != "" || r.Reason != "no address; scan first" {
+		t.Errorf("no key cell: %+v", r)
+	}
+}

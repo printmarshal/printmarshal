@@ -474,3 +474,24 @@ func TestFieldSourcesOnEditPaths(t *testing.T) {
 		t.Errorf("dns sync sources: %q %v", d.DisplayName, d.FieldSources)
 	}
 }
+
+// R11, the other two operator write paths: a rename and a lifecycle change.
+func TestFieldSourcesOnRenameAndState(t *testing.T) {
+	ts, s := newImportServer(t, importServerOpts{})
+	a, _, _ := seedImportFleet(t, s)
+	ctx := context.Background()
+	admin := login(t, ts, "admin", "adminpass123")
+	if code, body := do(t, ts, admin, "POST", "/api/devices/rename", `{"deviceIds":["`+a.ID+`"],"source":"pattern","pattern":"P-{serial}","dryRun":false}`); code != 200 {
+		t.Fatalf("rename: %d %s", code, body)
+	}
+	if code, body := do(t, ts, admin, "POST", "/api/devices/"+a.ID+"/state", `{"state":"onboarded"}`); code != 200 {
+		t.Fatalf("state: %d %s", code, body)
+	}
+	d, _ := s.Store.GetDevice(ctx, a.ID)
+	if d.DisplayName != "P-SA" || d.DisplayNameSource != "pattern" || d.State != model.StateOnboarded {
+		t.Errorf("device: %+v", d)
+	}
+	if d.FieldSources["displayName"].Source != "operator" || d.FieldSources["state"].Source != "operator" {
+		t.Errorf("sources: %v", d.FieldSources)
+	}
+}
