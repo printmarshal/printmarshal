@@ -545,7 +545,7 @@ func (s *Service) RunScheduler(ctx context.Context) {
 			}
 			if now.After(nextDisc) {
 				if r.DiscoveryEnabled {
-					if _, err := s.SubmitDiscovery(ctx, DiscoveryParams{Targets: r.DiscoveryTargets, ZeroConf: true}, "scheduler"); err != nil {
+					if _, err := s.SubmitDiscovery(ctx, s.scheduledDiscoveryParams(r), "scheduler"); err != nil {
 						s.Log.Warn("scheduled discovery", "err", err)
 					}
 				}
@@ -559,6 +559,11 @@ func (s *Service) RunScheduler(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// scheduledDiscoveryParams are the parameters of a scheduled discovery run.
+func (s *Service) scheduledDiscoveryParams(r RuntimeSettings) DiscoveryParams {
+	return DiscoveryParams{Targets: r.DiscoveryTargets, ZeroConf: true}
 }
 
 func (s *Service) scheduledPoll(ctx context.Context) {
