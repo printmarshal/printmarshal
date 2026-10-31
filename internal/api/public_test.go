@@ -425,7 +425,7 @@ func TestPublicBoardNeverCarriesIdentity(t *testing.T) {
 func TestAlertCategoryMapping(t *testing.T) {
 	for _, c := range []struct{ source, key, want string }{
 		{"offline", "offline", "offline"},
-		{"poll", "state:down", "offline"},
+		{"poll", "state:down", "other"}, // it answered the poll, so it is reachable
 		{"poll", "error:offline", "offline"},
 		{"trap", "trap:link-down", "offline"},
 		{"poll", "paper:A4", "paper"},
