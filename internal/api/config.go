@@ -41,7 +41,7 @@ func (s *Server) configFail(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, configmgmt.ErrNoTarget), errors.Is(err, configmgmt.ErrNoChanges):
 		writeErr(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, engine.ErrUnsupported):
+	case errors.Is(err, engine.ErrUnsupported), errors.Is(err, model.ErrDecommissioned):
 		writeErr(w, http.StatusConflict, err.Error())
 	case errors.Is(err, store.ErrNotFound):
 		writeErr(w, http.StatusNotFound, err.Error())
@@ -251,7 +251,16 @@ func (s *Server) profileDrift(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) deviceConfig(w http.ResponseWriter, r *http.Request) {
 	refresh := r.URL.Query().Get("refresh") == "true"
-	doc, sn, err := s.ConfigMgmt.CurrentConfig(r.Context(), r.PathValue("id"), refresh)
+	dev, err := s.Store.GetDevice(r.Context(), r.PathValue("id"))
+	if err != nil {
+		s.configFail(w, err)
+		return
+	}
+	if dev.Decommissioned() {
+		s.decommissionedConfig(w, r, dev, refresh)
+		return
+	}
+	doc, sn, err := s.ConfigMgmt.CurrentConfig(r.Context(), dev.ID, refresh)
 	if err != nil {
 		s.configFail(w, err)
 		return
@@ -260,6 +269,26 @@ func (s *Server) deviceConfig(w http.ResponseWriter, r *http.Request) {
 	if sn != nil {
 		out["snapshotId"] = sn.ID
 		out["at"] = sn.At
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// decommissionedConfig answers from the store alone: the last snapshot if there
+// is one, otherwise a null document, and a field saying why nothing was read.
+// Unread settings stay absent; nothing is inferred about them.
+func (s *Server) decommissionedConfig(w http.ResponseWriter, r *http.Request, dev *model.Device, refresh bool) {
+	if refresh {
+		s.configFail(w, model.ErrDecommissioned)
+		return
+	}
+	out := map[string]any{"document": nil, "fresh": false, "contacted": false, "notContactedReason": string(model.StateDecommissioned)}
+	sn, err := s.Store.LatestConfigSnapshot(r.Context(), dev.ID)
+	switch {
+	case err == nil:
+		out["document"], out["snapshotId"], out["at"] = sn.Document, sn.ID, sn.At
+	case !errors.Is(err, store.ErrNotFound):
+		s.configFail(w, err)
+		return
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -375,6 +404,10 @@ func (s *Server) revertConfigWrite(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			s.fail(w, err)
+			return
+		}
+		if errors.Is(err, model.ErrDecommissioned) {
+			writeErr(w, http.StatusConflict, err.Error())
 			return
 		}
 		writeErr(w, http.StatusBadRequest, err.Error())

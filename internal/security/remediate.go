@@ -19,7 +19,11 @@ func (s *Service) Remediate(ctx context.Context, policyID string, t Target, opts
 	if _, err := s.Store.GetPolicy(ctx, policyID); err != nil {
 		return nil, err
 	}
-	if _, err := s.ResolveTarget(ctx, t); err != nil {
+	devs, err := s.ResolveTarget(ctx, t)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.refuseDecommissioned(ctx, devs, JobRemediate, actor, opts.DryRun); err != nil {
 		return nil, err
 	}
 	target := t.toMap()
@@ -67,6 +71,9 @@ func (s *Service) runRemediate(ctx context.Context, jc *jobs.Context) error {
 // and dry run. Every real write is audited; secrets never appear in the
 // result or the audit entry.
 func (s *Service) RemediateDevice(ctx context.Context, dev *model.Device, policy *model.Policy, opts Options, actor, jobID string) (*model.RemediationResult, error) {
+	if dev.Decommissioned() {
+		return nil, model.ErrDecommissioned
+	}
 	creds := s.creds(ctx, dev)
 	doc, _ := s.Gather(ctx, dev, creds)
 	assessment := Assess(policy, doc, dev.ID, jobID)

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ago, fmtTime } from '../api'
 import type { Alert, Consumable, Device, InstalledSupply, Sample, StockEvent, Tray, User } from '../types'
-import { deviceName, makeModel } from '../types'
+import { decommissionedReason, deviceName, isDecommissioned, makeModel } from '../types'
 import { useEvents } from '../ws'
 import { Ic } from '../components/icons'
 import { Banner, Bar, Btn, Card, DevicePill, Mk, MiniSpark, Pill, SevPill, Sw, Tabs, Tag, fmtInt, remaining, since, supplyColor, trayTone } from '../components/ui'
@@ -105,14 +105,15 @@ function DeviceDetailBody({ id, user }: { id: string; user: User }) {
         </div>
         {canOperate && (
           <div className="row" role="toolbar" aria-label="Device actions">
-            <Btn sm onClick={poll} disabled={busy || !shownId}><Ic.refresh />{busy ? 'Polling…' : 'Poll now'}</Btn>
+            <Btn sm onClick={poll} disabled={busy || !shownId || isDecommissioned(d)} title={isDecommissioned(d) ? decommissionedReason : undefined}><Ic.refresh />{busy ? 'Polling…' : 'Poll now'}</Btn>
             <a className="btn sm" href="#identity"><Ic.pencil />Edit</a>
-            {d.webUrl && <a className="btn sm" href={d.webUrl} target="_blank" rel="noopener noreferrer"><Ic.external />Device web page</a>}
+            {d.webUrl && !isDecommissioned(d) && <a className="btn sm" href={d.webUrl} target="_blank" rel="noopener noreferrer"><Ic.external />Device web page</a>}
             <span className="vsep" />
             <label className="chip"><select aria-label="Change lifecycle state" value="" disabled={!shownId} onChange={(e) => e.target.value && setState(e.target.value)}><option value="">Change state…</option>{(transitions[d.state] || []).map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select></label>
           </div>
         )}
       </div>
+      {isDecommissioned(d) && <Banner tone="info"><b>This printer is decommissioned, and PrintMarshal does not contact it.</b> Everything here is the last stored data{d.lastPolled ? <>, polled {ago(d.lastPolled)}</> : ''}. Reads and writes stay off until its lifecycle state changes.</Banner>}
       {error && <Banner tone="crit">{error}</Banner>}
       {note && <Banner tone={note.tone}>{note.text}</Banner>}
       {topAlert && (

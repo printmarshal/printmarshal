@@ -183,6 +183,22 @@ func (s *Service) ResolveTarget(ctx context.Context, t Target) ([]*model.Device,
 	return nil, errors.New("target must name deviceIds or a groupId")
 }
 
+// refuseDecommissioned is the submit-time check of a job: a target with no
+// device left that may be contacted is refused, and a refused real write is
+// audited. In a longer target forEachDevice skips the decommissioned ones.
+func (s *Service) refuseDecommissioned(ctx context.Context, devs []*model.Device, action, actor string, dryRun bool) error {
+	if !model.AllDecommissioned(devs) {
+		return nil
+	}
+	if !dryRun {
+		for _, d := range devs {
+			_ = s.Store.AddAudit(ctx, &model.AuditEntry{Actor: actor, Action: action, Target: d.ID,
+				After: map[string]any{"reason": model.ErrDecommissioned.Error()}, Result: "refused"})
+		}
+	}
+	return model.ErrDecommissioned
+}
+
 func (t Target) toMap() map[string]any {
 	m := map[string]any{}
 	if t.GroupID != "" {
@@ -239,6 +255,11 @@ func (s *Service) forEachDevice(ctx context.Context, jc *jobs.Context, devs []*m
 	for _, d := range devs {
 		if ctx.Err() != nil {
 			break
+		}
+		// Every assess, remediate, rotate, enroll and install job comes through here.
+		if d.Decommissioned() {
+			jc.Result(d.ID, d.Address, "skipped", model.ErrDecommissioned.Error(), nil)
+			continue
 		}
 		wg.Add(1)
 		sem <- struct{}{}

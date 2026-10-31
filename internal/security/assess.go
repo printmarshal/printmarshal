@@ -15,7 +15,11 @@ func (s *Service) Assess(ctx context.Context, policyID string, t Target, actor s
 	if _, err := s.Store.GetPolicy(ctx, policyID); err != nil {
 		return nil, err
 	}
-	if _, err := s.ResolveTarget(ctx, t); err != nil {
+	devs, err := s.ResolveTarget(ctx, t)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.refuseDecommissioned(ctx, devs, JobAssess, actor, true); err != nil {
 		return nil, err
 	}
 	target := t.toMap()
@@ -53,6 +57,9 @@ func (s *Service) runAssess(ctx context.Context, jc *jobs.Context) error {
 // stores the assessment, publishes security.assessed and reconciles the
 // per-item alerts for failing critical items.
 func (s *Service) AssessDevice(ctx context.Context, dev *model.Device, policy *model.Policy, jobID string) (*model.Assessment, error) {
+	if dev.Decommissioned() {
+		return nil, model.ErrDecommissioned
+	}
 	creds := s.creds(ctx, dev)
 	doc, _ := s.Gather(ctx, dev, creds)
 	a := Assess(policy, doc, dev.ID, jobID)

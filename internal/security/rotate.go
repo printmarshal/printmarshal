@@ -35,7 +35,11 @@ func (s *Service) Rotate(ctx context.Context, kind string, t Target, opts Option
 	if kind != model.RotateSNMPCommunity && kind != model.RotateAdminPassword {
 		return nil, fmt.Errorf("unknown rotation kind %q", kind)
 	}
-	if _, err := s.ResolveTarget(ctx, t); err != nil {
+	devs, err := s.ResolveTarget(ctx, t)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.refuseDecommissioned(ctx, devs, JobRotate, actor, opts.DryRun); err != nil {
 		return nil, err
 	}
 	target := t.toMap()
