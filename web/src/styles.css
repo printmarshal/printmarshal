@@ -268,3 +268,24 @@ textarea.fin{height:auto;padding:6px 10px;resize:vertical}
 .swatch{display:inline-flex;align-items:center;gap:6px}
 .forecast{font-weight:500}.forecast.reorder{color:var(--warn);font-weight:600}.forecast-unknown{color:var(--text-3)}
 .batchbar{position:sticky;bottom:12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 14px;background:var(--accent-weak);border:1px solid var(--accent);border-radius:8px;box-shadow:var(--shadow)}
+
+/* Dashboard layout (intent/dashboard-layout): one 12-column grid, widgets span by size */
+.dash-grid{display:grid;gap:16px;grid-template-columns:repeat(12,minmax(0,1fr));align-items:start}
+.dash-grid .widget{min-width:0}
+.dash-grid .span-kpi{grid-column:span 2}
+.dash-grid .span-third{grid-column:span 4}
+.dash-grid .span-half{grid-column:span 6}
+.dash-grid .span-full{grid-column:span 12}
+.dash-grid .span-kpi + .span-kpi{margin-top:0}
+.dash-grid.editing .widget{outline:1px dashed var(--border-strong);outline-offset:4px;border-radius:8px}
+.widget-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;margin-bottom:6px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2)}
+.widget-tools .widget-title{flex:1;min-width:0;font-weight:500;font-size:12px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.widget-collapsed .ch{border-bottom:0}
+.edit-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border:1px solid var(--accent);border-radius:8px;background:var(--accent-weak)}
+.hidden-tray{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 16px;border:1px dashed var(--border-strong);border-radius:8px}
+.posture-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px 16px;flex:1;min-width:220px}
+.posture-stats > div{display:flex;flex-direction:column;gap:2px}
+.posture-stats b{font-size:20px;font-weight:600}
+@media (max-width:1100px){.dash-grid .span-kpi{grid-column:span 4}.dash-grid .span-third{grid-column:span 6}}
+@media (max-width:900px){.dash-grid .span-half,.dash-grid .span-third{grid-column:span 12}}
+@media (max-width:640px){.dash-grid{gap:12px}.dash-grid .span-kpi{grid-column:span 6}}
