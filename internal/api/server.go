@@ -48,6 +48,7 @@ type Server struct {
 	Version    string
 
 	logins *loginLimiter
+	pub    *publicState // public status board: cache and rate limiter (public.go)
 	http   *httpStats
 	oidc   *oidcState // lazily discovered OIDC provider (oidc.go)
 	saml   *samlState // lazily built SAML service provider (saml.go)
@@ -61,6 +62,10 @@ func (s *Server) Handler() http.Handler {
 	if s.logins == nil {
 		s.logins = newLoginLimiter(s.Cfg.Auth.LoginFailuresPerMinute)
 	}
+	if s.pub == nil {
+		s.pub = newPublicState()
+	}
+	s.stats() // before serving: the lazy init in stats() races under concurrent first requests
 	if s.Hub != nil && s.Hub.Authorize == nil {
 		s.Hub.Authorize = func(r *http.Request) bool { _, err := s.Auth.Authenticate(r); return err == nil }
 	}
@@ -158,13 +163,20 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/settings/directory/test", s.require(model.RoleAdmin, s.testDirectory))
 	mux.Handle("GET /api/drivers", s.require(model.RoleViewer, s.listDrivers))
 
+	// Public status board (public.go). The two GET routes are the only data
+	// routes outside require: no session, no token, store reads only.
+	mux.HandleFunc("GET /api/public/status", s.getPublicStatus)
+	mux.HandleFunc("GET /api/public/status/{slug}", s.getPublicStatus)
+	mux.Handle("GET /api/settings/public-status", s.require(model.RoleAdmin, s.getPublicStatusSettings))
+	mux.Handle("PUT /api/settings/public-status", s.require(model.RoleAdmin, s.putPublicStatusSettings))
+
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "no such endpoint")
 	})
 	if s.UI != nil {
 		mux.Handle("/", s.UI)
 	}
-	return s.logging(secureHeaders(mux))
+	return s.logging(secureHeadersWith(s.boardFrameOrigins, mux))
 }
 
 // --- middleware -------------------------------------------------------------
@@ -189,13 +201,32 @@ func (s *Server) require(min model.Role, next http.HandlerFunc) http.Handler {
 	})
 }
 
-func secureHeaders(next http.Handler) http.Handler {
+func secureHeaders(next http.Handler) http.Handler { return secureHeadersWith(nil, next) }
+
+// secureHeadersWith sets the common response headers. Every page is DENY
+// for framing except the public status board's page (/status and paths
+// under /status/ only), which frameOrigins may open to the origins an
+// administrator listed (spec decision 3).
+func secureHeadersWith(frameOrigins func(*http.Request) []string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "same-origin")
+		var origins []string
+		if frameOrigins != nil && isBoardPage(r.URL.Path) {
+			origins = frameOrigins(r)
+		}
+		if len(origins) > 0 {
+			w.Header().Set("Content-Security-Policy", "frame-ancestors "+strings.Join(origins, " "))
+		} else {
+			w.Header().Set("X-Frame-Options", "DENY")
+		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// isBoardPage reports whether path is the public board's SPA page.
+func isBoardPage(path string) bool {
+	return path == "/status" || strings.HasPrefix(path, "/status/")
 }
 
 type statusWriter struct {

@@ -28,9 +28,18 @@ import Firmware from './pages/Firmware'
 import FirmwareCampaign from './pages/FirmwareCampaign'
 import Security from './pages/Security'
 import SecurityAssessment from './pages/SecurityAssessment'
+import PublicStatus from './pages/PublicStatus'
 import './theme'
 
+// The public status board renders before the auth gate: no session, no /api/auth/me.
+function isPublicPath(p: string): boolean { return p === '/status' || p.startsWith('/status/') }
+
 export default function App() {
+  if (isPublicPath(window.location.pathname)) return <PublicStatus />
+  return <Console />
+}
+
+function Console() {
   const [user, setUser] = useState<User | null | undefined>(undefined)
   const navigate = useNavigate()
   const refresh = useCallback(() => { api.me().then(setUser).catch(() => setUser(null)) }, [])

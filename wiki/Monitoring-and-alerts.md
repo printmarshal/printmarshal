@@ -168,3 +168,28 @@ Sources: `internal/fleet/service.go`, `internal/engine/engine.go`, `internal/ale
 ## Customising the dashboard
 
 The dashboard is a catalogue of widgets (six number cards, security posture, fleet health, recent alerts, devices needing attention, supplies running low, in-progress jobs, recent activity, consumables low on stock, upcoming replacements). **Customise** opens an edit mode where each widget has buttons to move it up or down, hide it, or collapse it to its title; hidden widgets wait in a tray at the bottom with a **Show** button. **Done** saves the layout for your sign-in; **Use the default** removes it. An administrator also sees **Save as default for everyone**, which sets the instance default that applies to anyone without a personal layout, and **Clear default**. Layouts are presentation only: hiding a widget never changes what a role or a group-scoped principal can read, and a stored layout survives widgets being added or renamed in later releases (unknown ids are dropped, new widgets appear after the listed ones). The security-posture widget shows the compliance score, compliant, non-compliant and not-assessed devices, and the number of items reported as *unknown*, which are never counted as passing; it covers only the devices the signed-in principal may see.
+
+## Public status board
+
+The public status board is a page people can open without signing in, so staff and students can see whether a printer is up and has paper and toner before they walk to it. It is off until an administrator turns it on.
+
+**Turning it on.** In **Settings → Public status**, switch **Enabled** on, set the board title (default "Printer status", up to 60 characters) and add printers with the picker (search and group filter, up and down buttons to set the order; at most 200). Each printer can carry a public label of up to 80 characters, such as "Library ground floor, colour", which is shown instead of its display name; the label lives in the board's configuration and does not change the device. The dashboard's edit bar links here as **Public board…**. Saving with no printers is allowed, with a warning that the board will be empty. **Preview** opens the saved board in a new tab, and a one-line summary says what the public will see.
+
+**What it shows.** Each printer always shows its label. Six switches add more:
+
+| Switch | Shows |
+| --- | --- |
+| Location | The printer's location text. |
+| Up/down | Whether the last poll reached the printer; a printer that was not reached gets a "not reachable" pill. |
+| State | The printer's own state word, such as sleeping or printing (off by default, so a sleeping printer never reads as down). |
+| Paper | One pill per input tray: ok, low, empty or unknown. |
+| Toner | A gauge per supply in its own colour, with the percentage when the printer reports it. |
+| Alerts | Active alerts as a fixed category, such as "paper jam" or "cover open"; the alert text is never shown. |
+
+**Address.** The board is at `/status`. Switch on **Unlisted** to move it to `/status/<slug>` with a random 22-character slug; **Regenerate** issues a new slug and retires the old address, and `/status` then says the board is not available. An unlisted address hides the board, it does not protect it: anyone who has the link can open it.
+
+**Signage screens.** The console refuses to be framed. To show the board inside a signage system's page, list that system's origins (one per line, `https://host[:port]`) under framing origins; only the board's paths can then be framed by those origins. For a wall screen, open the board with `?wall=1`: the type grows to read from about three metres, printers are laid out as tiles, and when more than twelve are listed the board pages through them twelve at a time, ten seconds a page.
+
+**What readers see.** The page refreshes every 30 seconds and shows "Updated N s ago"; when the data is older than three poll intervals it says the board may be out of date. A board that is off reads "This board is not available."; one with no printers reads "No printers are listed yet."; after three failed refreshes it reads "Status unavailable. Trying again." instead of showing old data.
+
+The board never reads a printer itself. It shows the console's last poll, so it is as fresh as the poll schedule above, and opening it adds no traffic to the printers.
