@@ -563,7 +563,7 @@ func TestImportCreatesAPrinterThatIsOff(t *testing.T) {
 	ctx := context.Background()
 	admin := login(t, ts, "admin", "adminpass123")
 	job, results := applyAndWait(t, ts, s, admin, "", []byte("address,hostname,location,asset tag,group\n10.0.0.50,lp-50,Floor 7,A-50,Floor 2\n"))
-	if len(results) != 1 || results[0].Status != "created" || !strings.Contains(results[0].Message, "not reachable yet") || !strings.Contains(results[0].Message, "location") {
+	if len(results) != 1 || results[0].Status != "created" || !strings.Contains(results[0].Message, "not reachable yet") || !strings.Contains(results[0].Message, "Location") {
 		t.Fatalf("results: %+v", results)
 	}
 	if job.Status != model.JobSucceeded {
