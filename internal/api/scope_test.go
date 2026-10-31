@@ -1,9 +1,13 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -177,3 +181,75 @@ func TestBodyTargetsAreCheckedRegardlessOfContentType(t *testing.T) {
 }
 
 var _ = httptest.NewServer
+
+// A JSON body larger than the scope check's peek cannot have been checked
+// whole, so a scoped principal is refused rather than trusted on the part it
+// saw. An upload over the peek is not JSON and reaches its handler whole.
+func TestScopedOversizedJSONIsRefused(t *testing.T) {
+	ts, s := newTestServer(t)
+	admin := login(t, ts, "admin", "adminpass123")
+	g, in, out := scopedFixture(t, s)
+	tok := mkToken(t, ts, admin, `{"name":"bot","role":"operator","scope":["`+g.ID+`"]}`).Secret
+	// The rename route names its devices in the body, so only the probe guards it.
+	names := `"deviceIds":["` + out.ID + `"],"source":"hostname","dryRun":false`
+	pad := strings.Repeat(" ", 1<<20+64)
+	for _, tc := range []struct{ name, body string }{
+		{"whitespace before the JSON", pad + `{` + names + `}`},
+		{"whitespace inside the JSON", `{` + pad + names + `}`},
+		{"an array", `[` + pad + `]`},
+	} {
+		code, body := do(t, ts, tok, "POST", "/api/devices/rename", tc.body)
+		if code != http.StatusRequestEntityTooLarge || strings.Count(strings.TrimSpace(body), "\n") != 0 {
+			t.Errorf("%s: %d %.120s", tc.name, code, body)
+		}
+	}
+	// It leaves the same record as any other denial.
+	entries, _ := s.Store.ListAudit(context.Background(), 5)
+	if len(entries) == 0 || entries[0].Action != "auth.denied" || entries[0].Result != "denied" {
+		t.Errorf("audit: %+v", entries)
+	}
+	if d, _ := s.Store.GetDevice(context.Background(), out.ID); d.DisplayName != "" {
+		t.Errorf("the foreign device changed: %+v", d)
+	}
+	// Under the peek, nothing changes: the scope check reads it and answers.
+	small := `{"deviceIds":["` + in.ID + `"],"source":"hostname"}`
+	if code, body := do(t, ts, tok, "POST", "/api/devices/rename", strings.Repeat(" ", 1<<19)+small); code != 200 {
+		t.Errorf("a padded body under the peek: %d %.120s", code, body)
+	}
+	if code, body := do(t, ts, tok, "POST", "/api/devices/rename", `{`+names+`}`); code != 403 {
+		t.Errorf("a foreign device under the peek: %d %.120s", code, body)
+	}
+	// An unscoped principal has no scope check and keeps readJSON's answer.
+	if code, body := do(t, ts, admin, "POST", "/api/devices/rename", pad+`{}`); code != 400 {
+		t.Errorf("unscoped oversized JSON: %d %.120s", code, body)
+	}
+	// A multipart upload over the peek arrives whole.
+	var file strings.Builder
+	file.WriteString("address,owner\n")
+	for i := 0; i < 5000; i++ {
+		file.WriteString("10.1." + strconv.Itoa(i/250) + "." + strconv.Itoa(i%250+1) + "," + strings.Repeat("x", 290) + "\n")
+	}
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	_ = mw.WriteField("mode", "preview")
+	fw, _ := mw.CreateFormFile("file", "printers.csv")
+	_, _ = fw.Write([]byte(file.String()))
+	_ = mw.Close()
+	if buf.Len() <= 1<<20 {
+		t.Fatalf("fixture is only %d bytes", buf.Len())
+	}
+	req, _ := http.NewRequest("POST", ts.URL+"/api/discovery/import", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+tok)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var plan struct {
+		Rows []json.RawMessage `json:"rows"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&plan); err != nil || resp.StatusCode != 200 || len(plan.Rows) != 5000 {
+		t.Errorf("large upload: %d %v, %d rows", resp.StatusCode, err, len(plan.Rows))
+	}
+}
