@@ -111,16 +111,18 @@ export default function PublicStatusSection() {
   })
   const setLabel = (i: number, label: string) => setForm((f) => ({ ...f, devices: f.devices.map((d, j) => (j === i ? { ...d, label } : d)) }))
 
-  const body = (slug: string): PublicStatusConfig => ({
-    ...form, slug, title: form.title.trim() || DEFAULT_TITLE, frameOrigins: origins,
+  // The slug is server-owned: the PUT body carries regenerateSlug instead of a new value.
+  const body = (regenerateSlug: boolean): PublicStatusConfig & { regenerateSlug?: boolean } => ({
+    ...form, title: form.title.trim() || DEFAULT_TITLE, frameOrigins: origins,
     devices: form.devices.map((d) => ({ id: d.id, label: d.label.trim() })),
+    ...(regenerateSlug ? { regenerateSlug: true } : {}),
   })
 
-  const put = async (slug: string, okText: string) => {
+  const put = async (regenerateSlug: boolean, okText: string) => {
     if (badOrigins.length) { setMsg({ tone: 'crit', text: 'Fix the framing origins before saving.' }); return }
     setMsg(null); setBusy(true)
     try {
-      const c = await api.put<PublicStatusConfig>('/api/settings/public-status', body(slug))
+      const c = await api.put<PublicStatusConfig>('/api/settings/public-status', body(regenerateSlug))
       adopt(c)
       const n = normalise(c)
       setMsg(n.devices.length === 0
@@ -128,10 +130,10 @@ export default function PublicStatusSection() {
         : { tone: 'ok', text: okText })
     } catch (err) { setMsg({ tone: 'crit', text: (err as Error).message }) } finally { setBusy(false) }
   }
-  const save = (e: React.FormEvent) => { e.preventDefault(); put(form.slug, 'Saved.') }
+  const save = (e: React.FormEvent) => { e.preventDefault(); put(false, 'Saved.') }
   const regenerate = () => {
     if (!confirm('Make a new address for the board? The current link stops working, and any other changes on this page are saved too.')) return
-    put('', 'New address saved. The old link no longer works.')
+    put(true, 'New address saved. The old link no longer works.')
   }
 
   if (error) return <Banner tone="crit">{error}</Banner>
