@@ -217,7 +217,7 @@ export default function PublicStatus() {
         <div className="pub-head-in">
           <ShieldGlyph size={28} />
           <h1 className="pub-title">{board.title || 'Printer status'}</h1>
-          <p className="pub-updated" aria-live="polite">{lastOk !== null ? `Updated ${since(now - lastOk)} ago` : ''}</p>
+          <p className="pub-updated" aria-live="polite">{lastOk !== null ? `Updated ${since(now - (isNaN(updatedAt) ? lastOk : updatedAt))} ago` : ''}</p>
         </div>
       </header>
       {board.stale && (

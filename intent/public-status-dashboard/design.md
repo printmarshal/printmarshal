@@ -71,7 +71,8 @@ crossfade and the page switch in wall mode becomes a cut.
 
 ## Copy
 - Title default: "Printer status" (the administrator can change it).
-- Freshness: "Updated 12 s ago", "Updated 3 min ago"; when stale: a Mist band under the header,
+- Freshness: "Updated 12 s ago", "Updated 3 min ago", counted from the data's own time (the newest
+  poll among the listed printers), not from the page's last fetch; when stale: a Mist band under the header,
   "Last update 25 min ago. This may be out of date."
 - Up/down words after the label are not shown; the edge says it. A down printer gets one pill
   in `--crit`: "not reachable", so the state is readable without colour.
