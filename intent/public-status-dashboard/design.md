@@ -1,100 +1,149 @@
-# Design: the public status board
+# Design: the public status board (version 2)
 
-The design pass from `plan.md` step 1. The page's one job: someone standing up from their desk,
-or glancing at a screen in the print room, learns in a second whether the printer they want is
-ready, has paper and has toner. The reader is not an administrator and has no account; the page
-must read at arm's length on a phone and at three metres on a wall.
+## What changed and why
+Version 1 was drawn against a made-up fleet of two trays and one alert. On a real fleet (six HP
+multifunction printers, five trays, four toners and two alerts each) every printer became two or
+three lines of look-alike pills, the toner gauges shrank to bars with letters, the alerts repeated
+what the trays had just said, and the up/down edge disappeared in the noise. The page read as an
+admin list. The reader has one question, "can I print there now?", and nothing on the page
+answered it.
+
+Version 2 answers it with one dominant element per printer: a solid state block in the state's
+colour carrying the state word, set larger than the printer's own name. Paper is summarised to a
+sentence, toner to one four-bar element with one number, and alerts appear only when they add
+something the state word and the sentence do not already say. The up/down edge is gone; up/down is
+folded into the state.
+
+## The reader
+Someone standing up from a desk, or glancing at the print-room screen, decides whether to walk to
+a printer. They know which printer is near them; they do not know its state. So the state is the
+biggest thing on the page and the name is second. No account, no links; the page must read at
+arm's length on a phone and at three metres on a wall.
+
+## The state
+One word per printer, derived from the signals the administrator has switched on, in this fixed
+precedence (first match wins):
+
+| State word | Tone | When |
+| --- | --- | --- |
+| Not reachable | `--off` | `online` is false |
+| Needs service | `--crit` | an alert in category maintenance |
+| Paper jam | `--crit` | an alert in category jam |
+| Cover open | `--crit` | an alert in category door |
+| Out of paper | `--crit` | trays are listed, none is ok and at least one is empty; or no trays listed and a critical paper alert |
+| Toner empty | `--crit` | a supply with status empty; or no supplies listed and a critical toner alert |
+| Low paper | `--warn` | a tray low or empty while another is ok; or no trays listed and a paper alert |
+| Toner low | `--warn` | a supply with status low; or no supplies listed and a toner alert |
+| Needs attention | `--warn` | an alert in category other |
+| Ready | `--ok` | anything else when at least one signal is on |
+| No status | `--off` | no signal is on (label only) |
+
+"Not reachable" is grey, not red: the monitor cannot see the printer, which is different from the
+printer saying it cannot print. Paper and toner alerts never add anything when the trays or supplies
+are listed, so they are dropped there; maintenance, jam, door and other alerts that did not become
+the state word are listed after the paper and toner detail in their own words.
 
 ## Tokens
-Colour (the console's variables; the page sets the light theme and ignores the viewer's dark
-preference, because wall screens and phones in bright rooms need the Mist surface)
-- Page: white `#FFFFFF`; the header strip Mist `#E8ECF2`; ink Graphite `var(--text)`;
-  secondary `var(--text-2)`.
-- The one accent: Cobalt `var(--accent)` for the up edge, the wordmark and the paging dot.
-- States, from the console: `var(--ok)`, `var(--warn)`, `var(--crit)`, `var(--off)` with their
-  `-bg` pairs for pills. Never brass as identity; `--glint` is not used here.
+Colour (the console's light variables; the page forces the light theme because wall screens and
+phones in bright rooms need the Mist surface)
+- Page: Mist `#E8ECF2`. Printer rows: white `#FFFFFF`. Ink: Graphite `var(--text)`, secondary
+  `var(--text-2)`.
+- State blocks: solid `var(--ok)` `#13703A`, `var(--warn)` `#94540A`, `var(--crit)` `#B3261E`,
+  `var(--off)` `#555E6B`, white word on each (all four pass AA for normal text, AAA for the state
+  word's size). The pale `-bg` pairs are not used; there are no pills on the page.
+- The one accent: Cobalt `var(--accent)` for the wordmark, the shield-P and the paging dot. It
+  never means a state.
 - Toner: the supply colours `var(--sup-c)`, `var(--sup-m)`, `var(--sup-y)`, `var(--sup-k)`;
-  other colorants fall back to Slate.
+  the track is `var(--track)`; another colorant falls back to Slate.
+- Stale band: `var(--warn-bg)` with `var(--warn)` text.
 
-Type (two families, each with one job)
-- Barlow 600 for printer labels and the page title. Scale: label 22 px desktop, 20 px phone,
-  36 px wall; title 26 px desktop, 32 px wall. Letter-spacing −0.01em.
-- IBM Plex Sans for everything else: 15 px / 1.5 body on desktop, 14 px phone, 20 px wall;
-  pills 13 px (17 px wall) weight 500. No mono anywhere except the wordmark.
-- No capitals for labels; sentence case throughout; no eyebrow labels above rows.
+Type (two families, one job each)
+- Barlow 700 for the state word: 26 px desktop, 20 px phone, 40 px wall. Barlow 600 for the
+  printer name: 22 / 19 / 32 px, and for the page title: 22 / 20 / 28 px. Letter-spacing −0.01em.
+- IBM Plex Sans for everything else: 15 px desktop, 14 px phone, 20 px wall; the toner number
+  weight 500, tabular. No mono except the wordmark.
+- Sentence case throughout; no eyebrows, no capitals, no middle dots, no arrows.
 
-Layout
-- A single column, 880 px wide at most, left aligned, 24 px side gutters (16 px on phones).
-- Header strip: the shield-P glyph at 28 px, the board title, and on the right "Updated 12 s
-  ago" in `--text-2`. The strip is the only Mist surface on the page.
-- Each printer is a row, not a card: no border, no shadow, no radius. Its structure is a 6 px
-  vertical edge on the left, 100% of the row's height, Cobalt when the printer is up, `--crit`
-  when down, `--off` when up/down is not shown. The edge is the status; nothing else repeats it.
-- Row content: label on the first line (with the optional state word after it in `--text-2`:
-  "sleeping", "printing"), location on the second line in `--text-2`, then one line of signals.
-- Signals, left to right, only the enabled ones: paper as one pill per input tray ("Tray 1 ok",
-  "Tray 2 low", "Tray 3 empty" in the matching tone); toner as the memorable element, a small
-  stacked gauge per supply: four 8 px bars for C, M, Y, K in their own colours with the fill
-  length as the level and the percentage after the last bar when known, a hatched grey bar
-  when unknown; alerts as pills in severity tone with the category word ("paper jam",
-  "cover open", "toner low", "needs service", "not reachable", "needs attention").
-- Rows are separated by 20 px of white; a hairline is not needed because the edges and the
-  spacing carry the rhythm.
+## Layout
+Rows on desktop, left aligned, one column 880 px wide at most, 24 px gutters (16 px on phones).
+Each printer is a white block of two parts: the state block on the left, 184 px wide, the full
+height of the row, with the word in white; then the body: the name, the optional location and
+state verb ("sleeping"), and one detail line. The blocks line up into a column of lamps that reads
+down the page as colour before any word is read.
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│ ▣ Printer status                                   Updated 12 s ago  │  Mist strip
-└──────────────────────────────────────────────────────────────────────┘
-▌ Library ground floor, colour  sleeping
-▌ Building B, floor 2
-▌ Tray 1 ok   Tray 2 low      ▆▆▆▆▆▆▆▆ C  ▆▆▆▆ M  ▆▆▆▆▆▆ Y  ▆▆ K 12%     toner low
+▣ Printer status                                            Updated 12 s ago
 
-▌ Student print room, mono
-▌ Building A, ground floor
-▌ Tray 1 empty                  ▆▆▆▆▆▆▆▆▆▆ K 88%                        out of paper
-  (edge in --crit when down; the row's text stays Graphite, nothing greys out)
+┌──────────────┬──────────────────────────────────────────────────────────┐
+│              │ Library ground floor                                     │
+│ Needs        │ Building B, floor 2                                      │
+│ service      │ Tray 1 and Tray 4 empty    ▌▌▌▌ 57%                      │
+└──────────────┴──────────────────────────────────────────────────────────┘
+┌──────────────┬──────────────────────────────────────────────────────────┐
+│              │ Reception                                                │
+│ Low paper    │ Tray 1 empty               ▌▌▌▌ 30%                      │
+└──────────────┴──────────────────────────────────────────────────────────┘
+┌──────────────┬──────────────────────────────────────────────────────────┐
+│ Ready        │ Workshop                                                 │
+│              │ Paper ok                   ▌▌▌▌ 50%                      │
+└──────────────┴──────────────────────────────────────────────────────────┘
+                                                                printMarshal
 ```
 
-Phone (under 600 px): the same rows; the signal line wraps, toner gauges go to a second line
-with the bars 6 px tall; the header's "Updated" moves under the title.
+The detail line, left to right, only the enabled signals, separated by space and not by marks:
+- Paper, as a sentence: "Paper ok"; "Tray 1 empty"; "Tray 1 and Tray 3 empty"; "Tray 2 low, Tray 3
+  empty"; "Tray 1, Tray 3 empty, +1 more" when more than two trays need naming; "Paper unknown"
+  when no tray reports.
+- Toner, as one element: four vertical bars of equal size (10 by 30 px on desktop, 8 by 24 px on
+  phones) in the real supply colours, filled to the level from the bottom (never less than 2 px), and one number, the lowest known percentage. A supply that reports
+  no level is a hatched bar and the number is left out when none is known; an empty supply is
+  named instead of numbered ("Magenta empty"). Visually hidden text carries every level for
+  screen readers.
+- Alerts that are neither the state word nor paper nor toner, in words: "cover open", "paper jam",
+  "needs service", "needs attention".
 
-Wall mode (`?wall=1`): a grid of tiles, two columns from 1100 px and three from 1600 px; each
-tile is the same row scaled by the wall type sizes with a 10 px edge, 28 px padding; twelve per
-page, paging every 10 seconds with a row of small dots under the grid, the current one Cobalt;
-no other motion. Type at 36 px labels reads at three metres on a 1080p screen.
+Phone (under 640 px): the state block becomes a band across the top of the white block, the word
+at 20 px on the left; the body sits under it; the detail line wraps and the toner bars go to their
+own line. The header's "Updated" moves under the title. Nothing overflows at 360 px.
+
+Wall mode (`?wall=1`): tiles in a grid, two columns from 1100 px and three from 1600 px; each tile
+is the phone arrangement at wall sizes: a 40 px state word in a band across the top, the name at
+32 px, the detail line at 20 px with 16 px wide, 40 px tall bars. Twelve per page, paging every 10 seconds
+with small dots under the grid, the current one Cobalt. A 1080p wall at three metres reads the
+state words from across a room.
 
 ## Motion
-One moment only: when a fetch changes a printer's up/down or a tray or alert tone, that row's
-edge or pill crossfades over 300 ms. No entrance animation, no hover effects (nothing on the page
-is clickable except nothing; there are no links). `prefers-reduced-motion` disables the
-crossfade and the page switch in wall mode becomes a cut.
+One moment only: when a fetch changes a state, the block's colour crossfades over 300 ms and the
+toner bars ease to their new level. In wall mode the page change is a 300 ms fade. No entrance
+animation and no hover effects: nothing on the page is clickable. `prefers-reduced-motion` turns
+the crossfade off and the page change into a cut.
 
 ## Copy
 - Title default: "Printer status" (the administrator can change it).
-- Freshness: "Updated 12 s ago", "Updated 3 min ago", counted from the data's own time (the newest
-  poll among the listed printers), not from the page's last fetch; when stale: a Mist band under the header,
-  "Last update 25 min ago. This may be out of date."
-- Up/down words after the label are not shown; the edge says it. A down printer gets one pill
-  in `--crit`: "not reachable", so the state is readable without colour.
+- Freshness: "Updated 12 s ago", "Updated 3 min ago", counted from the data's own time, in a
+  polite live region. When stale: a band under the header, "Last update 25 min ago. This may be
+  out of date."
 - Empty: "No printers are listed yet." Disabled: "This board is not available." Error after three
   failed fetches: "Status unavailable. Trying again." Each with the shield-P glyph above it,
   centred, nothing else on the page.
-- Footer: the wordmark at 13 px in `--text-3`, right aligned, the only place the product name
-  appears.
+- Footer: the wordmark at 13 px, right aligned, the only place the product name appears.
 
 ## Accessibility
-- Every colour has a word: tones carry their text ("low", "empty", "not reachable"); toner bars
-  carry the percentage or "unknown" as visually hidden text when the number is not shown.
-- Contrast: Graphite on white and Mist passes AAA; pill text on `-bg` pairs passes AA as in the
-  console.
-- The page announces freshness changes with `aria-live="polite"` on the "Updated" text only.
-- No focusable elements, so no focus order to manage; the document still has a `<main>` and an
-  `<h1>`.
+- Every colour has a word: the state block carries its word; toner bars carry their levels as
+  hidden text; the stale band is a sentence.
+- Contrast: white on each state tone passes AA for normal text and AAA at the state word's size;
+  Graphite on white and Mist passes AAA.
+- No focusable elements; the document has a `<main>`, an `<h1>` for the title and an `<h2>` per
+  printer, with the state word read before the name.
 
 ## Review against the generic defaults
-- Cards with identical shadows and radius: rejected; rows with a status edge instead.
-- Hairline broadsheet: rejected; spacing carries structure.
-- All-caps labels, eyebrows, middle dots: none; locations are written as sentences.
-- A big number with a small label as the hero: rejected; the hero is the first printer row,
-  which is the content.
-- The memorable element is the toner gauge in the real supply colours; everything else is quiet.
+- The status-page default (a list with a small coloured dot and a word on the right): rejected.
+  The state is the largest type on the page and sits before the name, because the reader's
+  question is the state, not the name.
+- Cards with identical shadows and one radius on everything: rejected; white blocks on Mist with
+  no shadow, whose only structure is the state block.
+- Hairline broadsheet: rejected; the Mist gap carries the rhythm.
+- Pills for every value: rejected; prose for paper, one element for toner, words for alerts.
+- Big number with a small label as a hero: rejected; the first row is the hero.
+- The memorable element is the column of state blocks. The toner bars, the type and the surfaces
+  stay quiet so that it is the only loud thing.
