@@ -20,7 +20,8 @@ function isoDay(d: Date): string { return d.toISOString().slice(0, 10) }
 /** Reports: utilisation, fleet health, supplies, alerts, firmware (spec §8.2, §8.3, §8.5). */
 export default function Reports() {
   const [params, setParams] = useSearchParams()
-  const tab = (params.get('tab') as Tab) || 'utilisation'
+  const named = params.get('tab') as Tab
+  const tab: Tab = Object.prototype.hasOwnProperty.call(tabReport, named) ? named : 'utilisation'
   const preset = (params.get('range') as Preset) || '30'
   const group = params.get('group') || ''
   const today = isoDay(new Date())
