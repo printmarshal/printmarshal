@@ -39,7 +39,11 @@ type importServerOpts struct {
 	// drivers, when set, go in the engine and the import identifies through
 	// the real IdentifyAndUpsert; they never touch a network.
 	drivers []engine.Driver
+	// wrapIdentify wraps the fake identification, to time or block it.
+	wrapIdentify func(next identifyFunc) identifyFunc
 }
+
+type identifyFunc = func(ctx context.Context, address, hostname string) (*model.Device, bool, error)
 
 // answerDriver is a printer the test switches on and off: an identifier and
 // a status reader, with no network and no write path.
@@ -122,6 +126,9 @@ func newImportServer(t *testing.T, o importServerOpts) (*httptest.Server, *Serve
 				return nil, false, errors.New("no answer on SNMP or IPP")
 			}
 			return st.UpsertDevice(ctx, &model.Identity{Address: address, Hostname: hostname, Serial: "SN-" + address, Model: "Sim 1", Method: "snmp"}, nil, []string{"import"})
+		}
+		if o.wrapIdentify != nil {
+			s.importIdentify = o.wrapIdentify(s.importIdentify)
 		}
 	}
 	ts := httptest.NewServer(s.Handler())
@@ -611,5 +618,148 @@ func TestImportCreatesAPrinterThatIsOff(t *testing.T) {
 	devs, _ := s.Store.ListDevices(ctx, store.DeviceFilter{Q: "10.0.0.50"})
 	if len(devs) != 1 {
 		t.Errorf("%d records for one printer", len(devs))
+	}
+}
+
+// Identification runs ahead of the apply and concurrently; the results still
+// read in file order however the identifications finish.
+func TestImportResultsKeepFileOrder(t *testing.T) {
+	later := make(chan struct{})
+	var overlapped atomic.Bool
+	ts, s := newImportServer(t, importServerOpts{wrapIdentify: func(next identifyFunc) identifyFunc {
+		return func(ctx context.Context, address, hostname string) (*model.Device, bool, error) {
+			switch address {
+			case "10.0.0.101": // finishes only after the row two below it
+				select {
+				case <-later:
+					overlapped.Store(true)
+				case <-time.After(3 * time.Second):
+				}
+			case "10.0.0.103":
+				defer close(later)
+			}
+			return next(ctx, address, hostname)
+		}
+	}})
+	seedImportFleet(t, s)
+	admin := login(t, ts, "admin", "adminpass123")
+	file := "address,location\n10.0.0.101,A\n10.0.0.5,B\n10.0.0.102,C\n10.0.0.103,D\n"
+	_, results := applyAndWait(t, ts, s, admin, "", []byte(file))
+	if !overlapped.Load() {
+		t.Error("row 2 did not wait for row 5: identification ran one row at a time")
+	}
+	got := []string{}
+	for _, r := range results {
+		got = append(got, r.Address+" "+r.Status)
+	}
+	want := "10.0.0.101 created,10.0.0.5 updated,10.0.0.102 created,10.0.0.103 created"
+	if strings.Join(got, ",") != want {
+		t.Errorf("results\n got %v\nwant %s", got, want)
+	}
+}
+
+// At most eight identifications at once, however many rows there are.
+func TestImportIdentificationIsBounded(t *testing.T) {
+	var inflight, peak atomic.Int64
+	ts, s := newImportServer(t, importServerOpts{wrapIdentify: func(next identifyFunc) identifyFunc {
+		return func(ctx context.Context, address, hostname string) (*model.Device, bool, error) {
+			n := inflight.Add(1)
+			defer inflight.Add(-1)
+			for {
+				p := peak.Load()
+				if n <= p || peak.CompareAndSwap(p, n) {
+					break
+				}
+			}
+			time.Sleep(15 * time.Millisecond)
+			return next(ctx, address, hostname)
+		}
+	}})
+	admin := login(t, ts, "admin", "adminpass123")
+	var b strings.Builder
+	b.WriteString("address\n")
+	for i := 1; i <= 30; i++ {
+		b.WriteString("10.0.3." + strconv.Itoa(i) + "\n")
+	}
+	_, results := applyAndWait(t, ts, s, admin, "", []byte(b.String()))
+	if len(results) != 30 {
+		t.Fatalf("%d results", len(results))
+	}
+	if p := peak.Load(); p < 2 || p > 8 {
+		t.Errorf("peak identifications %d, want between 2 and 8", p)
+	}
+}
+
+// R14: stopping the job stops new identifications; a printer already
+// identified gets its row applied, the rest are not, nothing is recorded for
+// an identification the stop interrupted, and the results say where it stopped.
+func TestImportStopsOnCancel(t *testing.T) {
+	var started atomic.Int64
+	fastDone := make(chan struct{})
+	ts, s := newImportServer(t, importServerOpts{wrapIdentify: func(next identifyFunc) identifyFunc {
+		return func(ctx context.Context, address, hostname string) (*model.Device, bool, error) {
+			started.Add(1)
+			if address == "10.0.4.1" {
+				defer close(fastDone)
+				return next(ctx, address, hostname)
+			}
+			<-ctx.Done()
+			return nil, false, ctx.Err()
+		}
+	}})
+	ctx := context.Background()
+	admin := login(t, ts, "admin", "adminpass123")
+	var b strings.Builder
+	b.WriteString("address,location\n")
+	for i := 1; i <= 20; i++ {
+		b.WriteString("10.0.4." + strconv.Itoa(i) + ",Floor\n")
+	}
+	code, body := importUpload(t, ts, admin, "apply", "", []byte(b.String()))
+	if code != http.StatusAccepted {
+		t.Fatalf("apply: %d %s", code, body)
+	}
+	var j model.Job
+	if err := json.Unmarshal([]byte(body), &j); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for started.Load() < 9 { // the fast row, and eight blocked after it freed its slot
+		if time.Now().After(deadline) {
+			t.Fatalf("%d identifications started, want 9", started.Load())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	<-fastDone
+	s.Fleet.Jobs.Stop() // ends the job's context, as a shutdown does
+	if n := started.Load(); n != 9 {
+		t.Errorf("%d identifications started after the stop, want 9", n)
+	}
+	results, _ := s.Store.ListJobResults(ctx, j.ID)
+	if len(results) != 2 {
+		t.Fatalf("results: %+v", results)
+	}
+	if results[0].Status != "created" || results[0].Address != "10.0.4.1" {
+		t.Errorf("first result: %+v", results[0])
+	}
+	if results[1].Status != "skipped" || !strings.Contains(results[1].Message, "stopped at row 3") || results[1].Data["outcome"] != "cancelled" {
+		t.Errorf("stop result: %+v", results[1])
+	}
+	devs, _ := s.Store.ListDevices(ctx, store.DeviceFilter{})
+	if len(devs) != 1 || devs[0].Location != "Floor" {
+		t.Errorf("records after the stop: %+v", devs)
+	}
+	done, _ := s.Store.GetJob(ctx, j.ID)
+	if done.Status != model.JobFailed || !strings.Contains(done.Error, "stopped at row 3") {
+		t.Errorf("job after the stop: %+v", done)
+	}
+	entries, _ := s.Store.ListAudit(ctx, 20)
+	stopped := false
+	for _, e := range entries {
+		if e.Action == "devices.import" && e.After["cancelled"] == true {
+			stopped = true
+		}
+	}
+	if !stopped {
+		t.Error("the import's audit entry does not say it stopped")
 	}
 }
