@@ -54,3 +54,5 @@ A target of only decommissioned printers is refused with 409, and a refused real
 A new setting, `discovery.zeroconf`, lets scheduled discovery scan only its listed targets. The default keeps today's behaviour.
 Device status shows "Not contacted" on a decommissioned printer, in place of its last polled status.
 Not changed: discovery sweeps still identify by address, certificate expiry alerts still come from stored data, alerts active at decommission stay active, and syslog lines are still stored against retired records.
+A link-down trap is now category `other` as well: the poll decides reachability.
+Left for the owner: spec R2 excludes acknowledged alerts, so acknowledging a jam makes an answering printer read "Ready". With alerts off, the board can't know about faults at all and can also read "Ready".

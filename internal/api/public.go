@@ -481,10 +481,7 @@ func alertCategory(source, key string) string {
 	case "offline":
 		return "offline"
 	case "trap":
-		if key == "trap:link-down" {
-			return "offline"
-		}
-		return "other"
+		return "other" // the poll decides reachability, including after a link-down trap
 	case "poll":
 		switch {
 		case key == "state:down":
