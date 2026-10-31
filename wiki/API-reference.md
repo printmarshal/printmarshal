@@ -4,7 +4,7 @@
 
 This route inventory was generated from the literal `mux.Handle`/`HandleFunc` registrations in `internal/api/*.go` on 2026-10-29, then paired with each handler's decoded body and response. Minimum roles are **viewer < operator < admin**. A role does not bypass token/session or group-scope restrictions. Public means no `require` wrapper; protocol callbacks still validate their own flow state.
 
-JSON requests use `Content-Type: application/json`. Shared decoding rejects unknown fields and caps JSON at 1 MiB. Errors normally use `{"error":"message"}` with 400 invalid input, 401 no usable authentication, 403 role/scope/principal refusal, 404 missing resource, 409 lifecycle/conflict, or 500 store/internal failure. Some errors have feature-specific statuses noted in the table/guides. Read responses are 200 unless marked otherwise. Objects below use JSON field names; `?` means omitted/optional, not a literal key suffix. Named request schemas are expanded after the route tables.
+JSON requests use `Content-Type: application/json`. Shared decoding rejects unknown fields and caps JSON at 1 MiB. Errors normally use `{"error":"message"}` with 400 invalid input, 401 no usable authentication, 403 role/scope/principal refusal, 404 missing resource, 409 lifecycle/conflict, or 500 store/internal failure. Some errors have feature-specific statuses noted in the table/guides. A group-scoped principal gets 413 and an `auth.denied` audit entry for any body over 1 MiB that starts, after any whitespace, with `{` or `[`, or is only whitespace in that first MiB, because the scope check reads no further; this applies before the handler runs, whatever the route. Read responses are 200 unless marked otherwise. Objects below use JSON field names; `?` means omitted/optional, not a literal key suffix. Named request schemas are expanded after the route tables.
 
 **Effect legend:** Read = no device mutation, but fresh reads may contact devices and persist observations. PM = mutate application records (no preview). **DR** = dry-run default; only explicit `dryRun:false` permits the corresponding device/host action. Device = already-issued certificate installation without a dry-run flag. Host = immediate CUPS queue removal without a dry-run flag. Auth = session/SSO flow. Firmware confirm/pause/resume/cancel control the mode saved at start, not a fresh dry-run decision.
 
@@ -52,7 +52,8 @@ Source: `internal/api/server.go`.
 | PUT | `/api/groups/{id}/members` | operator | `{deviceIds: string[]}` | 200 Group | PM |
 | GET | `/api/groups/{id}/devices` | viewer | — | 200 Device[] | Read |
 | POST | `/api/discovery/runs` | operator | `{targets?,zeroconf?,allowLarge?}`; absent body: zeroconf=true | 202 Job (direct) | PM |
-| GET | `/api/discovery/runs` | viewer | query: `limit (50)` | 200 Job[] | Read |
+| GET | `/api/discovery/runs` | viewer | query: `limit (50)` | 200 Job[], discovery and import jobs, newest first | Read |
+| POST | `/api/discovery/import` | operator (`mode=apply`: admin) | multipart: `file,mode,replace?`; see [CSV import](#csv-import) | 200 PlanResult (preview); 202 Job (direct, apply) | Read (preview); PM (apply) |
 | POST | `/api/poll` | operator | `{deviceIds?,groupId?}`; absent body allowed | 202 Job (direct) | PM |
 | GET | `/api/jobs` | viewer | query: `type,status,limit (100)` | 200 Job[] | Read |
 | GET | `/api/jobs/{id}` | viewer | — | 200 `{job,results[]}` | Read |
@@ -72,6 +73,95 @@ Source: `internal/api/server.go`.
 | PATCH | `/api/settings` | admin | RuntimeSettings partial overlay | 200 RuntimeSettings | PM |
 | DELETE | `/api/settings` | admin | — | 200 RuntimeSettings | PM |
 | GET | `/api/drivers` | viewer | — | 200 driver descriptors[] | Read |
+
+## CSV import
+
+Source: `internal/api/import.go`, `internal/importcsv/`. The steps and the rules for operators are in [Discovery and inventory](Discovery-and-inventory.md).
+
+`POST /api/discovery/import` takes `multipart/form-data`:
+
+| Field | Required | Value |
+| --- | --- | --- |
+| `file` | yes | The CSV: UTF-8, comma or semicolon separated, at most 5,000 data rows and 2 MB. |
+| `mode` | yes | `preview` or `apply`. |
+| `replace` | no | Comma-separated columns whose values replace ones already present: `displayName`, `location`, `assetTag`, `notes`, `webUrl`, `dnsSync`, `state`, or an alias of one. |
+
+| Mode | Minimum role | Effect | Success |
+| --- | --- | --- | --- |
+| `preview` | operator | Read: changes nothing and contacts no printer. Does one forward DNS lookup for each distinct hostname on a row with no address. | 200 PlanResult |
+| `apply` | admin | Queues a job of type `import`. | 202 Job (direct) |
+
+Other statuses, as `{"error":"message"}`:
+
+| Status | When |
+| --- | --- |
+| 400 | Not multipart, or no `file` field; `mode` missing or unknown; a `replace` entry that is unknown or not replaceable; a file that cannot be parsed, such as one over a limit, not UTF-8, empty, with no key column or with a repeated column. An oversized file gets 400, not 413. |
+| 401 | No usable authentication. |
+| 403 | Below operator, or `mode=apply` below admin (recorded as `auth.denied`). For an operator the form is checked first, so a bad form gets 400 rather than 403. |
+| 500 | A store failure. |
+| 503 | `mode=apply` when the job runner is not available. |
+
+### PlanResult
+
+```json
+{
+  "separator": ",",
+  "ignoredColumns": ["rack"],
+  "knownColumns": ["address", "location", "displayName"],
+  "totals": {"create": 1, "update": 1, "skip": 1},
+  "rows": [
+    {"row": 2, "key": "192.0.2.10", "outcome": "create", "fields": {"location": "Floor 2"}, "heldBack": []},
+    {"row": 3, "key": "192.0.2.11", "outcome": "update", "deviceId": "DEVICE_ID",
+     "fields": {"location": "Floor 3"},
+     "heldBack": [{"field": "displayName", "reason": "set by an operator; column not marked replace"}]},
+    {"row": 4, "key": "serial:ABC123", "outcome": "skip", "fields": {}, "heldBack": [], "reason": "no address; scan first"}
+  ]
+}
+```
+
+| Row field | Meaning |
+| --- | --- |
+| `row` | The row's line in the file; the header is line 1. |
+| `key` | The IP address, the address cell as recorded for a device known by name, `host:<hostname>` or `serial:<serial>`. Empty when the row has no key. |
+| `outcome` | `create`, `update` or `skip`. |
+| `deviceId` | The matched device, on `update` only. |
+| `fields` | The values that would be set, by column name. `dnsSync` is a boolean, the others strings; `group` is the group's name. |
+| `heldBack` | `{field,reason}` for each supplied value left alone. |
+| `reason` | Why the row is skipped, on `skip` only. |
+
+Hold-back reasons are `set by an operator; column not marked replace`, `kept in sync with DNS; column not marked replace`, `already has a value; column not marked replace`, and `cannot move from X to Y`, which applies to `state` even when the column is in `replace`.
+
+Skip reasons are `address is not an IP address`, `no address: hostname NAME did not resolve`, `no address; scan first`, `duplicate of row N`, `address and serial belong to different devices`, `outside your groups`, `unchanged`, `nothing to change: every value is held back`, and the cell errors: `COLUMN is over N characters`, `webUrl is not a URL`, `dnsSync must be true or false`, `state is not a lifecycle state`, `group "NAME" does not exist`, `group "NAME" is rule-based; only static groups take members`.
+
+### The `import` job
+
+No server-side preview state is kept. The job works the plan out again from the file sent with `mode=apply`, so send the same `replace` value. The file waits in memory until the job takes it; if the server restarted first, the job fails with `the import file is no longer available; upload it again`. The job's `target` is `{rows}` and its `params` include `rows` and `replace`.
+
+Import jobs are listed by `GET /api/jobs?type=import` and, with discovery runs, by `GET /api/discovery/runs`. `GET /api/jobs/{id}` returns one result per row, in file order. `address` is the row's address and `deviceId` the device, when there is one. `data` is `{"row":N,"outcome":"create"}`, where `outcome` is the planned one.
+
+| Result `status` | `message` |
+| --- | --- |
+| `created` | `created`, then `; set displayName, location` when fields were set, then `; not reachable yet, so it will be identified when it answers` for a printer that did not answer. |
+| `updated` | `set location, assetTag`. A row planned as `create` ends here when identification finds the printer already recorded. |
+| `skipped` | The plan's reason. A row planned as `create` can also end with `already recorded; unchanged` or `outside your groups`. |
+| `failed` | `not updated: …`, `not created: …`, or `created, but …` when the record exists but a field, state or group could not be written. |
+
+The job is `succeeded` when no row failed and `partial` when some did. It is `failed` when every row failed, or when it was stopped. There is no cancel endpoint; only a server shutdown stops an import. It then adds one more result, with status `skipped`, `data.outcome` of `cancelled` and the row it stopped at, and the job's `error` starts `stopped at row N`. `done` stays at 0 while the rows to create are being identified.
+
+Audit actions: `devices.import` (counts and replaced columns, never file content), `device.created`, `device.patch` and `group.members`.
+
+## Field sources on devices
+
+A device may carry `fieldSources`, which says where the value of each operator field came from. It is read-only and omitted when empty; `PATCH /api/devices/{id}` does not accept it.
+
+```json
+"fieldSources": {
+  "location": {"source": "import", "at": "2026-10-31T09:12:00Z"},
+  "displayName": {"source": "operator", "at": "2026-10-31T10:00:00Z"}
+}
+```
+
+Keys are `displayName`, `location`, `assetTag`, `notes`, `webUrl`, `dnsSync` and `state`. Group membership has no source. `source` is `import` (a CSV import), `operator` (an edit through the API, whether one device, bulk, rename or a state change) or `dns` (the DNS-sync rename). `at` is an RFC 3339 time.
 
 ## Provider discovery and OIDC
 

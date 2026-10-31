@@ -49,6 +49,104 @@ Rediscovery fills/refreshed automatic fields without replacing operator display 
 
 Sources: `internal/store/{sqlite,postgres}_devices.go`, `internal/fleet/service.go`, `internal/engine/engine.go`.
 
+## Import from a CSV file
+
+Use an import when you already have a list of your printers, in a spreadsheet or an asset register, and want them in the inventory without scanning for them, or want to fill in locations, asset tags and notes across printers you already have. On the Discovery page, choose **Import CSV…**, then **Choose a CSV file**. **Download template** saves a CSV holding only the header row.
+
+### What the file needs
+
+Each row needs one key: an address, a hostname that resolves, or the serial of a printer already recorded. A file with no `address`, `hostname` or `serial` column is refused. A row that has none of them usable is skipped:
+
+| Row has | Result |
+| --- | --- |
+| An address | Matches a recorded printer, or creates one. An address must be an IP address, or the name a printer is already recorded under; otherwise the row is skipped with "address is not an IP address". |
+| A hostname, no address | The console looks the name up once, and uses the address it gets. If the lookup fails and no serial matches, the row is skipped with "no address: hostname NAME did not resolve". |
+| A serial only | Updates the printer with that serial. If there is none, the row is skipped with "no address; scan first", because a record with no address could not be polled. |
+
+Rows match by address first, then by serial, and decommissioned printers count. A row whose address and serial belong to two printers is skipped with "address and serial belong to different devices". The key columns only find or create the printer: an import does not change the address, hostname or serial of a printer already recorded.
+
+Header names ignore case, spaces, underscores and hyphens, so `Asset tag`, `asset_tag` and `assetTag` are the same column. Naming a column twice, for example with both `name` and `displayName`, refuses the file.
+
+| Column | Also accepted as | Value |
+| --- | --- | --- |
+| `address` | `ip`, `ipAddress` | Key. |
+| `hostname` | `host` | Key, when the row has no address. Otherwise a hint for identification. |
+| `serial` | `serialNumber` | Key. Matching ignores case. |
+| `displayName` | `name` | Up to 200 characters. |
+| `location` | | Up to 200 characters. |
+| `assetTag` | | Up to 200 characters. |
+| `notes` | `note` | Up to 2,000 characters. Replaces the notes rather than adding to them. |
+| `webUrl` | `webAddress` | An `http` or `https` URL with a host and no credentials. |
+| `dnsSync` | | `true`, `yes` or `1`; `false`, `no` or `0`. |
+| `state` | `lifecycleState` | `discovered`, `onboarded`, `active`, `needs_attention` or `decommissioned`. |
+| `group` | `groupName` | The exact name of an existing static group. The printer joins it; no membership is ever removed. |
+
+The console's own device export (`/api/devices.csv`) is accepted, so you can export from one instance and import into another. Its other columns, such as `make`, `model` and `lastSeen`, are ignored. Any column the console does not know is ignored too, and the preview lists it under "Ignored columns".
+
+An invalid value skips the whole row, never part of it, and the reason names the cell: for example "webUrl is not a URL", "state is not a lifecycle state", or `group "Lab" does not exist`. A rule-based group is refused as well, because only static groups take members. A second row for the same address, serial or printer is skipped with "duplicate of row N".
+
+### Limits
+
+A file can have up to 5,000 data rows and be up to 2 MB. It must be UTF-8 text, and a byte-order mark is fine. The separator can be a comma or a semicolon; the console picks whichever the header line uses more. A file over either limit is refused with the limit in the message. Blank rows do not count.
+
+### The preview
+
+Choosing a file shows the preview. It changes nothing and contacts no printer. The only thing it sends out is the DNS lookup for rows that give a hostname and no address, so a long list of hostnames can take a while. Above the table are the totals ("3 to create, 10 to update, 1 skipped"). The table has one line per row, 200 to a page:
+
+- **Row**: the row's line in the file, where the header is line 1.
+- **Key**: the address, `host:NAME` or `serial:NUMBER`.
+- **Outcome**: **Create**, **Update** or **Skip**.
+- **Fields**: the values that would be set.
+- **Held back**: the values that would be left alone, each with its reason.
+- **Reason**: why the row is skipped.
+
+A row that would change nothing is skipped with "unchanged", or with "nothing to change: every value is held back" if its only changes are held back.
+
+### Values already present
+
+The import fills in what is empty and leaves alone what someone chose. A supplied value is held back according to where the present value came from:
+
+| Present value | Reason shown under **Held back** |
+| --- | --- |
+| Set by a person in the console | "set by an operator; column not marked replace" |
+| Set by DNS sync | "kept in sync with DNS; column not marked replace" |
+| Has a value, source unknown | "already has a value; column not marked replace" |
+| Set by an earlier import | Not held back. An import may overwrite its own earlier values, so you can correct a typo by importing again. |
+
+An unknown source means an edit from before sources were recorded, or a location read from the printer. A field an operator has deliberately emptied also counts as set by an operator, and is held back.
+
+To overwrite, tick the column under **Replace values an operator set**; the preview updates. The tick applies to the whole column and to all three reasons above, not only operator edits. `group` and the key columns cannot be marked.
+
+Marking a column does not get round the lifecycle. A state the printer cannot move to from its current one is held back with "cannot move from X to Y", whether or not the column is marked. A new printer starts as `discovered`; see [Lifecycle](#lifecycle) for the allowed moves.
+
+An empty cell leaves the field alone, even in a marked column. An import cannot clear a field.
+
+A display name equal to the name the printer already goes by is no change, so importing an export back does not freeze a name that comes from DNS or from the printer itself.
+
+### Who can do what
+
+Operators and administrators can open the dialog and preview. Only an administrator can apply, with **Import N printers**; an operator sees "An administrator applies the import." Viewers do not get the button.
+
+For a group-scoped user, a row for a printer or group outside their groups is skipped with "outside your groups". So is a row that would create a printer without naming, in `group`, one of their groups, since the new printer would land outside them.
+
+### Applying and results
+
+Applying starts a job of type `import`, which works the plan out again from the file, so a change to the inventory since the preview is taken into account. The Discovery page then shows the job: **Rows processed**, a log, and the **Results** card with one line per row (**Created**, **Updated**, **Skipped** or **Failed**) and its counts. It also appears under **Previous runs**, tagged **Import**. The audit trail gets one `devices.import` entry with the counts and the replaced columns, never the file's content, plus `device.created`, `device.patch` and `group.members` entries for each change.
+
+Printers to create are identified first, the same read-only way discovery identifies them, eight at a time and up to 60 seconds each, followed by a read-only first poll. The rows are then applied in file order, so **Rows processed** can stay at 0 for a while. Nothing is written to a printer.
+
+A printer that does not answer is still created, with the address and the file's values, and its result says it is "not reachable yet, so it will be identified when it answers". It is identified when it first answers at a scheduled poll or a discovery. If it then turns out to be a printer already recorded at another address, as shown by its serial, that record takes the address and the address-only one stays for an administrator to remove.
+
+If identification finds that a printer to create is already recorded, the row updates that record by the same rules as any update, and its result reads **Updated**, or **Skipped** with "already recorded; unchanged".
+
+There is no way to cancel an import while it runs. If the server shuts down during one, rows already applied stay applied, and the job fails with "stopped at row N". After a restart, upload the file again.
+
+### Where a value came from
+
+The device page shows where an imported value came from, as "from import, 31 Oct" beside the display name, DNS sync, location, web page, asset tag and notes. A display name kept in sync shows "from DNS". An operator's later edit removes the note, and that field is held back from future imports.
+
+Sources: `internal/importcsv/{parse,plan}.go`, `internal/api/import.go`, `web/src/components/ImportDialog.tsx`.
+
 ## The device web page
 
 Every device record carries a `webUrl`, the link to the printer's own
