@@ -26,7 +26,8 @@ precedence (first match wins):
 
 | State word | Tone | When |
 | --- | --- | --- |
-| Not reachable | `--off` | `online` is false, or an active offline alert |
+| Not reachable | `--off` | `online` is false |
+| No status | `--off` | `unconfirmed`: the up/down switch is off and the printer did not answer its last poll |
 | Needs service | `--crit` when critical, `--warn` otherwise | an alert in category maintenance |
 | Paper jam | `--crit` | an alert in category jam |
 | Cover open | `--crit` | an alert in category door |

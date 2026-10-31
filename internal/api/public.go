@@ -143,13 +143,16 @@ type publicBoard struct {
 // publicDevice: pointers with omitempty so a switched-off signal has no key
 // at all while a switched-on one is always present (even empty or false).
 type publicDevice struct {
-	Label    string          `json:"label"`
-	Location *string         `json:"location,omitempty"`
-	Online   *bool           `json:"online,omitempty"`
-	State    *string         `json:"state,omitempty"`
-	Paper    *[]publicTray   `json:"paper,omitempty"`
-	Toner    *[]publicSupply `json:"toner,omitempty"`
-	Alerts   *[]publicAlert  `json:"alerts,omitempty"`
+	Label    string  `json:"label"`
+	Location *string `json:"location,omitempty"`
+	Online   *bool   `json:"online,omitempty"`
+	// Unconfirmed is sent only when the up/down switch is off and the printer did
+	// not answer its last poll, so the page never reads an unanswered printer as fine.
+	Unconfirmed bool            `json:"unconfirmed,omitempty"`
+	State       *string         `json:"state,omitempty"`
+	Paper       *[]publicTray   `json:"paper,omitempty"`
+	Toner       *[]publicSupply `json:"toner,omitempty"`
+	Alerts      *[]publicAlert  `json:"alerts,omitempty"`
 }
 
 type publicTray struct {
@@ -309,13 +312,17 @@ func buildPublicBoard(cfg publicStatusConfig, devices []*model.Device, alerts []
 			loc := d.Location
 			pd.Location = &loc
 		}
+		// A decommissioned printer is never contacted, so its last poll says nothing about now.
+		current := d.Status != nil && !d.Decommissioned()
+		answered := current && d.Status.Online
 		if cfg.Show.Online {
-			on := d.Status != nil && d.Status.Online
-			pd.Online = &on
+			pd.Online = &answered
+		} else if !answered {
+			pd.Unconfirmed = true
 		}
 		if cfg.Show.State {
 			st := "unknown"
-			if d.Status != nil && d.Status.State != "" {
+			if current && d.Status.State != "" {
 				st = d.Status.State
 			}
 			pd.State = &st
@@ -481,7 +488,7 @@ func alertCategory(source, key string) string {
 	case "poll":
 		switch {
 		case key == "state:down":
-			return "offline"
+			return "other" // the printer reports itself down, but it answered the poll
 		case strings.HasPrefix(key, "paper:"):
 			return "paper"
 		case strings.HasPrefix(key, "error:"):

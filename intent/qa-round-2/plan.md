@@ -42,7 +42,11 @@ The compliance report still does not read stored assessments. That is a moderate
 ## As built, group B
 Supply alerts are categorised from the device's own supply data, because the alert key only carries an index. A part with no usable type or no matching supply is "other".
 Beyond the plan: an active offline alert now reads "Not reachable" even when the up/down signal is off, "Needs service" uses the warning tone for a warning-level part, and the unreachable "supply means toner" row in `alertCategory` is gone, with its test row updated.
-Left for the owner: with both up/down and alerts switched off, a stopped printer can still read "Ready" from last-known paper and toner.
+
+## Follow-up after verification
+Verification found the offline-alert rule above was wrong in both directions: an acknowledged or not-yet-raised alert left a stopped printer reading "Ready", and `state:down` made a reachable printer read "Not reachable" beside "Online". It is replaced.
+The board sends one more allow-listed field, `unconfirmed: true`, only when the up/down switch is off and the printer did not answer its last poll or is decommissioned, and such a printer reads "No status". With the switch on, a decommissioned printer has `online: false` and state `unknown`. `state:down` is now category `other`, because the printer answered the poll.
+This reveals a little more than the up/down switch implies: a hidden-switch board now shows which printers it can't confirm. Reading "Ready" on a stopped printer was the worse outcome.
 
 ## As built, group D
 The guards reach beyond `internal/api`, into `fleet`, `configmgmt`, `security` and `firmware`, because explicit device ids could reach apply, revert, remediate, rotate, enroll and install on a decommissioned printer.
