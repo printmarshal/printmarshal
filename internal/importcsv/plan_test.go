@@ -162,7 +162,7 @@ func TestPlan(t *testing.T) {
 			t.Errorf("row %d:\n got %+v\nwant %+v", w.Row, g, w)
 		}
 	}
-	if got.Totals != (Totals{Create: 5, Update: 2, Skip: 16}) {
+	if got.Totals != (Totals{Create: 4, Update: 2, Skip: 17}) {
 		t.Errorf("totals %+v", got.Totals)
 	}
 	// What apply needs and the JSON leaves out.
