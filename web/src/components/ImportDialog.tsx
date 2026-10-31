@@ -40,6 +40,8 @@ export function ImportDialog({ user, onClose, onApplied }: { user: User; onClose
   const [loading, setLoading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [err, setErr] = useState('')
+  // The preview on screen no longer matches the ticked boxes: a re-run failed.
+  const [stale, setStale] = useState(false)
   const [page, setPage] = useState(0)
   const seq = useRef(0)
   const isAdmin = user.role === 'admin'
@@ -59,9 +61,9 @@ export function ImportDialog({ user, onClose, onApplied }: { user: User; onClose
     setLoading(true)
     setErr('')
     api.upload<PlanResult>('/api/discovery/import', form('preview', file))
-      .then((p) => { if (n === seq.current) { setPlan(p); setPage((pg) => Math.min(pg, Math.max(0, Math.ceil(p.rows.length / PAGE) - 1))) } })
+      .then((p) => { if (n === seq.current) { setPlan(p); setStale(false); setPage((pg) => Math.min(pg, Math.max(0, Math.ceil(p.rows.length / PAGE) - 1))) } })
       // A failed re-run keeps the last preview on screen, so the choice that caused it can be undone.
-      .catch((e) => { if (n === seq.current) setErr((e as Error).message) })
+      .catch((e) => { if (n === seq.current) { setStale(true); setErr((e as Error).message) } })
       .finally(() => { if (n === seq.current) setLoading(false) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, replace])
@@ -104,7 +106,7 @@ export function ImportDialog({ user, onClose, onApplied }: { user: User; onClose
         <>
           {plan && !isAdmin && <span className="cap" style={{ marginRight: 'auto', alignSelf: 'center' }}>An administrator applies the import.</span>}
           <Btn variant="ghost" onClick={onClose}>{isAdmin ? 'Cancel' : 'Close'}</Btn>
-          {isAdmin && <Btn variant="pri" disabled={!plan || loading || applying || n === 0} onClick={apply}>{applying ? 'Importing…' : `Import ${n} printer${n === 1 ? '' : 's'}`}</Btn>}
+          {isAdmin && <Btn variant="pri" disabled={!plan || loading || applying || stale || n === 0} onClick={apply}>{applying ? 'Importing…' : `Import ${n} printer${n === 1 ? '' : 's'}`}</Btn>}
         </>
       }
     >
