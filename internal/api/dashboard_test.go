@@ -143,3 +143,34 @@ func TestDashboardSecuritySummaryIsScoped(t *testing.T) {
 }
 
 func second(_ int, body string) string { return body }
+
+// Every alert on the dashboard carries the device's display name, resolved by
+// id on the server, so the widget never labels a row "device" (#53).
+func TestDashboardAlertsCarryDeviceName(t *testing.T) {
+	ts, s := newTestServer(t)
+	ctx := context.Background()
+	viewer := login(t, ts, "viewer", "viewerpass1")
+	d, _, err := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.31", Serial: "DN1", Make: "Acme", Model: "Laser 1", SysName: "Reception", Method: "snmp"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Store.RaiseAlert(ctx, d.ID, "jam", "poll", model.SeverityCritical, "paper jam"); err != nil {
+		t.Fatal(err)
+	}
+	code, body := do(t, ts, viewer, "GET", "/api/dashboard", "")
+	if code != 200 {
+		t.Fatalf("dashboard: %d %s", code, body)
+	}
+	var v struct {
+		Alerts []struct {
+			DeviceID   string `json:"deviceId"`
+			DeviceName string `json:"deviceName"`
+		} `json:"alerts"`
+	}
+	if err := json.Unmarshal([]byte(body), &v); err != nil {
+		t.Fatal(err)
+	}
+	if len(v.Alerts) != 1 || v.Alerts[0].DeviceID != d.ID || v.Alerts[0].DeviceName != "Reception" {
+		t.Errorf("dashboard alerts = %+v, want deviceName %q", v.Alerts, "Reception")
+	}
+}

@@ -23,8 +23,8 @@ type UtilDevice struct {
 	Model      string  `json:"model"`
 	Location   string  `json:"location"`
 	Pages      int64   `json:"pages"`
-	Mono       int64   `json:"mono"`
-	Color      int64   `json:"color"`
+	Mono       *int64  `json:"mono"`       // nil (null) when the device reports no split
+	Color      *int64  `json:"color"`      // nil (null) when the device reports no split
 	PerDay     float64 `json:"perDay"`     // pages / days in range
 	ActiveDays int     `json:"activeDays"` // days with at least one page
 	DataDays   int     `json:"dataDays"`   // days with a counter sample
@@ -44,9 +44,10 @@ type UtilGroup struct {
 // UtilSummary is the utilisation KPI set.
 type UtilSummary struct {
 	Pages            int64   `json:"pages"`
-	Mono             int64   `json:"mono"`
-	Color            int64   `json:"color"`
+	Mono             int64   `json:"mono"`  // over devices with a known split
+	Color            int64   `json:"color"` // over devices with a known split
 	HasSplit         bool    `json:"hasSplit"`
+	PagesKnown       int     `json:"pagesKnown"`      // devices whose mono/colour split is known (Mono, Color sum these only)
 	PerDay           float64 `json:"perDay"`          // fleet pages per day
 	PerDevicePerDay  float64 `json:"perDevicePerDay"` // over devices with data
 	DevicesWithData  int     `json:"devicesWithData"`
@@ -183,21 +184,29 @@ func (s *Service) Utilisation(ctx context.Context, p Params) (*UtilisationReport
 			rep.Days[dayIdx[day]].Pages += n
 			rep.Days[dayIdx[day]].Devices++
 		}
+		// A counter the device does not report stays unknown (nil), never 0.
 		if m, ok := mono[d.ID]; ok {
 			pm, _ := DailyDeltas(sc.days, m.baseline, m.days)
+			var sum int64
 			for day, n := range pm {
-				row.Mono += n
+				sum += n
 				rep.Days[dayIdx[day]].Mono += n
 			}
+			row.Mono = &sum
 			rep.Summary.HasSplit = true
 		}
 		if c, ok := color[d.ID]; ok {
 			pc, _ := DailyDeltas(sc.days, c.baseline, c.days)
+			var sum int64
 			for day, n := range pc {
-				row.Color += n
+				sum += n
 				rep.Days[dayIdx[day]].Color += n
 			}
+			row.Color = &sum
 			rep.Summary.HasSplit = true
+		}
+		if row.Mono != nil || row.Color != nil {
+			rep.Summary.PagesKnown++
 		}
 		row.PerDay = round1(float64(row.Pages) / float64(len(sc.days)))
 		row.Idle = row.Pages == 0
@@ -206,8 +215,12 @@ func (s *Service) Utilisation(ctx context.Context, p Params) (*UtilisationReport
 		}
 		perDevice[d.ID] = row.Pages
 		rep.Summary.Pages += row.Pages
-		rep.Summary.Mono += row.Mono
-		rep.Summary.Color += row.Color
+		if row.Mono != nil {
+			rep.Summary.Mono += *row.Mono
+		}
+		if row.Color != nil {
+			rep.Summary.Color += *row.Color
+		}
 		rep.Summary.Resets += resets
 		rep.Summary.DevicesWithData++
 		rep.Devices = append(rep.Devices, row)
@@ -258,7 +271,7 @@ func (s *Service) Utilisation(ctx context.Context, p Params) (*UtilisationReport
 func (r *UtilisationReport) Tables() []Table {
 	dev := Table{Name: "devices", Columns: []string{"deviceId", "name", "model", "location", "pages", "mono", "color", "perDay", "activeDays", "dataDays", "resets", "idle"}}
 	for _, d := range r.Devices {
-		dev.Rows = append(dev.Rows, []string{d.DeviceID, d.Name, d.Model, d.Location, fmtI64(d.Pages), fmtI64(d.Mono), fmtI64(d.Color), fmtF(d.PerDay), fmtI(d.ActiveDays), fmtI(d.DataDays), fmtI(d.Resets), fmtB(d.Idle)})
+		dev.Rows = append(dev.Rows, []string{d.DeviceID, d.Name, d.Model, d.Location, fmtI64(d.Pages), fmtOptI64(d.Mono), fmtOptI64(d.Color), fmtF(d.PerDay), fmtI(d.ActiveDays), fmtI(d.DataDays), fmtI(d.Resets), fmtB(d.Idle)})
 	}
 	days := Table{Name: "days", Columns: []string{"day", "pages", "mono", "color", "devices"}}
 	for _, d := range r.Days {
@@ -269,6 +282,14 @@ func (r *UtilisationReport) Tables() []Table {
 		groups.Rows = append(groups.Rows, []string{g.GroupID, g.Name, fmtI(g.Devices), fmtI64(g.Pages), fmtF(g.PerDay)})
 	}
 	return []Table{dev, days, groups}
+}
+
+// fmtOptI64 prints an unknown value as an empty cell, never "0" or "null".
+func fmtOptI64(v *int64) string {
+	if v == nil {
+		return ""
+	}
+	return fmtI64(*v)
 }
 
 func fmtB(b bool) string {

@@ -96,10 +96,11 @@ const alertsRecent: W = ({ data }) => (
       <div className="tw"><table className="tbl">
         <thead><tr><th>Severity</th><th>Device</th><th>Alert</th><th>Source</th><th className="r">Last seen</th></tr></thead>
         <tbody>{data.alerts.slice(0, 8).map((a) => {
-          const dev = data.attention.find((d) => d.id === a.deviceId)
+          // The server resolves the name by id (#53); the id prefix is the last resort.
+          const name = a.deviceName || a.deviceId.slice(0, 8)
           return (
             <tr key={a.id}><td><SevPill sev={a.severity} /></td>
-              <td>{a.deviceId ? <Link to={`/devices/${a.deviceId}`}>{dev ? deviceName(dev) : 'device'}</Link> : <Link to={a.source === 'consumable' ? '/consumables' : '/alerts'}>stock</Link>}</td>
+              <td>{a.deviceId ? <Link to={`/devices/${a.deviceId}`}>{name}</Link> : <Link to={a.source === 'consumable' ? '/consumables' : '/alerts'}>stock</Link>}</td>
               <td className="wrap">{a.description}</td><td><Tag>{a.source}</Tag></td><td className="num cap r">{ago(a.updatedAt || a.raisedAt)}</td></tr>
           )
         })}</tbody>
@@ -112,7 +113,7 @@ const devicesAttention: W = ({ data }) => (
   <Card title="Devices needing attention" id="na" right={<Link to="/devices?sort=severity" className="cap" style={{ color: 'var(--accent)' }}>Open in inventory →</Link>}>
     {data.attention.length === 0 ? <div className="cb"><EmptyState tone="ok" icon={<Ic.ok size={20} />} title="Nothing needs attention" text="All polled devices are healthy." /></div> : (
       <div className="tw"><table className="tbl">
-        <thead><tr><th>Status</th><th>Device</th><th>Model</th><th>Location</th><th>Reason</th><th className="r">Since</th></tr></thead>
+        <thead><tr><th>Status</th><th>Device</th><th>Model</th><th>Location</th><th>Reason</th><th className="r">Last check</th></tr></thead>
         <tbody>{data.attention.map((d) => (
           <tr key={d.id}><td><DevicePill d={d} /></td><td><Link to={`/devices/${d.id}`}>{deviceName(d)}</Link></td><td className="mono">{d.model}</td><td className="cap">{d.location || '—'}</td><td className="cap wrap">{d.status?.message || '—'}</td><td className="num cap r">{since(d.status?.at)}</td></tr>
         ))}</tbody>
@@ -142,7 +143,7 @@ const suppliesLow: W = ({ low }) => (
 )
 
 const jobsInProgress: W = ({ data }) => (
-  <Card title="In-progress jobs" id="jp" right={<Link to="/jobs" className="cap" style={{ color: 'var(--accent)' }}>Jobs →</Link>}>
+  <Card title="Recent jobs" id="jp" right={<Link to="/jobs" className="cap" style={{ color: 'var(--accent)' }}>Jobs →</Link>}>
     {data.jobs.length === 0 ? <div className="cb"><EmptyState icon={<Ic.radar size={20} />} title="No jobs yet" text="Find printers on your network to start managing them." action={<Link className="btn sm pri" to="/discovery">Run discovery</Link>} /></div> : data.jobs.slice(0, 5).map((j) => (
       <div className="lrow" key={j.id} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><Link to={`/jobs/${j.id}`} style={{ fontWeight: 500 }}>{j.type === 'discovery' ? 'Discovery run' : j.type === 'poll' ? 'Poll' : j.type}</Link><span className="num cap">{j.done} / {j.total}</span></div>

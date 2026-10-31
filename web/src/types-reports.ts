@@ -10,12 +10,16 @@ export interface ReportIndex { available: boolean; maxRangeDays: number; reports
 // --- utilisation --------------------------------------------------------------
 export interface UtilDay { day: string; pages: number; mono: number; color: number; devices: number }
 export interface UtilDevice {
-  deviceId: string; name: string; model: string; location: string; pages: number; mono: number; color: number
+  deviceId: string; name: string; model: string; location: string; pages: number
+  /** null when the device reports no mono/colour split: unknown, never 0 */
+  mono: number | null; color: number | null
   perDay: number; activeDays: number; dataDays: number; resets: number; idle: boolean
 }
 export interface UtilGroup { groupId: string; name: string; devices: number; pages: number; perDay: number }
 export interface UtilSummary {
   pages: number; mono: number; color: number; hasSplit: boolean; perDay: number; perDevicePerDay: number
+  /** devices whose mono/colour split is known; mono and color sum these only */
+  pagesKnown: number
   devicesWithData: number; devicesNoData: number; idleDevices: number; resets: number
   peakDay?: string; peakPages: number; busiestDevice?: string; busiestDeviceId?: string; busiestDevicePct: number
 }

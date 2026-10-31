@@ -25,6 +25,8 @@ export interface Device {
 export interface Alert {
   id: string; deviceId: string; severity: Severity; source: string; key: string; description: string
   raisedAt: string; updatedAt: string; clearedAt?: string; ackedAt?: string; ackedBy?: string
+  /** display name resolved by id on the server; sent on dashboard alerts */
+  deviceName?: string
 }
 export interface Job {
   id: string; type: string; target: Record<string, unknown>; params: Record<string, unknown>; status: string

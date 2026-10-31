@@ -99,6 +99,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	alerts, _ := s.Store.ListAlerts(ctx, store.AlertFilter{ActiveOnly: true, Limit: 20})
 	alerts = s.filterAlerts(ctx, alerts)
+	named := s.namedAlerts(ctx, alerts)
 	jobs, _ := s.Store.ListJobs(ctx, store.JobFilter{Limit: 10})
 	attention, _ := s.resolveDevices(ctx, store.DeviceFilter{Sort: "severity", Limit: 10})
 	var needs []*model.Device
@@ -113,11 +114,36 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFrom(ctx)
 	effective, personal, def := s.layouts(ctx, u)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"summary": ds, "alerts": alerts, "jobs": jobs, "attention": needs,
+		"summary": ds, "alerts": named, "jobs": jobs, "attention": needs,
 		"consumables": s.dashboardConsumables(ctx),
 		"security":    s.dashboardSecurity(ctx, ds.Devices),
 		"layout":      map[string]any{"effective": effective, "personal": personal, "default": def},
 	})
+}
+
+// namedAlert is an alert with its device's name resolved by id (#53), so the
+// dashboard widget never depends on a device list it may not have loaded.
+type namedAlert struct {
+	*model.Alert
+	DeviceName string `json:"deviceName"`
+}
+
+// namedAlerts resolves each alert's device name with the rule the device list
+// uses (Device.Name); a device that cannot be read leaves the name empty.
+func (s *Server) namedAlerts(ctx context.Context, as []*model.Alert) []namedAlert {
+	out := make([]namedAlert, 0, len(as))
+	names := map[string]string{}
+	for _, a := range as {
+		name, ok := names[a.DeviceID]
+		if !ok {
+			if d, err := s.Store.GetDevice(ctx, a.DeviceID); err == nil && d != nil {
+				name = d.Name()
+			}
+			names[a.DeviceID] = name
+		}
+		out = append(out, namedAlert{Alert: a, DeviceName: name})
+	}
+	return out
 }
 
 // dashboardSecurity is the compliance roll-up over the devices the caller

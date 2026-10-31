@@ -206,13 +206,16 @@ function Utilisation({ r, csv }: { r: UtilisationReport; csv: (t: string) => str
   const s = r.summary
   const days = r.days.map((d) => d.day)
   const series = s.hasSplit
-    ? [{ name: 'Mono', color: CAT[0], values: r.days.map((d) => d.mono) }, { name: 'Colour', color: CAT[1], dashed: true, values: r.days.map((d) => d.color) }]
+    ? [{ name: 'Mono', color: CAT[0], values: r.days.map((d) => d.mono) }, { name: 'Colour', color: CAT[1], dashed: true, values: r.days.map((d) => d.color) }, { name: 'Total pages', color: CAT[2], values: r.days.map((d) => d.pages) }]
     : [{ name: 'Pages', color: CAT[0], values: r.days.map((d) => d.pages) }]
+  const noSplit = Math.max(0, s.devicesWithData - (s.pagesKnown ?? s.devicesWithData))
+  const splitLine = `${fmtInt(s.mono)} mono, ${fmtInt(s.color)} colour${noSplit > 0 ? `, ${noSplit} device${noSplit === 1 ? '' : 's'} without a split` : ''}`
+  const opt = (n: number | null) => (n == null ? '—' : fmtInt(n))
   const idle = r.devices.filter((d) => d.idle)
   return (
     <>
       <div className="grid-auto">
-        <Kpi label="Pages printed" value={fmtInt(s.pages)} detail={s.hasSplit ? `${fmtInt(s.mono)} mono · ${fmtInt(s.color)} colour` : `${s.devicesWithData} devices with counters`} />
+        <Kpi label="Pages printed" value={fmtInt(s.pages)} detail={s.hasSplit ? splitLine : `${s.devicesWithData} devices with counters`} />
         <Kpi label="Pages / day" value={fmtInt(Math.round(s.perDay))} detail={s.peakDay ? `peak ${fmtInt(s.peakPages)} on ${s.peakDay}` : 'no pages in range'} />
         <Kpi label="Per device / day" value={s.perDevicePerDay.toFixed(1)} detail="over devices with counter data" />
         <Kpi label="Idle devices" value={fmtInt(s.idleDevices)} color={s.idleDevices ? 'var(--warn)' : undefined} detail="0 pages over the range" />
@@ -238,7 +241,7 @@ function Utilisation({ r, csv }: { r: UtilisationReport; csv: (t: string) => str
             <thead><tr><th>Device</th><th>Model</th><th>Location</th><th className="r">Pages</th>{s.hasSplit && <><th className="r">Mono</th><th className="r">Colour</th></>}<th className="r">Per day</th><th className="r">Active days</th><th className="r">Resets</th><th>State</th></tr></thead>
             <tbody>{r.devices.map((d) => (
               <tr key={d.deviceId}><td><Link to={`/devices/${d.deviceId}`}>{d.name}</Link></td><td className="mono">{d.model}</td><td className="cap">{d.location || '—'}</td><td className="num r">{fmtInt(d.pages)}</td>
-                {s.hasSplit && <><td className="num r">{fmtInt(d.mono)}</td><td className="num r">{fmtInt(d.color)}</td></>}
+                {s.hasSplit && <><td className="num r">{opt(d.mono)}</td><td className="num r">{opt(d.color)}</td></>}
                 <td className="num r">{d.perDay.toFixed(1)}</td><td className="num r">{d.activeDays} / {d.dataDays}</td><td className="num r">{d.resets || '—'}</td>
                 <td>{d.idle ? <Pill tone="warn" xs noIcon>Idle</Pill> : <Pill tone="ok" xs noIcon>In use</Pill>}</td></tr>
             ))}</tbody>
