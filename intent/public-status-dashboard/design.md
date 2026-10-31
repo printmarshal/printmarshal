@@ -131,6 +131,8 @@ the crossfade off and the page change into a cut.
 ## Accessibility
 - Every colour has a word: the state block carries its word; toner bars carry their levels as
   hidden text; the stale band is a sentence.
+- When the up/down switch is on, each printer also says "Online" or "Offline" beside its name, in
+  the state verb's style. When the switch is off, the card says neither.
 - Contrast: white on each state tone passes AA for normal text and AAA at the state word's size;
   Graphite on white and Mist passes AAA.
 - No focusable elements; the document has a `<main>`, an `<h1>` for the title and an `<h2>` per

@@ -151,7 +151,8 @@ function Row({ d, tile }: { d: PublicDevice; tile: boolean }) {
         <h2 className="pub-label">
           <span className="pub-sr">{`${v.word}: `}</span>
           {d.label}
-          {d.state && <span className="pub-verb">{d.state}</span>}
+          {typeof d.online === 'boolean' && <>{' '}<span className="pub-verb">{d.online ? 'Online' : 'Offline'}</span></>}
+          {d.state && <>{' '}<span className="pub-verb">{d.state}</span></>}
         </h2>
         {d.location && <p className="pub-location">{d.location}</p>}
         {detail && (
