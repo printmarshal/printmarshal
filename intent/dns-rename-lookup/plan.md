@@ -63,3 +63,19 @@ design.
 - A run of the branch binary on `127.0.0.1:8083` against a copy of the test data dir
   (`cp -R ~/printmarshal-test-data`), signed in as `admin`: bulk rename of five devices from DNS
   through the UI, then the list showing the new names and the "DNS sync" pills; a screenshot.
+
+## Departures
+- Hint wording: the device page's hint says "press Refresh", which does not fit a dialog, so
+  both dialogs say "Reverse DNS is off, so DNS sync will not keep these names up to date on its
+  own." with the same Settings link (or the administrator line). The rename dialog shows it
+  too, as the intent asks of both dialogs.
+- `selected` in `Devices.tsx` is memoised on the selection, so an open rename preview, which
+  may now run lookups, does not re-run on every list refresh.
+- Rename-route counting: `renameDevices` keeps each device's name from before the lookup. When
+  the lookup itself renamed a device kept in sync, the row reports `from` (the earlier name) →
+  `to`, not skipped, and is counted in `updated`, in a preview as well as an apply; the apply
+  does not patch it again. Test: `TestRenameCountsSyncRename`, committed failing first.
+- Rename dialog checkbox: it starts ticked when every selected device is already synced. On
+  apply with source DNS, ticked when it started unticked posts `set.dnsSync: true` for all
+  selected devices (including ones skipped as unchanged); unticked when it started ticked posts
+  `set.dnsSync: false` for all of them; left as it started, nothing is sent.
