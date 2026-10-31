@@ -27,7 +27,7 @@ export const CATALOGUE: WidgetDef[] = [
   { id: 'fleet.health', title: 'Fleet health', size: 'full' },
   { id: 'devices.attention', title: 'Devices needing attention', size: 'full' },
   { id: 'supplies.low', title: 'Supplies running low', size: 'third' },
-  { id: 'jobs.inprogress', title: 'In-progress jobs', size: 'third' },
+  { id: 'jobs.inprogress', title: 'Recent jobs', size: 'third' },
   { id: 'activity.recent', title: 'Recent activity', size: 'third', minRole: 'operator' },
   { id: 'consumables.lowstock', title: 'Consumables low on stock', size: 'half' },
   { id: 'consumables.reorder', title: 'Upcoming replacements & reorder forecast', size: 'half' },

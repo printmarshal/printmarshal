@@ -140,21 +140,23 @@ function FleetSupplies() {
   useEvents((e) => { if (e.type === 'device.updated' || e.type.startsWith('consumable.')) load() }, [load])
   const typeOf = (s: InstalledSupply) => s.consumable?.type || s.suggestion?.type || s.supply.type
   const colorOf = (s: InstalledSupply) => s.consumable?.color || s.suggestion?.color || s.supply.colorant || ''
-  const filtered = rows.filter((r) => (!type || typeOf(r) === type) && (!color || colorOf(r) === color) && (!level || levelOf(r.supply) === level))
+  const filtered = rows.filter((r) => (!type || typeOf(r) === type) && (!color || colorOf(r) === color) && (!level || levelOf(r.supply) === level || (level === 'low' && levelOf(r.supply) === 'empty')))
   const colors = Array.from(new Set(rows.map(colorOf).filter(Boolean))).sort()
   const groups = useMemo(() => {
     const m = new Map<string, InstalledSupply[]>()
     for (const r of filtered) { const k = group === 'type' ? `${typeLabel(typeOf(r))}${colorOf(r) ? ` · ${colorOf(r)}` : ''}` : r.deviceName; m.set(k, [...(m.get(k) || []), r]) }
     return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b))
   }, [filtered, group])
-  const lowCount = rows.filter((r) => levelOf(r.supply) === 'low' || levelOf(r.supply) === 'empty').length
+  const lowRows = rows.filter((r) => levelOf(r.supply) === 'low' || levelOf(r.supply) === 'empty')
+  // The headline counts devices; the supplies behind it are counted beside it (#48).
+  const lowCount = new Set(lowRows.map((r) => r.deviceId)).size
   const emptyCount = rows.filter((r) => levelOf(r.supply) === 'empty').length
   const short = rows.filter((r) => r.consumable && (levelOf(r.supply) === 'low' || levelOf(r.supply) === 'empty')).reduce<Record<string, number>>((m, r) => { m[r.consumable!.id] = (m[r.consumable!.id] || 0) + 1; return m }, {})
   const shortItems = Object.entries(short).filter(([id, n]) => { const c = rows.find((r) => r.consumable?.id === id)?.consumable; return c && n > c.onHand }).length
   return (
     <>
       <section className="card" style={{ display: 'flex', flexWrap: 'wrap' }}>
-        <div className="stat"><span className="cap">Devices with a supply ≤ 15%</span><span className="v" style={{ color: lowCount ? 'var(--warn)' : undefined }}>{lowCount}</span><span className="cap">{emptyCount} empty</span></div>
+        <div className="stat"><span className="cap">Devices with a supply ≤ 15%</span><span className="v" style={{ color: lowCount ? 'var(--warn)' : undefined }}>{lowCount}</span><span className="cap">{lowRows.length} {lowRows.length === 1 ? 'supply' : 'supplies'} · {emptyCount} empty</span></div>
         <div className="stat"><span className="cap">Stock items short of demand</span><span className="v" style={{ color: shortItems ? 'var(--crit)' : undefined }}>{shortItems}</span><span className="cap">more low devices than spares</span></div>
         <div className="stat"><span className="cap">Installed supplies tracked</span><span className="v">{rows.length}</span><span className="cap">across polled devices</span></div>
       </section>

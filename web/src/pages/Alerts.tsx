@@ -23,6 +23,9 @@ export default function Alerts({ user }: { user: User }) {
     api.get<{ devices: Device[] }>('/api/devices?includeDecommissioned=true').then((r) => setDevices(Object.fromEntries(r.devices.map((d) => [d.id, d])))).catch(() => {})
   }, [history])
   useEffect(() => { load() }, [load])
+  // The trap listener state comes from the server's settings (#50); nothing is shown until it loads.
+  const [trapOn, setTrapOn] = useState<boolean | null>(null)
+  useEffect(() => { api.get<{ trap?: { enabled?: boolean } }>('/api/settings').then((st) => setTrapOn(st.trap?.enabled === true)).catch(() => {}) }, [])
   useEvents((e) => { if (e.type.startsWith('alert.')) load() }, [load])
 
   const act = async (ids: string[], what: 'ack' | 'clear') => {
@@ -48,7 +51,7 @@ export default function Alerts({ user }: { user: User }) {
   return (
     <>
       <div className="ph">
-        <div><h1 className="h1">Alerts</h1><div className="cap num">{counts.critical + counts.warning} active · {counts.acked} acknowledged · trap listener on</div></div>
+        <div><h1 className="h1">Alerts</h1><div className="cap num">{counts.critical + counts.warning} active · {counts.acked} acknowledged{trapOn !== null && <> · trap listener {trapOn ? 'on' : 'off'}</>}</div></div>
         <div className="row"><Seg label="Active or history" value={history ? 'history' : 'active'} onChange={(v) => setHistory(v === 'history')} options={[{ v: 'active', label: 'Active' }, { v: 'history', label: 'History' }]} /></div>
       </div>
       <div className="row">
