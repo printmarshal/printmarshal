@@ -87,6 +87,16 @@ Server
   back, so an import may overwrite its own earlier value; `operator` says "set by an operator";
   `dns` says "kept in sync with DNS"; a non-empty value with no source says "already has a value",
   since it may be an old operator edit or seeded from `sysLocation`.
+- *Built, review fix 4:* a `displayName` value equal to the device's current `Name()` is no change,
+  so re-importing an export does not freeze a derived name. Create rows are unaffected.
+- *Built, review fix 5:* `authorize` refuses a group-scoped principal's JSON body over the 1 MiB
+  peek with 413 and an `auth.denied` entry, since the probe cannot have seen all of it.
+- *Built, not in the spec's wording:* skip reasons carry no "row N:" prefix (R4's example), since
+  the preview has a row column and job results carry the row in `data`. A non-IP address that
+  matches a recorded device is accepted, since a device discovered by name is recorded under it.
+  Joining a group writes a `group.members` audit entry beside R13's. R14: there is no per-job
+  cancel API yet, so only a shutdown stops the job; where it stopped is a result with `outcome:
+  cancelled`, an outcome beyond the plan JSON's create, update and skip.
 
 Web
 - `web/src/components/ImportDialog.tsx` (new): file input, "Download template" (a header-only
