@@ -465,15 +465,14 @@ func supplyAlertCategory(d *model.Device, key string) string {
 // alertCategory maps an alert to offline, paper, toner, door, jam,
 // maintenance or other, or "" for alerts that never appear on the board. It
 // sees the source and key only, which cannot tell a toner from a drum, so the
-// board sends source "supply" through supplyAlertCategory instead.
+// board sends source "supply" through supplyAlertCategory, and any supply alert
+// that reached this function would be "other".
 func alertCategory(source, key string) string {
 	switch source {
 	case "security", "consumable":
 		return ""
 	case "offline":
 		return "offline"
-	case "supply":
-		return "toner"
 	case "trap":
 		if key == "trap:link-down" {
 			return "offline"

@@ -26,8 +26,8 @@ precedence (first match wins):
 
 | State word | Tone | When |
 | --- | --- | --- |
-| Not reachable | `--off` | `online` is false |
-| Needs service | `--crit` | an alert in category maintenance |
+| Not reachable | `--off` | `online` is false, or an active offline alert |
+| Needs service | `--crit` when critical, `--warn` otherwise | an alert in category maintenance |
 | Paper jam | `--crit` | an alert in category jam |
 | Cover open | `--crit` | an alert in category door |
 | Out of paper | `--crit` | trays are listed, none is ok and at least one is empty; or no trays listed and a critical paper alert |

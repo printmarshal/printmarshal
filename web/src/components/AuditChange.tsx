@@ -17,7 +17,7 @@ export function AuditChangeCell({ e }: { e: Pick<AuditEntry, 'before' | 'after'>
   const diff = auditDiff(e.before, e.after)
   const hasPayload = e.before !== undefined || e.after !== undefined
   return (
-    <td className="cap" style={{ whiteSpace: 'normal', maxWidth: 420, overflowWrap: 'anywhere' }}>
+    <td className="cap" style={{ whiteSpace: 'normal', minWidth: 240, maxWidth: 420, overflowWrap: 'anywhere' }}>
       {diff ? (diff.length === 0 ? <span>no field changed</span> : diff.map((d) => <div key={d.key}><span className="mono">{d.key}</span>: <span className="old mono">{showVal(d.from)}</span> → <span className="new-v mono">{showVal(d.to)}</span></div>))
         : <>{e.before && <>from <span className="old mono">{JSON.stringify(e.before)}</span> </>}{e.after && <>to <span className="new-v mono">{JSON.stringify(e.after)}</span></>}</>}
       {hasPayload && <div><button type="button" className="link" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Hide full entry' : 'Show full entry'}</button></div>}

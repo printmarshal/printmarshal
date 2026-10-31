@@ -434,7 +434,7 @@ func TestAlertCategoryMapping(t *testing.T) {
 		{"poll", "error:media-low", "paper"},
 		{"poll", "error:inputTrayMissing", "paper"},
 		{"poll", "device:input:inputMediaSupplyEmpty:2", "paper"},
-		{"supply", "supply:1", "toner"},
+		{"supply", "supply:1", "other"}, // the board uses supplyAlertCategory for these
 		{"poll", "error:noToner", "toner"},
 		{"poll", "error:marker-supply-empty-error", "toner"},
 		{"poll", "error:markerSupplyMissing", "toner"},
