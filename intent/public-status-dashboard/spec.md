@@ -49,7 +49,8 @@ Boundary
   select data; unknown parameters are ignored.
 - R7. Per client address, more than 30 requests in a minute answer 429 with `Retry-After: 60`. The
   limiter reuses the login limiter's shape (`internal/api/authguard.go`) and takes the address from
-  the connection, not from forwarded headers, unless `PM_TRUST_PROXY` (existing behaviour) applies.
+  the connection through the existing `clientIP`, which ignores forwarded headers by design (there
+  is no trusted-proxy setting; corrected while planning).
 - R8. A board lists at most 200 devices; `PUT` refuses more. The response is at most about 100 KB.
 - R9. Changing the configuration is `PUT /api/settings/public-status` (admin role, API tokens
   refused as for `/api/settings/directory*`); reading it is `GET` on the same path (admin). Every
