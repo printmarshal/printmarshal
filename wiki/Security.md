@@ -193,6 +193,17 @@ TLS termination is expected at a reverse proxy or ingress (see
 the same-origin check on the stream keeps working. Client addresses used for
 throttling are the TCP peer, so a proxy should apply its own sign-in rate limit.
 
+### Public status board
+
+The [public status board](Monitoring-and-alerts.md#public-status-board) is the console's only data route that needs no sign-in. Its boundary:
+
+- It is off by default, and while it is off its page and API answer as if they did not exist.
+- It shows only the printers and signals an administrator chose, from a purpose-built response that carries no addresses, serials, models, groups, notes, security data or device ids.
+- Alert text is reduced to a fixed category (offline, paper, toner, door, jam, maintenance, other); descriptions are never sent.
+- A public request never contacts a printer; the board is built from what the console already stored.
+- Responses are cached for 15 seconds and limited to 30 requests a minute per client address (`429`, `Retry-After: 60`).
+- The unlisted address is not authentication, and framing stays refused unless an administrator lists the origins allowed to frame the board.
+
 ### Device writes over IPP
 
 These controls came out of the external code review (findings H-016, H-017) and

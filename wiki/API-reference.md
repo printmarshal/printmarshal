@@ -103,6 +103,56 @@ Source: `internal/api/tokens.go`.
 | POST | `/api/tokens` | admin | `{name,role?,scope?:string[],expiresAt?,ttl?}` | 201 `{token,secret}` (secret once) | PM |
 | DELETE | `/api/tokens/{id}` | admin | — | 200 APIToken (revoked) | PM |
 
+## Public status board
+
+Source: `internal/api/public.go`. The board itself is described under [Monitoring and alerts](Monitoring-and-alerts.md#public-status-board); its boundary under [Security](Security.md#public-status-board).
+
+| Method | Path | Minimum role | Body / query | Response | Effect |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/public/status` | public (no session, no token) | — (query parameters are ignored) | 200 `PublicBoard`; 404 when the board is off or unlisted; 429 when rate-limited | Read |
+| GET | `/api/public/status/{slug}` | public (no session, no token) | — | 200 `PublicBoard`; 404 when the board is off, not unlisted, or `{slug}` is not the current slug; 429 when rate-limited | Read |
+| GET | `/api/settings/public-status` | admin (sessions only; API tokens get 403) | — | 200 `PublicStatusConfig` | Read |
+| PUT | `/api/settings/public-status` | admin (sessions only; API tokens get 403) | `PublicStatusConfig` | 200 the saved `PublicStatusConfig` | PM |
+
+**Response.** `PublicBoard` is a purpose-built struct, not a projection of the device record, so it carries exactly these keys and no others:
+
+| Key | Present | Value |
+| --- | --- | --- |
+| `title` | always | The board title. |
+| `updatedAt` | always | Time of the console's last poll data behind the board. |
+| `stale` | always | `true` when `updatedAt` is older than three poll intervals. |
+| `devices[]` | always | The chosen printers in the configured order, without ids. |
+| `devices[].label` | always | The public label, or the display name when no label is set. |
+| `devices[].location` | `show.location` | The device's location text. |
+| `devices[].online` | `show.online` | `true` when the last poll reached the printer. |
+| `devices[].state` | `show.state` | The printer's own state word (ready, sleeping, printing). |
+| `devices[].paper[]` | `show.paper` | `{name,status}` per input tray; `status` is `ok`, `low`, `empty` or `unknown`. |
+| `devices[].toner[]` | `show.toner` | `{name,colorant,percent,status}` per supply; `percent` is a number or `null`; `status` as for paper. |
+| `devices[].alerts[]` | `show.alerts` | `{severity,category}` per active alert; `category` is one of `offline`, `paper`, `toner`, `door`, `jam`, `maintenance`, `other`. The alert's description is never sent; acknowledged and cleared alerts are left out. |
+
+Addresses, hostnames, serials, make, model, firmware, groups, tags, asset tags, notes, security findings and device ids are never part of the response, whatever the switches. A board lists at most 200 printers.
+
+**Status codes.** While the board is off, both public paths answer 404 with the same body as an unknown endpoint, so a reader cannot tell a disabled board from a missing route. While the board is unlisted, `/api/public/status` answers 404 and only the current slug answers. More than 30 requests in a minute from one client address get 429 with `Retry-After: 60`; the address is the TCP peer, as for sign-in throttling, and forwarded headers are ignored.
+
+**Caching.** The response is built from the store only (it never contacts a printer) and cached in memory for 15 seconds; requests arriving during a rebuild share one build.
+
+**Configuration.** `PublicStatusConfig` is stored as the setting `public.status`:
+
+```json
+{
+  "enabled": false,
+  "unlisted": false,
+  "slug": "",
+  "title": "Printer status",
+  "frameOrigins": ["https://signage.example.org"],
+  "devices": [{ "id": "dev_…", "label": "Library ground floor, colour" }],
+  "show": { "location": true, "online": true, "state": false,
+            "paper": true, "toner": true, "alerts": true }
+}
+```
+
+`PUT` refuses (400) more than 200 devices, a `title` over 60 characters, a `label` over 80 characters, and a `frameOrigins` entry that is not an origin of the form `scheme://host[:port]`. Every device id must exist and be visible to the caller under group scope; a device deleted later simply drops off the board. Sending `slug: ""` generates a new 22-character slug, which retires the old unlisted address. Every change writes a security log entry `public.status.changed` with the username, the enabled and unlisted flags, the device count and the switches; turning the board on also writes `public.status.enabled`.
+
 ## Configuration management
 
 Source: `internal/api/config.go`.
