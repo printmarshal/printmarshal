@@ -17,23 +17,26 @@ type Section = 'users' | 'signin' | 'tokens' | 'notifications' | 'system' | 'pri
 export default function Settings({ user }: { user: User }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const seg = location.pathname.split('/')[2] as Section | undefined
+  const seg = location.pathname.split('/')[2] || undefined
   const isAdmin = user.role === 'admin'
   const canOperate = user.role !== 'viewer'
-  const sections = ([
-    { v: 'users', label: 'Users & roles', icon: <Ic.users />, show: isAdmin },
-    { v: 'signin', label: 'Sign-in & directory', icon: <Ic.shield />, show: isAdmin },
-    { v: 'tokens', label: 'API tokens', icon: <Ic.key />, show: isAdmin },
-    { v: 'notifications', label: 'Notifications', icon: <Ic.bell />, show: true },
-    { v: 'system', label: 'System & consumables', icon: <Ic.server />, show: true },
-    { v: 'printprovider', label: 'Print provider', icon: <Ic.printer />, show: true },
-    { v: 'export', label: 'Exports & SIEM', icon: <Ic.upload />, show: true },
-    { v: 'appearance', label: 'Appearance', icon: <Ic.dashboard />, show: true },
-    { v: 'publicstatus', label: 'Public status', icon: <Ic.grid />, show: isAdmin },
-    { v: 'audit', label: 'Audit trail', icon: <Ic.activity />, show: canOperate },
-    { v: 'account', label: 'My account', icon: <Ic.user />, show: true },
-  ] as { v: Section; label: string; icon: JSX.Element; show: boolean }[]).filter((s) => s.show)
-  const current: Section = sections.some((s) => s.v === seg) ? (seg as Section) : sections[0].v
+  const known = ([
+    { v: 'users', label: 'Users & roles', icon: <Ic.users />, needs: 'admin' },
+    { v: 'signin', label: 'Sign-in & directory', icon: <Ic.shield />, needs: 'admin' },
+    { v: 'tokens', label: 'API tokens', icon: <Ic.key />, needs: 'admin' },
+    { v: 'notifications', label: 'Notifications', icon: <Ic.bell /> },
+    { v: 'system', label: 'System & consumables', icon: <Ic.server /> },
+    { v: 'printprovider', label: 'Print provider', icon: <Ic.printer /> },
+    { v: 'export', label: 'Exports & SIEM', icon: <Ic.upload /> },
+    { v: 'appearance', label: 'Appearance', icon: <Ic.dashboard /> },
+    { v: 'publicstatus', label: 'Public status', icon: <Ic.grid />, needs: 'admin' },
+    { v: 'audit', label: 'Audit trail', icon: <Ic.activity />, needs: 'operator' },
+    { v: 'account', label: 'My account', icon: <Ic.user /> },
+  ] as { v: Section; label: string; icon: JSX.Element; needs?: 'admin' | 'operator' }[])
+  const sections = known.filter((s) => s.needs === 'admin' ? isAdmin : s.needs === 'operator' ? canOperate : true)
+  // Only a bare /settings falls back to the first section; any other address shows what it names or says why it can't.
+  const named = known.find((s) => s.v === seg)
+  const current: Section | null = !seg ? sections[0].v : sections.some((s) => s.v === seg) ? (seg as Section) : null
   const go = (s: Section) => navigate(`/settings/${s}`)
   return (
     <>
@@ -44,6 +47,7 @@ export default function Settings({ user }: { user: User }) {
           {canOperate && <Link to="/credentials"><Ic.lock />Credentials<Ic.external size={13} style={{ marginLeft: 'auto' }} /></Link>}
         </nav>
         <div className="stack" style={{ flex: '4 1 600px' }}>
+          {current === null && <SectionUnavailable section={named} role={user.role} />}
           {current === 'users' && <Users me={user} />}
           {current === 'signin' && <DirectorySection />}
           {current === 'tokens' && <TokensSection />}
@@ -59,6 +63,12 @@ export default function Settings({ user }: { user: User }) {
       </div>
     </>
   )
+}
+
+function SectionUnavailable({ section, role }: { section?: { label: string; needs?: 'admin' | 'operator' }; role: User['role'] }) {
+  const back = <Link className="btn sm" to="/settings">Back to Settings</Link>
+  if (!section) return <Card title="Settings" id="nosec"><div className="cb"><EmptyState tone="muted" icon={<Ic.settings size={20} />} title="No such section" text="This address does not match any settings section." action={back} /></div></Card>
+  return <Card title={section.label} id="denied"><div className="cb"><EmptyState tone="muted" icon={<Ic.lock size={20} />} title={`This section needs the ${section.needs} role`} text={`You are signed in with the ${role} role. An administrator can change your role.`} action={back} /></div></Card>
 }
 
 function SRow({ label, hint, children }: { label: React.ReactNode; hint?: string; children: React.ReactNode }) {
