@@ -25,7 +25,7 @@ Source: `internal/api/server.go`.
 | GET | `/api/auth/me` | viewer | — | 200 User | Auth |
 | POST | `/api/auth/password` | viewer | `{current,new}` | 200 `{ok:true}` | Auth |
 | GET | `/api/stream` | viewer | — | 101 WebSocket; event envelopes | Read |
-| GET | `/api/dashboard` | viewer | — | 200 `{summary,alerts[],jobs[],attention[],consumables,security,layout}` — `security` is the compliance roll-up over the caller's visible devices (`unknown` items kept apart from the score, `notAssessed` devices); `layout` is `{effective,personal,default}`, each a `DashboardLayout` or null | Read |
+| GET | `/api/dashboard` | viewer | — | 200 `{summary,alerts[],jobs[],attention[],consumables,security,layout}` — each alert carries `deviceName`, the device's name resolved by id on the server (empty when the device cannot be read); `security` is the compliance roll-up over the caller's visible devices (`unknown` items kept apart from the score, `notAssessed` devices); `layout` is `{effective,personal,default}`, each a `DashboardLayout` or null | Read |
 | PUT | `/api/dashboard/layout` | viewer (sessions only; API tokens get 403) | `{version:1,widgets:[{id,hidden?,collapsed?}]}` | 200 the normalised layout (unknown ids dropped) | PM |
 | DELETE | `/api/dashboard/layout` | viewer (sessions only) | — | 200 `{ok:true}`; the caller follows the instance default again | PM |
 | PUT | `/api/dashboard/layout/default` | admin (sessions only) | same body | 200 the normalised default for everyone without a personal layout | PM |
@@ -310,7 +310,7 @@ Source: `internal/api/reports.go`.
 | Method | Path | Minimum role | Body / query | Response | Effect |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/reports` | viewer | — | 200 `{available,reports,maxRangeDays}` | Read |
-| GET | `/api/reports/utilisation` | viewer | query: `from,to,days,group,device,top,format,table` | 200 report JSON or CSV; compliance report is unavailable placeholder | Read |
+| GET | `/api/reports/utilisation` | viewer | query: `from,to,days,group,device,top,format,table` | 200 report JSON or CSV; compliance report is unavailable placeholder. In the utilisation report a device's `mono` and `color` are `null` (an empty CSV cell) when the device reports no mono/colour split, never 0; `summary.mono` and `summary.color` sum known values only and `summary.pagesKnown` counts the devices with a known split | Read |
 | GET | `/api/reports/fleet-health` | viewer | query: `from,to,days,group,device,top,format,table` | 200 report JSON or CSV; compliance report is unavailable placeholder | Read |
 | GET | `/api/reports/supplies` | viewer | query: `from,to,days,group,device,top,format,table` | 200 report JSON or CSV; compliance report is unavailable placeholder | Read |
 | GET | `/api/reports/alerts` | viewer | query: `from,to,days,group,device,top,format,table` | 200 report JSON or CSV; compliance report is unavailable placeholder | Read |
