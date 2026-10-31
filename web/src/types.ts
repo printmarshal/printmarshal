@@ -68,10 +68,16 @@ export interface ConsumableSettings {
 }
 export interface Sample { deviceId: string; metric: string; label?: string; value: number; at: string }
 export interface AuditEntry { id: number; actor: string; action: string; target: string; before?: Record<string, unknown>; after?: Record<string, unknown>; result: string; at: string }
+import type { ComplianceSummary } from './types-security'
+/** One widget's place on the dashboard; order in the list is order on the page. */
+export interface LayoutEntry { id: string; hidden?: boolean; collapsed?: boolean }
+export interface DashboardLayout { version: number; widgets: LayoutEntry[] }
 export interface Dashboard {
   summary: { devices: number; byState: Record<string, number>; bySeverity: Record<string, number>; offline: number; activeAlerts: number; criticalAlerts: number; lowSupplies: number; lowStock: number; runningJobs: number }
   alerts: Alert[]; jobs: Job[]; attention: Device[]
   consumables: { lowStock: ConsumableRow[]; reorder: ConsumableRow[]; pendingReplacements: number }
+  security: ComplianceSummary
+  layout: { effective: DashboardLayout | null; personal: DashboardLayout | null; default: DashboardLayout | null }
 }
 export interface Event { type: string; at: string; data: unknown }
 

@@ -84,6 +84,10 @@ func (s *Server) Handler() http.Handler {
 
 	// Dashboard, devices
 	mux.Handle("GET /api/dashboard", s.require(model.RoleViewer, s.dashboard))
+	mux.Handle("PUT /api/dashboard/layout", s.require(model.RoleViewer, s.putLayout))
+	mux.Handle("DELETE /api/dashboard/layout", s.require(model.RoleViewer, s.deleteLayout))
+	mux.Handle("PUT /api/dashboard/layout/default", s.require(model.RoleAdmin, s.putDefaultLayout))
+	mux.Handle("DELETE /api/dashboard/layout/default", s.require(model.RoleAdmin, s.deleteDefaultLayout))
 	mux.Handle("GET /api/devices", s.require(model.RoleViewer, s.listDevices))
 	mux.Handle("GET /api/devices.csv", s.require(model.RoleViewer, s.exportDevicesCSV))
 	mux.Handle("GET /api/supplies.csv", s.require(model.RoleViewer, s.exportSuppliesCSV))
@@ -398,28 +402,6 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- dashboard / devices ----------------------------------------------------
-
-func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
-	ds, err := s.Store.Dashboard(r.Context())
-	if err != nil {
-		s.fail(w, err)
-		return
-	}
-	alerts, _ := s.Store.ListAlerts(r.Context(), store.AlertFilter{ActiveOnly: true, Limit: 20})
-	alerts = s.filterAlerts(r.Context(), alerts)
-	jobs, _ := s.Store.ListJobs(r.Context(), store.JobFilter{Limit: 10})
-	attention, _ := s.resolveDevices(r.Context(), store.DeviceFilter{Sort: "severity", Limit: 10})
-	var needs []*model.Device
-	for _, d := range attention {
-		if d.Status != nil && (d.Status.Severity != model.SeverityOK || !d.Status.Online) {
-			needs = append(needs, d)
-		}
-	}
-	if needs == nil {
-		needs = []*model.Device{}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"summary": ds, "alerts": alerts, "jobs": jobs, "attention": needs, "consumables": s.dashboardConsumables(r.Context())})
-}
 
 func deviceFilter(r *http.Request) store.DeviceFilter {
 	q := r.URL.Query()
@@ -1263,6 +1245,7 @@ func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	_ = s.Store.DeleteSetting(r.Context(), layoutUserKey(id)) // the user's dashboard layout goes with them
 	s.audit(r.Context(), r, "user.delete", id, nil, nil, "ok")
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

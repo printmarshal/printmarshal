@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"printmarshal/internal/auth"
 	"printmarshal/internal/model"
 	"printmarshal/internal/security"
 	"printmarshal/internal/store"
@@ -220,14 +221,39 @@ func (s *Server) compliance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if d := q.Get("device"); d != "" {
+		if !s.allowedDevice(r.Context(), d) {
+			s.denyScope(w, r, auth.UserFrom(r.Context()), r.URL.Path+" (device "+d+")")
+			return
+		}
 		deviceIDs = []string{d}
+	}
+	// A group-scoped principal sees only its devices' assessments, like every
+	// other reader; the view size lets the summary count unassessed devices.
+	inView := len(deviceIDs)
+	if len(deviceIDs) == 0 {
+		visible, err := s.resolveDevices(r.Context(), store.DeviceFilter{})
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		inView = len(visible)
+		if s.scopeDeviceIDs(r.Context()) != nil {
+			deviceIDs = make([]string, 0, len(visible))
+			for _, d := range visible {
+				deviceIDs = append(deviceIDs, d.ID)
+			}
+			if len(deviceIDs) == 0 {
+				writeJSON(w, http.StatusOK, map[string]any{"results": []*model.Assessment{}, "summary": security.Summarize(nil)})
+				return
+			}
+		}
 	}
 	as, err := s.Store.LatestAssessments(r.Context(), q.Get("policy"), deviceIDs)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"results": as, "summary": security.Summarize(as)})
+	writeJSON(w, http.StatusOK, map[string]any{"results": as, "summary": security.SummarizeFor(as, inView)})
 }
 
 func (s *Server) complianceHistory(w http.ResponseWriter, r *http.Request) {

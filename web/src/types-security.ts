@@ -25,7 +25,8 @@ export interface Assessment {
   id: string; deviceId: string; policyId: string; items: ItemResult[]
   passed: number; failed: number; unknown: number; score: number; compliant: boolean; jobId?: string; at: string
 }
-export interface ComplianceSummary { devices: number; compliant: number; nonCompliant: number; avgScore: number; failingItems: Record<string, number> }
+/** Fleet roll-up of the latest assessments; unknown items are never counted as passing. */
+export interface ComplianceSummary { devices: number; compliant: number; nonCompliant: number; avgScore: number; unknown: number; notAssessed: number; failingItems: Record<string, number> }
 export interface ComplianceResponse { results: Assessment[]; summary: ComplianceSummary }
 export interface CompliancePoint { date: string; assessed: number; compliant: number; avgScore: number }
 

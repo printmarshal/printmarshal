@@ -29,3 +29,9 @@
 - `cd web && npm run typecheck && npm run build` green.
 - Screenshots: dashboard before and after the widget split (identical); edit mode with one widget hidden and one moved; the posture widget with simulator data showing unknown items; phone width in edit mode.
 - A scoped API token's dashboard payload carries posture numbers for its devices only.
+
+## Departures recorded during implementation (2026-10-31)
+- The widgets live in one file, `web/src/dashboard/widgets.tsx`, with a renderer per widget, not one file per widget: the components are short and share imports.
+- Today's page used four different CSS grids; a reorderable list needs one grid, so `.dash-grid` is a 12-column grid with spans by widget size (kpi 2, third 4, half 6, full 12) and breakpoints at 1100, 900 and 640 px. The page is visually equivalent, not pixel-identical; screenshots at 1440 px of main and the branch were compared.
+- `Summarize` keeps its signature; `SummarizeFor(as, devicesInView)` adds the view size, so existing callers are untouched.
+- `GET /api/compliance` gained group-scope filtering and a 403 on a foreign `?device=`: an audit-class gap found while wiring the posture summary.
