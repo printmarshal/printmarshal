@@ -343,3 +343,48 @@ func TestReimportFixesATypo(t *testing.T) {
 		t.Errorf("re-import: %+v", r)
 	}
 }
+
+// The export's name column is Device.Name(), often derived. Importing it back
+// must not freeze a computed name into displayName, where the device would
+// stop following the name-source setting.
+func TestDiffDerivedNameIsNoChange(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		dev   model.Device
+		value string
+		set   bool
+	}{
+		{"sysName", model.Device{SysName: "lp-3f", Hostname: "h", Model: "M", Address: "10.0.0.1"}, "lp-3f", false},
+		{"hostname", model.Device{Hostname: "h", Model: "M", Address: "10.0.0.1"}, "h", false},
+		{"model", model.Device{Model: "M", Address: "10.0.0.1"}, "M", false},
+		{"address", model.Device{Address: "10.0.0.1"}, "10.0.0.1", false},
+		{"the operator's own name", model.Device{DisplayName: "Front desk", SysName: "lp-3f"}, "Front desk", false},
+		{"a real name", model.Device{SysName: "lp-3f"}, "Front desk", true},
+		{"a lower-precedence name is a real choice", model.Device{SysName: "lp-3f", Model: "M"}, "M", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dev := tc.dev
+			dev.State = model.StateDiscovered
+			for _, replace := range []map[string]bool{nil, {"displayName": true}} {
+				fields, heldBack := Diff(&dev, map[string]any{"displayName": tc.value}, false, replace)
+				if _, got := fields["displayName"]; got != tc.set || len(heldBack) != 0 {
+					t.Errorf("replace %v: fields %v held %v, want set=%v", replace, fields, heldBack, tc.set)
+				}
+			}
+		})
+	}
+	// A new device takes the file's name, whatever it is.
+	if fields, _ := Diff(nil, map[string]any{"displayName": "Acme 100"}, false, nil); fields["displayName"] != "Acme 100" {
+		t.Errorf("create: %v", fields)
+	}
+	// Through the plan: an export row for a device that has no display name.
+	lk := inventory()
+	lk.DeviceByAddress("10.0.0.6").Model = "Acme 100"
+	got := Plan(mustParse(t, "name,address\nAcme 100,10.0.0.6\nAcme 100,10.0.0.60\n"), lk, Options{})
+	if r := got.Rows[0]; r.Outcome != OutcomeSkip || r.Reason != "unchanged" {
+		t.Errorf("export row of an existing device: %+v", r)
+	}
+	if r := got.Rows[1]; r.Outcome != OutcomeCreate || r.Fields["displayName"] != "Acme 100" {
+		t.Errorf("export row of a new device: %+v", r)
+	}
+}
