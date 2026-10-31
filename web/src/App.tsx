@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Component, useCallback, useEffect, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { api } from './api'
 import type { Alert, Dashboard as DashboardData, User } from './types'
 import { setNameSource } from './types'
 import { disconnectEvents, useEvents } from './ws'
 import { Ic, Mark, Wordmark } from './components/icons'
-import { Av, Btn } from './components/ui'
+import { Av, Banner, Btn } from './components/ui'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Devices from './pages/Devices'
@@ -88,6 +88,19 @@ function Console() {
       </Routes>
     </Shell>
   )
+}
+
+/** Keeps the sidebar and header when a page fails to render. Any navigation tries the page again. */
+class PageBoundary extends Component<{ resetKey: string; children: React.ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null }
+  static getDerivedStateFromError(error: Error) { return { error } }
+  componentDidUpdate(prev: { resetKey: string }) {
+    if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null })
+  }
+  render() {
+    if (!this.state.error) return this.props.children
+    return <Banner tone="crit" role="alert" right={<Btn sm onClick={() => window.location.reload()}><Ic.refresh />Reload</Btn>}>This page could not be displayed: {this.state.error.message}</Banner>
+  }
 }
 
 interface Counts { devices: number; critical: number; warning: number; lowStock: number; jobs: number }
@@ -176,7 +189,7 @@ function Shell({ user, onLogout, children }: { user: User; onLogout: () => void;
             </div>
           </div>
         </header>
-        <main className="content">{children}</main>
+        <main className="content"><PageBoundary resetKey={location.key}>{children}</PageBoundary></main>
       </div>
       {toast && (
         <div className="toast" role="status">

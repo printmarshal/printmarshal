@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ago, fmtTime } from '../api'
-import type { Alert, Consumable, Device, InstalledSupply, Sample, StockEvent, Tray, User } from '../types'
+import type { Alert, AuditEntry, Consumable, Device, InstalledSupply, Sample, StockEvent, Tray, User } from '../types'
 import { decommissionedReason, deviceName, isDecommissioned, makeModel } from '../types'
 import { useEvents } from '../ws'
 import { Ic } from '../components/icons'
 import { Banner, Bar, Btn, Card, DevicePill, Mk, MiniSpark, Pill, SevPill, Sw, Tabs, Tag, fmtInt, remaining, since, supplyColor, trayTone } from '../components/ui'
 import { ConsumableLink, fmtDays, statusOf } from '../components/consumables'
+import { AuditChangeCell } from '../components/AuditChange'
 import DeviceConfigTab from '../components/config/DeviceConfigTab'
 import SupportCard from '../components/catalog/SupportCard'
 import DeviceFirmwareTab from '../components/firmware/DeviceFirmwareTab'
@@ -388,7 +389,7 @@ function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; on
 }
 
 function ActivityCard({ deviceId, canSee }: { deviceId: string; canSee: boolean }) {
-  const [entries, setEntries] = useState<{ id: number; actor: string; action: string; target: string; at: string; result: string; after?: Record<string, unknown> }[]>([])
+  const [entries, setEntries] = useState<AuditEntry[]>([])
   const [jobs, setJobs] = useState<{ id: number; jobId: string; status: string; message?: string; at: string }[]>([])
   useEffect(() => {
     if (canSee) api.get<typeof entries>('/api/audit?limit=500').then((es) => setEntries(es.filter((e) => e.target === deviceId))).catch(() => {})
@@ -398,8 +399,8 @@ function ActivityCard({ deviceId, canSee }: { deviceId: string; canSee: boolean 
   return (
     <Card title="Activity for this device" id="actv" sub="operator changes recorded in the audit trail">
       {!canSee ? <div className="cb cap">The audit trail needs the operator role.</div> : entries.length === 0 && jobs.length === 0 ? <div className="cb cap">No recorded changes yet.</div> : (
-        <div className="tw"><table className="tbl" style={{ minWidth: 640 }}><thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Outcome</th></tr></thead><tbody>
-          {entries.map((e) => <tr key={e.id}><td className="num cap">{fmtTime(e.at)}</td><td>{e.actor}</td><td>{e.action}{e.after ? <span className="cap"> · {JSON.stringify(e.after).slice(0, 80)}</span> : null}</td><td><Pill tone={e.result === 'ok' ? 'ok' : 'warn'} xs>{e.result}</Pill></td></tr>)}
+        <div className="tw"><table className="tbl" style={{ minWidth: 640 }}><thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Change</th><th>Outcome</th></tr></thead><tbody>
+          {entries.map((e) => <tr key={e.id}><td className="num cap">{fmtTime(e.at)}</td><td>{e.actor}</td><td>{e.action}</td><AuditChangeCell e={e} /><td><Pill tone={e.result === 'ok' ? 'ok' : 'warn'} xs>{e.result}</Pill></td></tr>)}
         </tbody></table></div>
       )}
     </Card>

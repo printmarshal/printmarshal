@@ -26,8 +26,8 @@ precedence (first match wins):
 
 | State word | Tone | When |
 | --- | --- | --- |
-| Not reachable | `--off` | `online` is false |
-| Needs service | `--crit` | an alert in category maintenance |
+| Not reachable | `--off` | `online` is false, or an active offline alert |
+| Needs service | `--crit` when critical, `--warn` otherwise | an alert in category maintenance |
 | Paper jam | `--crit` | an alert in category jam |
 | Cover open | `--crit` | an alert in category door |
 | Out of paper | `--crit` | trays are listed, none is ok and at least one is empty; or no trays listed and a critical paper alert |
@@ -131,6 +131,8 @@ the crossfade off and the page change into a cut.
 ## Accessibility
 - Every colour has a word: the state block carries its word; toner bars carry their levels as
   hidden text; the stale band is a sentence.
+- When the up/down switch is on, each printer also says "Online" or "Offline" beside its name, in
+  the state verb's style. When the switch is off, the card says neither.
 - Contrast: white on each state tone passes AA for normal text and AAA at the state word's size;
   Graphite on white and Mist passes AAA.
 - No focusable elements; the document has a `<main>`, an `<h1>` for the title and an `<h2>` per

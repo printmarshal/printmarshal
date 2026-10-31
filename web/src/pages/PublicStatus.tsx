@@ -73,8 +73,8 @@ function derive(d: PublicDevice): DeviceView {
 
   let word: string
   let tone: Tone
-  if (d.online === false) { word = 'Not reachable'; tone = 'off' }
-  else if (has('maintenance')) { word = 'Needs service'; tone = 'crit' }
+  if (d.online === false || has('offline')) { word = 'Not reachable'; tone = 'off' }
+  else if (has('maintenance')) { word = 'Needs service'; tone = has('maintenance', 'critical') ? 'crit' : 'warn' }
   else if (has('jam')) { word = 'Paper jam'; tone = 'crit' }
   else if (has('door')) { word = 'Cover open'; tone = 'crit' }
   else if (trays ? known.length > 0 && !anyOkTray && anyEmptyTray : has('paper', 'critical')) { word = 'Out of paper'; tone = 'crit' }
@@ -151,7 +151,8 @@ function Row({ d, tile }: { d: PublicDevice; tile: boolean }) {
         <h2 className="pub-label">
           <span className="pub-sr">{`${v.word}: `}</span>
           {d.label}
-          {d.state && <span className="pub-verb">{d.state}</span>}
+          {typeof d.online === 'boolean' && <>{' '}<span className="pub-verb">{d.online ? 'Online' : 'Offline'}</span></>}
+          {d.state && <>{' '}<span className="pub-verb">{d.state}</span></>}
         </h2>
         {d.location && <p className="pub-location">{d.location}</p>}
         {detail && (

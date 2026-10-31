@@ -6,6 +6,7 @@ import { setNameSource } from '../types'
 import { useDensity, useTheme } from '../theme'
 import { Ic } from '../components/icons'
 import { Av, Banner, Btn, Card, EmptyState, Pill, Seg, Tag } from '../components/ui'
+import { AuditChangeCell } from '../components/AuditChange'
 import PrintProviderSection from '../components/printprovider/PrintProviderSection'
 import TokensSection from '../components/auth/TokensSection'
 import DirectorySection from '../components/auth/DirectorySection'
@@ -17,23 +18,26 @@ type Section = 'users' | 'signin' | 'tokens' | 'notifications' | 'system' | 'pri
 export default function Settings({ user }: { user: User }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const seg = location.pathname.split('/')[2] as Section | undefined
+  const seg = location.pathname.split('/')[2] || undefined
   const isAdmin = user.role === 'admin'
   const canOperate = user.role !== 'viewer'
-  const sections = ([
-    { v: 'users', label: 'Users & roles', icon: <Ic.users />, show: isAdmin },
-    { v: 'signin', label: 'Sign-in & directory', icon: <Ic.shield />, show: isAdmin },
-    { v: 'tokens', label: 'API tokens', icon: <Ic.key />, show: isAdmin },
-    { v: 'notifications', label: 'Notifications', icon: <Ic.bell />, show: true },
-    { v: 'system', label: 'System & consumables', icon: <Ic.server />, show: true },
-    { v: 'printprovider', label: 'Print provider', icon: <Ic.printer />, show: true },
-    { v: 'export', label: 'Exports & SIEM', icon: <Ic.upload />, show: true },
-    { v: 'appearance', label: 'Appearance', icon: <Ic.dashboard />, show: true },
-    { v: 'publicstatus', label: 'Public status', icon: <Ic.grid />, show: isAdmin },
-    { v: 'audit', label: 'Audit trail', icon: <Ic.activity />, show: canOperate },
-    { v: 'account', label: 'My account', icon: <Ic.user />, show: true },
-  ] as { v: Section; label: string; icon: JSX.Element; show: boolean }[]).filter((s) => s.show)
-  const current: Section = sections.some((s) => s.v === seg) ? (seg as Section) : sections[0].v
+  const known = ([
+    { v: 'users', label: 'Users & roles', icon: <Ic.users />, needs: 'admin' },
+    { v: 'signin', label: 'Sign-in & directory', icon: <Ic.shield />, needs: 'admin' },
+    { v: 'tokens', label: 'API tokens', icon: <Ic.key />, needs: 'admin' },
+    { v: 'notifications', label: 'Notifications', icon: <Ic.bell /> },
+    { v: 'system', label: 'System & consumables', icon: <Ic.server /> },
+    { v: 'printprovider', label: 'Print provider', icon: <Ic.printer /> },
+    { v: 'export', label: 'Exports & SIEM', icon: <Ic.upload /> },
+    { v: 'appearance', label: 'Appearance', icon: <Ic.dashboard /> },
+    { v: 'publicstatus', label: 'Public status', icon: <Ic.grid />, needs: 'admin' },
+    { v: 'audit', label: 'Audit trail', icon: <Ic.activity />, needs: 'operator' },
+    { v: 'account', label: 'My account', icon: <Ic.user /> },
+  ] as { v: Section; label: string; icon: JSX.Element; needs?: 'admin' | 'operator' }[])
+  const sections = known.filter((s) => s.needs === 'admin' ? isAdmin : s.needs === 'operator' ? canOperate : true)
+  // Only a bare /settings falls back to the first section; any other address shows what it names or says why it can't.
+  const named = known.find((s) => s.v === seg)
+  const current: Section | null = !seg ? sections[0].v : sections.some((s) => s.v === seg) ? (seg as Section) : null
   const go = (s: Section) => navigate(`/settings/${s}`)
   return (
     <>
@@ -44,6 +48,7 @@ export default function Settings({ user }: { user: User }) {
           {canOperate && <Link to="/credentials"><Ic.lock />Credentials<Ic.external size={13} style={{ marginLeft: 'auto' }} /></Link>}
         </nav>
         <div className="stack" style={{ flex: '4 1 600px' }}>
+          {current === null && <SectionUnavailable section={named} role={user.role} />}
           {current === 'users' && <Users me={user} />}
           {current === 'signin' && <DirectorySection />}
           {current === 'tokens' && <TokensSection />}
@@ -59,6 +64,12 @@ export default function Settings({ user }: { user: User }) {
       </div>
     </>
   )
+}
+
+function SectionUnavailable({ section, role }: { section?: { label: string; needs?: 'admin' | 'operator' }; role: User['role'] }) {
+  const back = <Link className="btn sm" to="/settings">Back to Settings</Link>
+  if (!section) return <Card title="Settings" id="nosec"><div className="cb"><EmptyState tone="muted" icon={<Ic.settings size={20} />} title="No such section" text="This address does not match any settings section." action={back} /></div></Card>
+  return <Card title={section.label} id="denied"><div className="cb"><EmptyState tone="muted" icon={<Ic.lock size={20} />} title={`This section needs the ${section.needs} role`} text={`You are signed in with the ${role} role. An administrator can change your role.`} action={back} /></div></Card>
 }
 
 function SRow({ label, hint, children }: { label: React.ReactNode; hint?: string; children: React.ReactNode }) {
@@ -261,29 +272,11 @@ function Appearance() {
   )
 }
 
-const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
-const showVal = (v: unknown) => v === undefined ? '—' : JSON.stringify(v)
-
-/** The keys whose value differs between before and after, or null when either side is not an object. */
-function auditDiff(before: unknown, after: unknown): { key: string; from: unknown; to: unknown }[] | null {
-  if (!isObj(before) || !isObj(after)) return null
-  const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).sort()
-  return keys.filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k])).map((k) => ({ key: k, from: before[k], to: after[k] }))
-}
-
 function AuditRow({ e }: { e: AuditEntry }) {
-  const [open, setOpen] = useState(false)
-  const diff = auditDiff(e.before, e.after)
-  const hasPayload = e.before !== undefined || e.after !== undefined
   return (
     <tr>
       <td className="cap num">{fmtTime(e.at)}</td><td>{e.actor}</td><td><Tag>{e.action}</Tag></td><td className="mono cap">{e.target.slice(0, 12)}</td>
-      <td className="cap" style={{ whiteSpace: 'normal', maxWidth: 420, overflowWrap: 'anywhere' }}>
-        {diff ? (diff.length === 0 ? <span>no field changed</span> : diff.map((d) => <div key={d.key}><span className="mono">{d.key}</span>: <span className="old mono">{showVal(d.from)}</span> → <span className="new-v mono">{showVal(d.to)}</span></div>))
-          : <>{e.before && <>from <span className="old mono">{JSON.stringify(e.before)}</span> </>}{e.after && <>to <span className="new-v mono">{JSON.stringify(e.after)}</span></>}</>}
-        {hasPayload && <div><button type="button" className="link" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Hide full entry' : 'Show full entry'}</button></div>}
-        {open && <pre className="mono" style={{ whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>{`before: ${JSON.stringify(e.before ?? null, null, 2)}\nafter: ${JSON.stringify(e.after ?? null, null, 2)}`}</pre>}
-      </td>
+      <AuditChangeCell e={e} />
       <td><Pill tone={e.result === 'ok' ? 'ok' : e.result === 'queued' ? 'info' : 'warn'} xs>{e.result}</Pill></td>
     </tr>
   )

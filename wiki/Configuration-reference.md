@@ -53,6 +53,7 @@ Duration strings use Go duration syntax: `30s`, `5m`, `720h`; `30d` is not suppo
 | JSON key | Type | Environment | Default / effective fallback | Meaning |
 | --- | --- | --- | --- | --- |
 | `discovery.enabled` | `bool` | `PM_DISCOVERY_ENABLED` | false | Enable scheduled discovery; does not block manual discovery jobs. |
+| `discovery.zeroconf` | `bool` | `PM_DISCOVERY_ZEROCONF` | true | Scheduled runs also browse mDNS and WS-Discovery. Turn off to scan only the listed targets. Manual jobs state their own value. |
 | `discovery.interval` | `Duration` | `PM_DISCOVERY_INTERVAL` | 1h | Scheduled discovery cadence; scheduler minimum 5m. |
 | `discovery.mdnsWait` | `Duration` | — | 5s | DNS-SD response collection duration. |
 | `discovery.wsdWait` | `Duration` | — | 3s | WS-Discovery response collection duration. |
