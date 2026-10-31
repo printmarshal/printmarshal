@@ -365,9 +365,9 @@ func (p *planner) values(c map[string]string, row *Row) (map[string]any, string)
 
 // Diff decides which supplied values to set on dev (nil for a new device):
 // a value equal to the current one (for a display name, the name the device
-// already goes by) is dropped, one over a field an operator
-// set is held back unless its column is in replace (R10), and a group is set
-// unless dev is already a member. A state the lifecycle cannot reach from
+// already goes by) is dropped, one holdBackReason keeps is held back unless
+// its column is in replace (R10), and a group is set unless dev is already a
+// member. A state the lifecycle cannot reach from
 // the device's (a new device starts "discovered") is held back with the
 // reason. The import job uses it again when a row planned as a create meets
 // a device that identification found already recorded.
