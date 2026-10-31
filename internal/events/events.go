@@ -72,6 +72,8 @@ var Catalog = []Def{
 	{Type: "auth.token.revoked", Description: "An API token was revoked", Security: true},
 	{Type: "audit.recorded", Description: "An audit entry was written", Security: true},
 	{Type: "settings.updated", Description: "Runtime settings changed", Notifiable: true, Security: true},
+	{Type: "public.status.changed", Description: "The public status board's configuration changed", Security: true},
+	{Type: "public.status.enabled", Description: "The public status board was turned on", Security: true},
 	{Type: "notification.test", Description: "An operator sent a test notification", Notifiable: true},
 	{Type: "notification.dead", Description: "A notification could not be delivered after all retries", Notifiable: true},
 	{Type: "stream.connected", Description: "(client-side) live stream connected"},

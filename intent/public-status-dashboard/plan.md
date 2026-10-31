@@ -113,3 +113,30 @@ the branch in that order.
   at 400 px, and with `?wall=1`; turn unlisted on, confirm `/status` says not available and the
   slug address works; turn the board off, confirm 404 and the "not available" page; confirm
   `/devices` still sends `X-Frame-Options: DENY` (`curl -I`); 31 quick requests show one 429.
+
+## Departures made in step 3 (server)
+- `secureHeaders(next)` keeps its signature (`reports_test.go` calls it); the board's frame check
+  is `secureHeadersWith(s.boardFrameOrigins, mux)`, which `Handler` uses. Same behaviour as
+  planned: `/status` and `/status/…` only, `frame-ancestors` when the board is on and origins
+  are listed, `X-Frame-Options: DENY` everywhere else.
+- The token denial for `/api/settings/public-status` lives in `scope.go` (`authorize`), beside
+  the directory settings, not in `server.go`.
+- `buildPublicBoard` takes one more argument, the low-toner threshold, from
+  `Cfg.Alerts.SupplyWarningPercent` (toner `status`: `empty` at 0 %, `low` at or under it).
+- `internal/events` catalogues `public.status.changed` and `public.status.enabled` as security
+  events (not notifiable), so the security log entries are exported and not logged as unknown.
+- `Handler` initialises the HTTP stats before serving: their lazy init raced under concurrent
+  first requests, which `TestPublicStatusCacheSharesBuilds` exposed under `-race`.
+- The `PUT` body is the configuration shape plus `regenerateSlug` (boolean); a `slug` in the
+  body is ignored (the server owns it). A slug is issued on the first unlisted save and kept
+  across saves until regenerated.
+- Projection choices the spec left open: toner names come from the colorant ("Black"), never
+  the supply description (it carries vendor and part numbers, R3); manual-feed trays are left
+  out of `paper[]` as in the paper alert rule; a device without a public label or display name
+  is "Printer N", never `Device.Name()` (which falls back to hostname, model, address); alerts
+  are de-duplicated per device by severity and category, critical first; decommissioned devices
+  stay listed if the administrator listed them; `updatedAt` is the newest of `lastSeen`, status
+  time and `lastPolled` among listed devices (null with `stale: true` when none was ever
+  polled, the build time when the board lists no device).
+- Proof count: `make test` prints 42 packages `ok`. The "43" above was a miscount: `go list`
+  finds 42 packages with tests on the base commit and on this branch (none added or dropped).
