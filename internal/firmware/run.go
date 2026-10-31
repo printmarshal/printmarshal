@@ -268,6 +268,11 @@ func (s *Service) updateDevice(ctx context.Context, jc *jobs.Context, c *model.C
 	if !s.claim(ctx, c, row) {
 		return // paused or cancelled since the batch was planned; the loop re-reads and parks
 	}
+	if dev.Decommissioned() {
+		// Planning leaves these out, but a campaign can wait at a gate for days.
+		done(model.CampaignDeviceSkipped, model.ErrDecommissioned.Error())
+		return
+	}
 
 	v := fwversion.Check(pkg, dev, c.AllowDowngrade)
 	switch {

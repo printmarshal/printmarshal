@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ago, fmtTime } from '../../api'
 import type { Device } from '../../types'
-import { deviceName } from '../../types'
+import { decommissionedReason, deviceName, isDecommissioned } from '../../types'
 import { useEvents } from '../../ws'
 import { Ic } from '../icons'
 import { Banner, Btn, Card, ChipSelect, EmptyState, Pill, Tag } from '../ui'
@@ -53,6 +53,7 @@ export default function DeviceConfigTab({ device, canOperate, hidden, onDrift }:
   }, [device.id, other])
 
   const doc = cfg?.document
+  const retired = isDecommissioned(device)
   const profile = profiles.find((p) => p.id === profileId) || null
   const byArea = useMemo(() => {
     const areas = catalog?.areas || []
@@ -76,9 +77,9 @@ export default function DeviceConfigTab({ device, canOperate, hidden, onDrift }:
       {cfgError && <Banner tone={doc ? 'warn' : 'crit'}>{cfgError}{doc ? ' — showing the last stored snapshot.' : ''}</Banner>}
       <Card title={profile ? `Profile: ${profile.name}` : 'Profile drift'} id="drift"
         sub={profile ? `${lastWrite ? `Last applied ${ago(lastWrite.result.at)} by ${lastWrite.actor}` : 'Never applied from here'} · ${drifted ?? 0} of ${profile.settings.length} settings drifted` : 'Pick a profile to compare this device against it'}
-        right={<div className="row"><ChipSelect label="Profile" value={profileId} onChange={chooseProfile} any="none" options={profiles.map((p) => ({ v: p.id, label: p.name }))} />{canOperate && profile && <Link className="btn sm wr" to={`/profiles/${profile.id}/apply?device=${device.id}`} title="Opens the apply flow with this device preselected; a dry run runs before anything is written"><Ic.upload />Re-apply drifted (dry run first)</Link>}</div>}>
+        right={<div className="row"><ChipSelect label="Profile" value={profileId} onChange={chooseProfile} any="none" options={profiles.map((p) => ({ v: p.id, label: p.name }))} />{canOperate && profile && !retired && <Link className="btn sm wr" to={`/profiles/${profile.id}/apply?device=${device.id}`} title="Opens the apply flow with this device preselected; a dry run runs before anything is written"><Ic.upload />Re-apply drifted (dry run first)</Link>}</div>}>
         {!profile ? <div className="cb cap">{profiles.length === 0 ? <>No profiles yet. <Link to="/profiles">Create one</Link> to track drift.</> : 'No profile selected.'}</div>
-          : !doc ? <div className="cb cap">{cfg === undefined ? 'Loading…' : 'No configuration has been read from this device yet.'}</div>
+          : !doc ? <div className="cb cap">{cfg === undefined ? 'Loading…' : retired ? 'No configuration was stored before this printer was decommissioned.' : 'No configuration has been read from this device yet.'}</div>
             : (
               <div className="tw"><table className="tbl" style={{ minWidth: 760 }}>
                 <thead><tr><th>Area</th><th>Setting</th><th>Profile wants</th><th>Device has</th><th>State</th></tr></thead>
@@ -95,9 +96,10 @@ export default function DeviceConfigTab({ device, canOperate, hidden, onDrift }:
       </Card>
 
       <Card title="Configuration" id="cfg"
-        sub={doc ? <>read {ago(cfg?.at || doc.readAt)} · {fmtTime(cfg?.at || doc.readAt)} · via {doc.sources.map((s) => <Tag key={s}>{s}</Tag>)}{cfg?.fresh ? ' · fresh' : ' · stored snapshot'}</> : 'latest stored snapshot'}
-        right={<Btn sm onClick={() => load(true)} disabled={reading} title="Reads the device now; nothing is written"><Ic.refresh />{reading ? 'Reading…' : 'Read from device'}</Btn>}>
+        sub={doc ? <>read {ago(cfg?.at || doc.readAt)} · {fmtTime(cfg?.at || doc.readAt)} · via {doc.sources.map((s) => <Tag key={s}>{s}</Tag>)}{cfg?.fresh ? ' · fresh' : ' · stored snapshot'}{cfg?.notContactedReason && ` · not contacted, ${cfg.notContactedReason}`}</> : cfg?.notContactedReason ? `nothing stored · not contacted, ${cfg.notContactedReason}` : 'latest stored snapshot'}
+        right={<Btn sm onClick={() => load(true)} disabled={reading || retired} title={retired ? decommissionedReason : 'Reads the device now; nothing is written'}><Ic.refresh />{reading ? 'Reading…' : 'Read from device'}</Btn>}>
         {cfg === undefined ? <div className="cb cap" aria-busy="true">Loading…</div>
+          : (!doc || doc.settings.length === 0) && retired ? <div className="cb"><EmptyState tone="muted" icon={<Ic.sliders size={20} />} title="No stored configuration" text="Nothing was read from this printer before it was decommissioned, and it is not contacted now." /></div>
           : !doc || doc.settings.length === 0 ? <div className="cb"><EmptyState icon={<Ic.sliders size={20} />} title="No configuration read yet" text="Read the device to see its settings. Reads are safe; they never change anything." action={<Btn sm onClick={() => load(true)} disabled={reading}><Ic.refresh />Read from device</Btn>} /></div>
             : (
               <div className="tw"><table className="tbl" style={{ minWidth: 720 }}>
@@ -120,7 +122,7 @@ export default function DeviceConfigTab({ device, canOperate, hidden, onDrift }:
               {w.result.dryRun ? <Pill tone="info" xs noIcon>dry run</Pill> : w.failed ? <Pill tone="crit" xs>{w.failed} failed</Pill> : w.diverged ? <Pill tone="warn" xs title="The device accepted the write but reports a different value">{w.diverged} diverged</Pill> : w.verified === w.written && w.written > 0 ? <Pill tone="ok" xs title="Read back from the device">{w.written} verified</Pill> : <Pill tone="ok" xs>{w.written} written</Pill>}
               <span style={{ flex: 1, minWidth: 0 }}>{w.profileId ? profiles.find((p) => p.id === w.profileId)?.name || 'profile' : w.revertOf ? 'revert' : 'ad-hoc'} · {w.changes.length} setting{w.changes.length === 1 ? '' : 's'}<div className="cap">{fmtTime(w.result.at)} · {w.actor}{w.jobId && <> · <Link to={`/jobs/${w.jobId}`}>job</Link></>}</div>
                 {!w.result.dryRun && w.result.results.filter((x) => x.outcome === 'diverged').map((x) => <div className="cap" key={x.key} style={{ color: 'var(--warn)' }}>{x.key}: device reports <span className="mono">{String(x.readBack ?? '—')}</span></div>)}</span>
-              {canOperate && !w.result.dryRun && (w.result.rollback?.length || 0) > 0 && <Btn sm variant="wr" onClick={() => setRevert([{ writeId: w.id, deviceId: device.id, label: deviceName(device) }])}>Revert…</Btn>}
+              {canOperate && !retired && !w.result.dryRun && (w.result.rollback?.length || 0) > 0 && <Btn sm variant="wr" onClick={() => setRevert([{ writeId: w.id, deviceId: device.id, label: deviceName(device) }])}>Revert…</Btn>}
             </div>)}</div>
           )}
         </Card>

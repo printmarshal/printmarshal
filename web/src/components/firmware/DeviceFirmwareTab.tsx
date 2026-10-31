@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { fmtTime } from '../../api'
 import type { Device } from '../../types'
+import { decommissionedReason, isDecommissioned } from '../../types'
 import type { CampaignView, FirmwareHistoryEntry, FirmwarePackage } from '../../types-firmware'
 import { checkCompatibility, isActive, latestPackageFor } from '../../types-firmware'
 import { useEvents } from '../../ws'
@@ -35,7 +36,7 @@ export default function DeviceFirmwareTab({ device, canOperate }: { device: Devi
   return (
     <>
       <Card title="Firmware" id="fw" sub="versions come from polling · delivery only through a campaign with two gates"
-        right={canOperate && updateAvailable ? <Btn sm variant="wr" onClick={() => setWizard(true)}><Ic.upload />Schedule update…</Btn> : canOperate ? <Link className="btn sm" to="/firmware?tab=packages"><Ic.chip />Packages</Link> : <Tag>Read-only · Viewer</Tag>}>
+        right={canOperate && updateAvailable ? <Btn sm variant="wr" onClick={() => setWizard(true)} disabled={isDecommissioned(device)} title={isDecommissioned(device) ? decommissionedReason : undefined}><Ic.upload />Schedule update…</Btn> : canOperate ? <Link className="btn sm" to="/firmware?tab=packages"><Ic.chip />Packages</Link> : <Tag>Read-only · Viewer</Tag>}>
         <div className="cb" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
           <div><div className="cap">Installed</div><div className="mono" style={{ fontSize: 16 }}>{device.firmware || <span className="cap">unknown</span>}</div><div className="cap">{latestInstalled ? `since ${fmtTime(latestInstalled.finishedAt)} · campaign “${latestInstalled.campaignName}”` : `as reported ${device.lastPolled ? fmtTime(device.lastPolled) : 'at last poll'}`}</div></div>
           <div><div className="cap">Available</div>

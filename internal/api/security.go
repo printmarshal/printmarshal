@@ -193,6 +193,8 @@ func (s *Server) failTarget(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		writeErr(w, http.StatusNotFound, err.Error())
+	case errors.Is(err, model.ErrDecommissioned):
+		writeErr(w, http.StatusConflict, err.Error())
 	case strings.Contains(err.Error(), "target must") || strings.Contains(err.Error(), "unknown rotation kind") || strings.Contains(err.Error(), "use must"):
 		writeErr(w, http.StatusBadRequest, err.Error())
 	default:
@@ -324,7 +326,7 @@ func (s *Server) deviceCertificates(w http.ResponseWriter, r *http.Request) {
 		certs, err = s.Security.StoredCertificates(r.Context(), dev.ID)
 	}
 	if err != nil {
-		s.fail(w, err)
+		s.failTarget(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, certs)

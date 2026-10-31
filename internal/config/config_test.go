@@ -66,6 +66,31 @@ func TestReverseDNSConfig(t *testing.T) {
 	}
 }
 
+func TestDiscoveryZeroConfConfig(t *testing.T) {
+	if !Default().Discovery.ZeroConf {
+		t.Fatal("discovery.zeroconf must default to true")
+	}
+	path := filepath.Join(t.TempDir(), "pm.json")
+	if err := os.WriteFile(path, []byte(`{"discovery":{"zeroconf":false}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Discovery.ZeroConf {
+		t.Error("the file's discovery.zeroconf=false was not applied")
+	}
+	t.Setenv("PM_DISCOVERY_ZEROCONF", "true")
+	if c, err = Load(path); err != nil || !c.Discovery.ZeroConf {
+		t.Errorf("PM_DISCOVERY_ZEROCONF=true over the file: %v %v", c.Discovery.ZeroConf, err)
+	}
+	t.Setenv("PM_DISCOVERY_ZEROCONF", "false")
+	if c, err = Load(""); err != nil || c.Discovery.ZeroConf {
+		t.Errorf("PM_DISCOVERY_ZEROCONF=false: %v %v", c.Discovery.ZeroConf, err)
+	}
+}
+
 func TestSNMPTuningEnv(t *testing.T) {
 	def := Default().Poll
 	if def.SNMPTimeout.D() != 2*time.Second || def.SNMPRetries != 1 || def.SNMPSessionsPerDevice != 2 {

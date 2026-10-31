@@ -116,6 +116,9 @@ func (s *Service) ReadConfig(ctx context.Context, deviceID string, sel model.Con
 	if err != nil {
 		return nil, err
 	}
+	if dev.Decommissioned() {
+		return nil, model.ErrDecommissioned
+	}
 	doc, err := s.readDevice(ctx, dev, sel)
 	if err != nil {
 		return nil, err
@@ -228,7 +231,8 @@ func sortSettings(in []model.Setting) {
 }
 
 // CurrentConfig returns the latest snapshot's document, reading from the
-// device when refresh is set or no snapshot exists yet.
+// device when refresh is set or no snapshot exists yet. A decommissioned device
+// is never read: those two cases return model.ErrDecommissioned.
 func (s *Service) CurrentConfig(ctx context.Context, deviceID string, refresh bool) (*model.ConfigDocument, *model.ConfigSnapshot, error) {
 	if !refresh {
 		if sn, err := s.Store.LatestConfigSnapshot(ctx, deviceID); err == nil {
@@ -457,6 +461,14 @@ func (s *Service) Apply(ctx context.Context, req ApplyRequest, actor string) (*m
 	if err != nil {
 		return nil, err
 	}
+	if model.AllDecommissioned(devs) {
+		if !req.DryRun {
+			for _, d := range devs {
+				s.auditDecommissionedRefusal(ctx, d, actor)
+			}
+		}
+		return nil, model.ErrDecommissioned
+	}
 	ids := make([]any, 0, len(devs))
 	for _, d := range devs {
 		ids = append(ids, d.ID)
@@ -534,6 +546,10 @@ func (s *Service) runApply(ctx context.Context, jc *jobs.Context) error {
 			dctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 			defer cancel()
 			rec, err := s.applyDevice(dctx, d, changes, model.WriteOptions{DryRun: dryRun}, j.CreatedBy, j.ID, profileID, revertOf)
+			if errors.Is(err, model.ErrDecommissioned) {
+				jc.Result(d.ID, d.Address, "skipped", err.Error(), nil)
+				return
+			}
 			if err != nil {
 				jc.Result(d.ID, d.Address, "error", err.Error(), nil)
 				return
@@ -559,8 +575,15 @@ func (s *Service) runApply(ctx context.Context, jc *jobs.Context) error {
 
 // applyDevice writes the changes on one device: the best write_config driver
 // first, and settings it skips are offered to the next driver. The merged
-// result is persisted, audited and announced.
+// result is persisted, audited and announced. A decommissioned device is
+// refused, dry run included, since a dry run reads the device.
 func (s *Service) applyDevice(ctx context.Context, dev *model.Device, changes []model.SettingChange, opts model.WriteOptions, actor, jobID, profileID, revertOf string) (*model.WriteRecord, error) {
+	if dev.Decommissioned() {
+		if !opts.DryRun {
+			s.auditDecommissionedRefusal(ctx, dev, actor)
+		}
+		return nil, model.ErrDecommissioned
+	}
 	drivers := s.configDrivers(dev, model.CapWriteConfig)
 	var writers []engine.ConfigWriter
 	var names []string
@@ -685,6 +708,13 @@ func (s *Service) applyDevice(ctx context.Context, dev *model.Device, changes []
 		"written": rec.Written, "failed": rec.Failed, "skipped": rec.Skipped, "unchanged": rec.Unchanged,
 		"verified": rec.Verified, "diverged": rec.Diverged})
 	return rec, nil
+}
+
+// auditDecommissionedRefusal records a real write that was refused, like the
+// refusal for a missing write credential.
+func (s *Service) auditDecommissionedRefusal(ctx context.Context, dev *model.Device, actor string) {
+	_ = s.Store.AddAudit(ctx, &model.AuditEntry{Actor: actor, Action: JobType, Target: dev.ID,
+		After: map[string]any{"reason": model.ErrDecommissioned.Error()}, Result: "refused"})
 }
 
 func anyWritten(results []model.SettingResult) bool {

@@ -875,6 +875,10 @@ func (s *Server) pollAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j, err := s.Fleet.SubmitPoll(r.Context(), body.DeviceIDs, actor(r))
+	if errors.Is(err, model.ErrDecommissioned) {
+		writeErr(w, http.StatusConflict, err.Error())
+		return
+	}
 	if err != nil {
 		s.fail(w, err)
 		return

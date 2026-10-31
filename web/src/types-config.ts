@@ -21,7 +21,7 @@ export interface ConfigSetting {
 }
 export interface ConfigDocument { deviceId: string; settings: ConfigSetting[]; readAt: string; sources: string[] }
 export interface ConfigSnapshot { id: string; deviceId: string; document: ConfigDocument | null; at: string }
-export interface DeviceConfigResponse { document: ConfigDocument; snapshotId?: string; at?: string; fresh: boolean }
+export interface DeviceConfigResponse { document: ConfigDocument | null; snapshotId?: string; at?: string; fresh: boolean; contacted?: boolean; notContactedReason?: string }
 
 export type SettingResultStatus = 'written' | 'unchanged' | 'would_write' | 'skipped' | 'failed'
 /** Read-back verdict of a written setting after a real apply (audit A20): accepted is not the same as in effect. */

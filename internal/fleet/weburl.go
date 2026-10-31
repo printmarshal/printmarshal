@@ -70,7 +70,7 @@ func probeWebURL(ctx context.Context, client *http.Client, host string) string {
 // earlier probe result are left alone; force re-probes a device whose last
 // probe found nothing (identification does this, polls do not).
 func (s *Service) ensureWebURL(ctx context.Context, dev *model.Device, force bool) {
-	if dev == nil || dev.WebURLOverride != "" || model.IsWebUI(dev.AdminURL) {
+	if dev == nil || dev.Decommissioned() || dev.WebURLOverride != "" || model.IsWebUI(dev.AdminURL) {
 		return
 	}
 	if dev.WebURLProbed != "" && (dev.WebURLProbed != model.WebURLNone || !force) {
