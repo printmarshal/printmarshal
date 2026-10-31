@@ -7,6 +7,7 @@ import { useEvents } from '../ws'
 import { useDensity } from '../theme'
 import { Ic } from '../components/icons'
 import { Bar, Btn, Card, ChipSelect, DevicePill, Dialog, EmptyState, Msb, Pill, SearchBox, Seg, Tag, fmtInt, remaining, supplyColor } from '../components/ui'
+import { BulkEditDialog } from '../components/BulkEditDialog'
 
 export default function Devices({ user }: { user: User }) {
   const [params, setParams] = useSearchParams()
@@ -19,6 +20,7 @@ export default function Devices({ user }: { user: User }) {
   const [sel, setSel] = useState<Record<string, boolean>>({})
   const [msg, setMsg] = useState('')
   const [renaming, setRenaming] = useState(false)
+  const [editing, setEditing] = useState(false)
   const navigate = useNavigate()
   const q = params.get('q') || ''
   const qs = params.toString()
@@ -100,6 +102,7 @@ export default function Devices({ user }: { user: User }) {
             <span className="vsep" />
             <Btn sm onClick={pollSelected}><Ic.refresh />Poll now</Btn>
             <Btn sm onClick={() => setRenaming(true)}><Ic.pencil />Rename…</Btn>
+            <Btn sm onClick={() => setEditing(true)}><Ic.sliders />Edit…</Btn>
             <label className="chip"><Ic.layers />Add to group<select aria-label="Add to group" value="" onChange={(e) => addToGroup(e.target.value)}><option value="">choose…</option>{groups.filter((g) => g.kind === 'static').map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
             <a className="btn sm" href={`/api/devices.csv?${qs}`}><Ic.download />Export</a>
             <Btn sm variant="ghost" ic style={{ marginLeft: 'auto' }} aria-label="Clear selection" onClick={() => setSel({})}><Ic.x /></Btn>
@@ -186,6 +189,19 @@ export default function Devices({ user }: { user: User }) {
           <span className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Ic.info size={14} style={{ color: 'var(--info)' }} />Decommissioned devices are hidden unless you filter by that lifecycle state.</span>
         </div>
       </Card>
+      {editing && (
+        <BulkEditDialog
+          deviceIds={selected}
+          onClose={() => setEditing(false)}
+          onApplied={(res) => {
+            setEditing(false)
+            const skippedNote = res.results.filter((r) => r.skipped && r.skipped !== 'unchanged').length
+            setMsg(`Edited ${res.changed} device${res.changed === 1 ? '' : 's'}${res.skipped ? `, ${res.skipped} unchanged` : ''}${skippedNote ? ` (${skippedNote} with a note, see the audit trail)` : ''}.`)
+            setSel({})
+            load()
+          }}
+        />
+      )}
       {renaming && (
         <RenameDialog
           deviceIds={selected}
@@ -209,6 +225,7 @@ function RenameDialog({ deviceIds, onClose, onApplied }: { deviceIds: string[]; 
   const [busy, setBusy] = useState(false)
   const [applying, setApplying] = useState(false)
   const [err, setErr] = useState('')
+  const [keepSynced, setKeepSynced] = useState(false)
 
   useEffect(() => {
     if (source === 'pattern' && !pattern.trim()) {
@@ -245,6 +262,10 @@ function RenameDialog({ deviceIds, onClose, onApplied }: { deviceIds: string[]; 
         pattern: source === 'pattern' ? pattern : undefined,
         dryRun: false,
       })
+      if (source === 'dns' && keepSynced) {
+        const renamed = (res.results || []).filter((r) => !r.skipped).map((r) => r.id)
+        if (renamed.length) await api.post('/api/devices/bulk', { deviceIds: renamed, set: { dnsSync: true } })
+      }
       onApplied(res.updated)
     } catch (e) {
       setErr((e as Error).message)
@@ -277,6 +298,12 @@ function RenameDialog({ deviceIds, onClose, onApplied }: { deviceIds: string[]; 
             <option value="pattern">Pattern…</option>
           </select>
         </div>
+        {source === 'dns' && (
+          <label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <input className="cbx" type="checkbox" checked={keepSynced} onChange={(e) => setKeepSynced(e.target.checked)} />
+            Keep these names in sync with DNS from now on
+          </label>
+        )}
         {source === 'pattern' && (
           <div>
             <label className="cap" htmlFor="rn-pattern">Pattern</label>

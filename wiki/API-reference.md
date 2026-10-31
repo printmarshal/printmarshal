@@ -39,6 +39,7 @@ Source: `internal/api/server.go`.
 | POST | `/api/devices/{id}/poll` | operator | — | 200 `{device,servedBy,errors,reachable}` | PM |
 | POST | `/api/devices/{id}/refresh-hostname` | operator | — | 200 Device | PM |
 | POST | `/api/devices/rename` | operator | `{deviceIds:string[],source:"dns"\|"hostname"\|"sysName"\|"pattern",pattern?,dryRun?}` | 200 `{dryRun,source,pattern?,updated,skipped,results:[{id,from,to,skipped,reason?}]}` | **DR** |
+| POST | `/api/devices/bulk` | operator | `{deviceIds[],renameFromDns?,set:{dnsSync?,location?,appendNote?}}` (at most 2,000 ids; at least one change) | 200 `{changed,skipped,results[{id,changed[],skipped?}]}`; group scope enforced; one `device.patch` audit row per changed device plus a `devices.bulk` summary | PM |
 | POST | `/api/devices/{id}/state` | operator | `{state}` | 200 Device | PM |
 | GET | `/api/devices/{id}/alerts` | viewer | query: `all,limit (200)` | 200 Alert[] | Read |
 | GET | `/api/devices/{id}/telemetry` | viewer | query: `metric,label,from,to,limit` | 200 TelemetrySample[] | Read |
