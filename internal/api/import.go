@@ -446,7 +446,7 @@ func (s *Server) applyImportFields(ctx context.Context, p *importPayload, dev *m
 		if !ok {
 			continue
 		}
-		set = append(set, col)
+		set = append(set, importcsv.ColumnLabel(col))
 		if col != importcsv.ColGroup {
 			patch.FieldSources[col] = model.FieldSource{Source: model.SourceImport, At: now}
 		}

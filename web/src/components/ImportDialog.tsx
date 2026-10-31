@@ -60,7 +60,8 @@ export function ImportDialog({ user, onClose, onApplied }: { user: User; onClose
     setErr('')
     api.upload<PlanResult>('/api/discovery/import', form('preview', file))
       .then((p) => { if (n === seq.current) { setPlan(p); setPage((pg) => Math.min(pg, Math.max(0, Math.ceil(p.rows.length / PAGE) - 1))) } })
-      .catch((e) => { if (n === seq.current) { setPlan(null); setErr((e as Error).message) } })
+      // A failed re-run keeps the last preview on screen, so the choice that caused it can be undone.
+      .catch((e) => { if (n === seq.current) setErr((e as Error).message) })
       .finally(() => { if (n === seq.current) setLoading(false) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file, replace])
@@ -88,7 +89,8 @@ export function ImportDialog({ user, onClose, onApplied }: { user: User; onClose
   }
 
   const n = plan ? plan.totals.create + plan.totals.update : 0
-  const replaceable = plan ? plan.knownColumns.filter((c) => !importKeyColumns.includes(c)) : []
+  // Group is left out: a row only ever joins a group, so there is nothing to replace.
+  const replaceable = plan ? plan.knownColumns.filter((c) => !importKeyColumns.includes(c) && c !== 'group') : []
   const pages = plan ? Math.max(1, Math.ceil(plan.rows.length / PAGE)) : 1
   const rows = plan ? plan.rows.slice(page * PAGE, (page + 1) * PAGE) : []
 

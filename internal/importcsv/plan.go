@@ -96,6 +96,20 @@ type Row struct {
 	Values   map[string]any `json:"-"` // every validated value the row supplied
 }
 
+// columnLabels are the console's names for the columns, for messages people read.
+var columnLabels = map[string]string{
+	ColDisplayName: "Display name", ColLocation: "Location", ColAssetTag: "Asset tag", ColNotes: "Notes",
+	ColWebURL: "Web address", ColDNSSync: "DNS sync", ColState: "Lifecycle state", ColGroup: "Group",
+}
+
+// ColumnLabel returns the console's name for a column, or the column itself.
+func ColumnLabel(col string) string {
+	if l, ok := columnLabels[col]; ok {
+		return l
+	}
+	return col
+}
+
 // ParseReplace reads the comma-separated replace list of the API.
 func ParseReplace(s string) (map[string]bool, error) {
 	out := map[string]bool{}

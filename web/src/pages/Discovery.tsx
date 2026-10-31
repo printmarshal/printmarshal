@@ -57,7 +57,7 @@ export default function Discovery({ user }: { user: User }) {
     <>
       <div className="ph">
         <div><h1 className="h1">Discovery</h1><div className="cap">{run ? `Run ${run.id.slice(0, 8)} · ${run.status} · started ${ago(run.createdAt)} by ${run.createdBy}` : 'No runs yet'} · read-only — nothing is written to devices</div></div>
-        <div className="row">{canOperate && <Btn sm onClick={() => setImporting(true)}><Ic.upload />Import CSV…</Btn>}<Link className="btn sm" to="/jobs?type=discovery"><Ic.clock />Past runs</Link></div>
+        <div className="row">{canOperate && <Btn sm onClick={() => setImporting(true)}><Ic.upload />Import CSV…</Btn>}<Link className="btn sm" to="/jobs"><Ic.clock />Past runs</Link></div>
       </div>
       <div className="cols">
         <Card title="Run setup" id="cfg" sub={run?.status === 'running' ? 'a run is in progress' : undefined} style={{ flex: '1 1 360px', maxWidth: 460 }}>
@@ -156,7 +156,7 @@ export default function Discovery({ user }: { user: User }) {
           {runs.length > 1 && (
             <Card title="Previous runs" id="prev">
               <div className="tw"><table className="tbl"><thead><tr><th>Started</th><th>By</th><th>Methods</th><th>Status</th><th className="r">Found</th></tr></thead><tbody>
-                {runs.slice(0, 10).map((j) => <tr key={j.id} className={`clickable${j.id === selected ? ' sel' : ''}`} onClick={() => setSelected(j.id)}><td className="num cap">{fmtTime(j.createdAt)}</td><td>{j.createdBy}</td><td>{j.type === 'import' ? <Tag>Import</Tag> : null}{j.target?.zeroconf ? <Tag>zeroconf</Tag> : null} {(j.target?.targets as string[] | undefined)?.length ? <Tag mono>{(j.target.targets as string[]).join(', ')}</Tag> : null}</td><td><JobPill status={j.status} xs /></td><td className="num r">{j.done - j.failed}</td></tr>)}
+                {runs.slice(0, 10).map((j) => <tr key={j.id} className={`clickable${j.id === selected ? ' sel' : ''}`} onClick={() => setSelected(j.id)}><td className="num cap">{fmtTime(j.createdAt)}</td><td>{j.createdBy}</td><td>{j.type === 'import' ? <Tag>Import</Tag> : null}{j.target?.zeroconf ? <Tag>zeroconf</Tag> : null} {(j.target?.targets as string[] | undefined)?.length ? <Tag mono>{(j.target.targets as string[]).join(', ')}</Tag> : null}</td><td><JobPill status={j.status} xs /></td><td className="num r">{j.type === 'import' ? '—' : j.done - j.failed}</td></tr>)}
               </tbody></table></div>
             </Card>
           )}

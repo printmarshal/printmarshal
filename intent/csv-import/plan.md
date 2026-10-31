@@ -164,3 +164,12 @@ route shape in the spec.
   minute, the audit trail has the `devices.import` entry with counts and no cell values, and the
   runs list shows the import beside discovery runs. Screenshots of the preview, the results and
   one device page.
+
+## Departures found in verification
+- R15: the replace checkboxes sit in a row above the preview table, not in its header, and leave out Group, since a row only ever joins a group. "Import CSV…" sits in the page header beside "Past runs", because "Start discovery" is a full-width submit inside the run-setup form. "Past runs" now opens all jobs, since the jobs page filters on one type and a discovery filter hid imports.
+- R11: the date follows the browser locale like the rest of the console, so "Oct 31" on en-US.
+- "No file content is persisted" holds for the file itself, which stays in memory until the job takes it. Job results do keep what each row needs to explain itself: the address, and in a skip reason the unknown group or unresolved hostname. Results are readable by viewers, like every job result.
+- `identifyMethods` reads `["import"]` on a record that has not answered yet and gains `snmp` once it does.
+- The runs list shows a dash under "Found" for imports; the run's own panel has created, updated, skipped and failed counts.
+- Known limit: `Job.Done` stays at 0 while rows are being identified, so a large import shows no progress until the apply starts.
+- Known limit: a printer that answers later and is already recorded by serial at another address moves that record to the new address and leaves the address-only record behind for an administrator to remove, with a warning logged at each poll.

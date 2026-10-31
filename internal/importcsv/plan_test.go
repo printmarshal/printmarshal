@@ -388,3 +388,12 @@ func TestDiffDerivedNameIsNoChange(t *testing.T) {
 		t.Errorf("export row of a new device: %+v", r)
 	}
 }
+
+// Result messages use the console's names, as the preview does.
+func TestColumnLabel(t *testing.T) {
+	for col, want := range map[string]string{ColAssetTag: "Asset tag", ColWebURL: "Web address", ColDisplayName: "Display name", "other": "other"} {
+		if got := ColumnLabel(col); got != want {
+			t.Errorf("ColumnLabel(%q) = %q, want %q", col, got, want)
+		}
+	}
+}
