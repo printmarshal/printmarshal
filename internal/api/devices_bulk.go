@@ -89,18 +89,36 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := make([]bulkResult, 0, len(body.DeviceIDs))
-	changedDevices, skipped := 0, 0
-	for _, id := range body.DeviceIDs {
+	// Load every device first (nil marks one not found), then look up the
+	// DNS names that are not stored yet before renaming from them.
+	loaded := make([]*model.Device, len(body.DeviceIDs))
+	for i, id := range body.DeviceIDs {
 		d, err := s.Store.GetDevice(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
-				results = append(results, bulkResult{ID: id, Changed: []string{}, Skipped: "not found"})
-				skipped++
 				continue
 			}
 			s.fail(w, err)
 			return
+		}
+		loaded[i] = d
+	}
+	// before keeps each record as it was ahead of the lookup: a device kept in
+	// sync with DNS is renamed by the lookup itself, and that rename is still
+	// this edit's doing.
+	before := append([]*model.Device(nil), loaded...)
+	if body.RenameFromDNS {
+		s.ensureDNSNames(r.Context(), loaded)
+	}
+
+	results := make([]bulkResult, 0, len(body.DeviceIDs))
+	changedDevices, skipped := 0, 0
+	for i, id := range body.DeviceIDs {
+		d, orig := loaded[i], before[i]
+		if d == nil {
+			results = append(results, bulkResult{ID: id, Changed: []string{}, Skipped: "not found"})
+			skipped++
+			continue
 		}
 		patch := store.DevicePatch{}
 		var changed []string
@@ -111,6 +129,8 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 			} else if to != d.Name() {
 				src := "dns"
 				patch.DisplayName, patch.DisplayNameSource = &to, &src
+				changed = append(changed, "displayName")
+			} else if d.Name() != orig.Name() {
 				changed = append(changed, "displayName")
 			}
 		}
@@ -140,12 +160,16 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 			results = append(results, res)
 			continue
 		}
-		upd, err := s.Store.PatchDevice(r.Context(), d.ID, patch)
-		if err != nil {
-			s.fail(w, err)
-			return
+		// A rename done by the lookup alone leaves nothing to patch.
+		upd := d
+		if patch != (store.DevicePatch{}) {
+			var err error
+			if upd, err = s.Store.PatchDevice(r.Context(), d.ID, patch); err != nil {
+				s.fail(w, err)
+				return
+			}
 		}
-		s.audit(r.Context(), r, "device.patch", d.ID, operatorFields(d), operatorFields(upd), "ok")
+		s.audit(r.Context(), r, "device.patch", d.ID, operatorFields(orig), operatorFields(upd), "ok")
 		s.publish(r, model.Event{Type: "device.updated", Data: upd})
 		if len(notes) > 0 {
 			res.Skipped = strings.Join(notes, "; ")
