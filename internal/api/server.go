@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"printmarshal/internal/alerts"
@@ -609,6 +610,40 @@ func dnsRenameTarget(d *model.Device) (to, reason string) {
 	return strings.TrimSpace(d.DNSName), ""
 }
 
+// dnsLookupConcurrency bounds the reverse lookups one rename request runs at
+// once; each lookup is already bounded by the reverse-DNS timeout.
+const dnsLookupConcurrency = 8
+
+// ensureDNSNames looks up the DNS name of every device that has none stored
+// (intent/dns-rename-lookup), so renaming from DNS works whether or not
+// reverse DNS lookup runs during discovery. Each refreshed record replaces the
+// original in devices; a failed refresh keeps the original. RefreshHostname
+// also renames a device kept in sync with DNS, as the per-device button does.
+func (s *Server) ensureDNSNames(ctx context.Context, devices []*model.Device) {
+	sem := make(chan struct{}, dnsLookupConcurrency)
+	var wg sync.WaitGroup
+	for i, d := range devices {
+		if d == nil || strings.TrimSpace(d.DNSName) != "" {
+			continue
+		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			upd, err := s.Fleet.RefreshHostname(ctx, d)
+			if err != nil || upd == nil {
+				if err != nil && s.Log != nil {
+					s.Log.Debug("dns lookup for rename failed", "device", d.ID, "err", err)
+				}
+				return
+			}
+			devices[i] = upd
+		}()
+	}
+	wg.Wait()
+}
+
 func expandRenamePattern(pattern string, d *model.Device) string {
 	dns := d.DNSName
 	if d.DNSNameSuspect {
@@ -658,15 +693,22 @@ func (s *Server) renameDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dryRun := body.DryRun == nil || *body.DryRun
-	results := make([]renameResult, 0, len(body.DeviceIDs))
-	updated := 0
-	skipped := 0
+	devices := make([]*model.Device, 0, len(body.DeviceIDs))
 	for _, id := range body.DeviceIDs {
 		d, err := s.Store.GetDevice(r.Context(), id)
 		if err != nil {
 			s.fail(w, err)
 			return
 		}
+		devices = append(devices, d)
+	}
+	if body.Source == "dns" || (body.Source == "pattern" && strings.Contains(body.Pattern, "{dnsName}")) {
+		s.ensureDNSNames(r.Context(), devices)
+	}
+	results := make([]renameResult, 0, len(body.DeviceIDs))
+	updated := 0
+	skipped := 0
+	for _, d := range devices {
 		current := d.Name()
 		res := renameResult{ID: d.ID, From: current}
 		switch body.Source {
