@@ -38,6 +38,15 @@ type DevicePatch struct {
 	AssetTag          *string
 	Notes             *string
 	WebURLOverride    *string // "" clears; validated by the API with model.ValidWebURL
+	// FieldSources is merged into the device's map key by key; it never
+	// replaces the map, and nil leaves it as it is.
+	FieldSources map[string]model.FieldSource
+}
+
+// Empty reports whether the patch changes nothing.
+func (p DevicePatch) Empty() bool {
+	return p.DisplayName == nil && p.DisplayNameSource == nil && p.DNSSync == nil && p.Location == nil &&
+		p.AssetTag == nil && p.Notes == nil && p.WebURLOverride == nil && len(p.FieldSources) == 0
 }
 
 // PollUpdate is what a poll writes back onto a device (automatic fields only).

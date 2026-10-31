@@ -148,6 +148,14 @@ func (s *SQLite) migrate() error {
 	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (8, ?)`, now()); err != nil {
 		return err
 	}
+	// Migration 9: where each operator field's value came from
+	// (intent/csv-import, spec decision 4).
+	if err := s.addColumn("devices", "field_sources", "field_sources TEXT NOT NULL DEFAULT '{}'"); err != nil {
+		return fmt.Errorf("migrate devices.field_sources: %w", err)
+	}
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (9, ?)`, now()); err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -54,6 +54,12 @@ Server
   `DeviceInScope` and `GroupInScope`. A state the lifecycle cannot reach from the device's current
   state (a new device is "discovered") is held back with "cannot move from X to Y" rather than
   skipping the row; a scoped caller's create row needs a `group` cell in its scope.
+- *Built, step 2:* `DeviceFilter.Serials` is not added: the import's lookup loads the inventory
+  once per plan (devices including decommissioned, and groups) and matches in memory.
+  `DevicePatch.Empty()` replaces the bulk edit's `patch != (DevicePatch{})`, which no longer
+  compiles once the patch holds a map. A field with a recorded source counts as set by someone
+  for the held-back rule, so DNS sync turned off or a state left at "discovered" on purpose is
+  kept too. Migration 9 on both stores (SQLite `TEXT`, PostgreSQL `JSONB`, default `'{}'`).
 
 Web
 - `web/src/components/ImportDialog.tsx` (new): file input, "Download template" (a header-only

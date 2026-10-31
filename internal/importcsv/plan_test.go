@@ -232,6 +232,12 @@ func TestDiff(t *testing.T) {
 	if !reflect.DeepEqual(fields, map[string]any{"displayName": "New", "location": "L", "group": "Floor 2"}) {
 		t.Errorf("non-member with replace: %v", fields)
 	}
+	// A recorded source marks a field as chosen even at its default value.
+	off := &model.Device{ID: "o", State: model.StateDiscovered, FieldSources: map[string]model.FieldSource{"dnsSync": {Source: model.SourceOperator}, "state": {Source: model.SourceOperator}}}
+	fields, heldBack = Diff(off, map[string]any{"dnsSync": true, "state": "active"}, false, nil)
+	if len(fields) != 0 || !reflect.DeepEqual(heldBack, []HeldBack{{Field: "dnsSync", Reason: held}, {Field: "state", Reason: held}}) {
+		t.Errorf("recorded sources: %v %v", fields, heldBack)
+	}
 	// A new device takes every value.
 	fields, heldBack = Diff(nil, values, false, nil)
 	if !reflect.DeepEqual(fields, values) || len(heldBack) != 0 {

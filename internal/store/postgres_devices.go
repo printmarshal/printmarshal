@@ -17,7 +17,7 @@ func scanDevicePG(r rowScanner) (*model.Device, error) {
 	var (
 		d                                  model.Device
 		caps, disc, ident, supplies, trays string
-		identErrs                          string
+		identErrs, fieldSources            string
 		status, counters                   sql.NullString
 		firstSeen, lastSeen, created, upd  time.Time
 		lastPolled, dnsCheckedAt           sql.NullTime
@@ -28,11 +28,15 @@ func scanDevicePG(r rowScanner) (*model.Device, error) {
 	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.DNSName, &dnsNameSuspect, &dnsCheckedAt, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
 		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.DisplayNameSource, &dnsSync, &d.Location, &d.AssetTag,
 		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd,
-		&d.WebURLProbed, &d.WebURLOverride, &identErrs)
+		&d.WebURLProbed, &d.WebURLOverride, &identErrs, &fieldSources)
 	if err != nil {
 		return nil, err
 	}
 	fromJSON(sql.NullString{String: identErrs, Valid: true}, &d.IdentifyErrors)
+	fromJSON(sql.NullString{String: fieldSources, Valid: true}, &d.FieldSources)
+	if len(d.FieldSources) == 0 {
+		d.FieldSources = nil
+	}
 	d.DNSNameSuspect = dnsNameSuspect != 0
 	d.DNSCheckedAt = timeOf(dnsCheckedAt)
 	d.DNSSync = dnsSync != 0
@@ -118,10 +122,10 @@ func (s *Postgres) UpsertDevice(ctx context.Context, id *model.Identity, caps ma
 	n := nowUTC()
 	if existing == nil {
 		d := &model.Device{ID: newID()}
-		_, err := pgExec(ctx, s.db, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(41)+`)`,
+		_, err := pgExec(ctx, s.db, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(42)+`)`,
 			d.ID, id.Address, id.Hostname, "", 0, nil, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
 			id.SysDescr, id.SysName, id.EnterpriseID, id.AdminURL, toJSON(caps), toJSON(discoveryMethods), toJSON(identMethods),
-			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "", identifyErrorsJSON(id, nil))
+			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "", identifyErrorsJSON(id, nil), "{}")
 		if err != nil {
 			return nil, false, err
 		}
@@ -276,12 +280,13 @@ func (s *Postgres) PatchDevice(ctx context.Context, id string, p DevicePatch) (*
 	if p.WebURLOverride != nil {
 		d.WebURLOverride = strings.TrimSpace(*p.WebURLOverride)
 	}
+	d.FieldSources = mergeFieldSources(d.FieldSources, p.FieldSources)
 	dnsSync := 0
 	if d.DNSSync {
 		dnsSync = 1
 	}
-	_, err = pgExec(ctx, s.db, `UPDATE devices SET display_name=?, display_name_source=?, dns_sync=?, location=?, asset_tag=?, notes=?, web_url_override=?, updated_at=? WHERE id=?`,
-		d.DisplayName, d.DisplayNameSource, dnsSync, d.Location, d.AssetTag, d.Notes, d.WebURLOverride, nowUTC(), id)
+	_, err = pgExec(ctx, s.db, `UPDATE devices SET display_name=?, display_name_source=?, dns_sync=?, location=?, asset_tag=?, notes=?, web_url_override=?, field_sources=?, updated_at=? WHERE id=?`,
+		d.DisplayName, d.DisplayNameSource, dnsSync, d.Location, d.AssetTag, d.Notes, d.WebURLOverride, fieldSourcesJSON(d.FieldSources), nowUTC(), id)
 	if err != nil {
 		return nil, err
 	}

@@ -423,9 +423,13 @@ func current(d *model.Device, col string) any {
 	return nil
 }
 
-// isSet reports whether a field holds a value someone chose: a non-empty
-// text, DNS sync turned on, a lifecycle state past "discovered".
+// isSet reports whether a field holds a value someone chose: one with a
+// recorded source, a non-empty text, DNS sync turned on, a lifecycle state
+// past "discovered".
 func isSet(d *model.Device, col string) bool {
+	if _, ok := d.FieldSources[col]; ok {
+		return true
+	}
 	switch col {
 	case ColDNSSync:
 		return d.DNSSync

@@ -15,7 +15,7 @@ import (
 const deviceCols = `id, address, hostname, dns_name, dns_name_suspect, dns_checked_at, mac, serial, uuid, make, model, device_type, firmware, sys_descr, sys_name,
  enterprise_id, admin_url, capabilities, discovery_methods, identify_methods, display_name, display_name_source, dns_sync, location, asset_tag, notes,
  state, status, supplies, trays, counters, severity, consecutive_failures, first_seen, last_seen, last_polled, created_at, updated_at,
- web_url_probed, web_url_override, identify_errors`
+ web_url_probed, web_url_override, identify_errors, field_sources`
 
 type rowScanner interface{ Scan(dest ...any) error }
 
@@ -23,7 +23,7 @@ func scanDevice(r rowScanner) (*model.Device, error) {
 	var (
 		d                                  model.Device
 		caps, disc, ident, supplies, trays string
-		identErrs                          string
+		identErrs, fieldSources            string
 		status, counters                   sql.NullString
 		firstSeen, lastSeen, created, upd  string
 		lastPolled, dnsCheckedAt           sql.NullString
@@ -34,11 +34,15 @@ func scanDevice(r rowScanner) (*model.Device, error) {
 	err := r.Scan(&d.ID, &d.Address, &d.Hostname, &d.DNSName, &dnsNameSuspect, &dnsCheckedAt, &d.MAC, &d.Serial, &d.UUID, &d.Make, &d.Model, &d.DeviceType, &d.Firmware,
 		&d.SysDescr, &d.SysName, &d.EnterpriseID, &d.AdminURL, &caps, &disc, &ident, &d.DisplayName, &d.DisplayNameSource, &dnsSync, &d.Location, &d.AssetTag,
 		&d.Notes, &d.State, &status, &supplies, &trays, &counters, &severity, &failures, &firstSeen, &lastSeen, &lastPolled, &created, &upd,
-		&d.WebURLProbed, &d.WebURLOverride, &identErrs)
+		&d.WebURLProbed, &d.WebURLOverride, &identErrs, &fieldSources)
 	if err != nil {
 		return nil, err
 	}
 	fromJSON(sql.NullString{String: identErrs, Valid: true}, &d.IdentifyErrors)
+	fromJSON(sql.NullString{String: fieldSources, Valid: true}, &d.FieldSources)
+	if len(d.FieldSources) == 0 {
+		d.FieldSources = nil
+	}
 	d.DNSNameSuspect = dnsNameSuspect != 0
 	d.DNSCheckedAt = parseTimeP(dnsCheckedAt)
 	d.DNSSync = dnsSync != 0
@@ -135,10 +139,10 @@ func (s *SQLite) UpsertDevice(ctx context.Context, id *model.Identity, caps map[
 	n := now()
 	if existing == nil {
 		d := &model.Device{ID: newID()}
-		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(41)+`)`,
+		_, err := s.db.ExecContext(ctx, `INSERT INTO devices (`+deviceCols+`) VALUES (`+placeholders(42)+`)`,
 			d.ID, id.Address, id.Hostname, "", 0, nil, strings.ToLower(id.MAC), id.Serial, id.UUID, id.Make, id.Model, id.DeviceType, id.Firmware,
 			id.SysDescr, id.SysName, id.EnterpriseID, id.AdminURL, toJSON(caps), toJSON(discoveryMethods), toJSON(identMethods),
-			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "", identifyErrorsJSON(id, nil))
+			"", "", 0, id.SysLocation, "", "", string(model.StateDiscovered), nil, "[]", "[]", nil, "ok", 0, n, n, nil, n, n, "", "", identifyErrorsJSON(id, nil), "{}")
 		if err != nil {
 			return nil, false, err
 		}
@@ -194,6 +198,30 @@ func identifyErrorsJSON(id *model.Identity, existing *model.Device) string {
 		return "{}"
 	}
 	return toJSON(kept)
+}
+
+// mergeFieldSources folds a patch's sources into a device's, key by key.
+func mergeFieldSources(have, patch map[string]model.FieldSource) map[string]model.FieldSource {
+	if len(patch) == 0 {
+		return have
+	}
+	out := make(map[string]model.FieldSource, len(have)+len(patch))
+	for k, v := range have {
+		out[k] = v
+	}
+	for k, v := range patch {
+		v.At = v.At.UTC()
+		out[k] = v
+	}
+	return out
+}
+
+// fieldSourcesJSON serialises the map; none is "{}", as the column default.
+func fieldSourcesJSON(m map[string]model.FieldSource) string {
+	if len(m) == 0 {
+		return "{}"
+	}
+	return toJSON(m)
 }
 
 func contains(list []string, v string) bool {
@@ -350,12 +378,13 @@ func (s *SQLite) PatchDevice(ctx context.Context, id string, p DevicePatch) (*mo
 	if p.WebURLOverride != nil {
 		d.WebURLOverride = strings.TrimSpace(*p.WebURLOverride)
 	}
+	d.FieldSources = mergeFieldSources(d.FieldSources, p.FieldSources)
 	dnsSync := 0
 	if d.DNSSync {
 		dnsSync = 1
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE devices SET display_name=?, display_name_source=?, dns_sync=?, location=?, asset_tag=?, notes=?, web_url_override=?, updated_at=? WHERE id=?`,
-		d.DisplayName, d.DisplayNameSource, dnsSync, d.Location, d.AssetTag, d.Notes, d.WebURLOverride, now(), id)
+	_, err = s.db.ExecContext(ctx, `UPDATE devices SET display_name=?, display_name_source=?, dns_sync=?, location=?, asset_tag=?, notes=?, web_url_override=?, field_sources=?, updated_at=? WHERE id=?`,
+		d.DisplayName, d.DisplayNameSource, dnsSync, d.Location, d.AssetTag, d.Notes, d.WebURLOverride, fieldSourcesJSON(d.FieldSources), now(), id)
 	if err != nil {
 		return nil, err
 	}

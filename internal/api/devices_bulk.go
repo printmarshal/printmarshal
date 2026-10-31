@@ -160,7 +160,7 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 		}
 		// A rename done by the lookup alone leaves nothing to patch.
 		upd := d
-		if patch != (store.DevicePatch{}) {
+		if !patch.Empty() {
 			var err error
 			if upd, err = s.Store.PatchDevice(r.Context(), d.ID, patch); err != nil {
 				s.fail(w, err)

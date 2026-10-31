@@ -177,6 +177,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS external_subject TEXT NOT NULL DEFAUL
 ALTER TABLE devices ADD COLUMN IF NOT EXISTS web_url_probed TEXT NOT NULL DEFAULT '';
 ALTER TABLE devices ADD COLUMN IF NOT EXISTS web_url_override TEXT NOT NULL DEFAULT '';
 ALTER TABLE devices ADD COLUMN IF NOT EXISTS identify_errors JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS field_sources JSONB NOT NULL DEFAULT '{}';
 CREATE UNIQUE INDEX IF NOT EXISTS users_external ON users(external_issuer, external_subject) WHERE external_issuer <> '';
 
 CREATE TABLE IF NOT EXISTS sessions (
