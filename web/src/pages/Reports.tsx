@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, fmtTime } from '../api'
 import type { Group } from '../types'
@@ -6,7 +6,7 @@ import type {
   AlertsReport, ComplianceReport, FirmwareReport, FirmwareStatus, HealthReport, ReportName, ReportRange, SuppliesReport, UtilisationReport,
 } from '../types-reports'
 import { Ic } from '../components/icons'
-import { Banner, Card, ChipSelect, EmptyState, Kpi, Pill, Seg, SevPill, Tabs, Tag, fmtInt, supplyColor } from '../components/ui'
+import { Banner, Btn, Card, ChipSelect, EmptyState, Kpi, Pill, Seg, SevPill, Tabs, Tag, fmtInt, supplyColor } from '../components/ui'
 import { fmtDays } from '../components/consumables'
 
 type Tab = 'utilisation' | 'health' | 'supplies' | 'alerts' | 'firmware' | 'compliance'
@@ -27,9 +27,11 @@ export default function Reports() {
   const from = params.get('from') || isoDay(new Date(Date.now() - 30 * 86400000))
   const to = params.get('to') || today
   const [groups, setGroups] = useState<Group[]>([])
-  const [data, setData] = useState<object | null>(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  // A result remembers which report and query asked for it: `tab` changes before the new response
+  // arrives, and every tab reads a different shape, so a result only counts while its key matches.
+  const [loaded, setLoaded] = useState<{ key: string; data: object } | null>(null)
+  const [failed, setFailed] = useState<{ key: string; message: string } | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   const set = (kv: Record<string, string>) => { const p = new URLSearchParams(params); for (const [k, v] of Object.entries(kv)) { if (v) p.set(k, v); else p.delete(k) } setParams(p, { replace: true }) }
   const qs = useMemo(() => {
@@ -40,11 +42,17 @@ export default function Reports() {
   }, [preset, from, to, group])
 
   useEffect(() => { api.get<Group[]>('/api/groups').then(setGroups).catch(() => {}) }, [])
-  const load = useCallback(() => {
-    setLoading(true); setError('')
-    api.get<object>(`/api/reports/${tabReport[tab]}?${qs}`).then((r) => { setData(r); setLoading(false) }).catch((e) => { setError(e.message); setData(null); setLoading(false) })
-  }, [tab, qs])
-  useEffect(() => { load() }, [load])
+  const key = `${tabReport[tab]}?${qs}`
+  useEffect(() => {
+    let current = true // cleared when the tab or query moves on, so a late response is ignored
+    setFailed(null)
+    api.get<object>(`/api/reports/${key}`)
+      .then((r) => { if (current) setLoaded({ key, data: r }) })
+      .catch((e) => { if (current) { setLoaded(null); setFailed({ key, message: e.message }) } })
+    return () => { current = false }
+  }, [key, attempt])
+  const data = loaded?.key === key ? loaded.data : null
+  const error = failed?.key === key ? failed.message : ''
 
   const csv = (table: string) => `/api/reports/${tabReport[tab]}?${qs}&format=csv&table=${table}`
   const range = (data as { range?: ReportRange } | null)?.range
@@ -70,8 +78,8 @@ export default function Reports() {
         { v: 'utilisation', label: 'Utilisation' }, { v: 'health', label: 'Fleet health' }, { v: 'supplies', label: 'Supplies' },
         { v: 'alerts', label: 'Alerts' }, { v: 'firmware', label: 'Firmware' }, { v: 'compliance', label: 'Compliance' },
       ]} />
-      {error && <Banner tone="crit">{error}</Banner>}
-      {loading && !data && <div className="cap" aria-busy="true">Computing report…</div>}
+      {error && <Banner tone="crit" role="alert" right={<Btn sm onClick={() => setAttempt((n) => n + 1)}><Ic.refresh />Retry</Btn>}>{error}</Banner>}
+      {!data && !error && <div className="cap" aria-busy="true">Computing report…</div>}
       {data && tab === 'utilisation' && <Utilisation r={data as UtilisationReport} csv={csv} />}
       {data && tab === 'health' && <Health r={data as HealthReport} csv={csv} />}
       {data && tab === 'supplies' && <Supplies r={data as SuppliesReport} csv={csv} />}
