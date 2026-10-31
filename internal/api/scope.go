@@ -45,7 +45,8 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) bool {
 		// Sign-in provider settings are authentication too: a token that can
 		// point LDAP at a directory it controls can sign in as a human admin
 		// and outlive its own expiry (audit NV-05).
-		if strings.HasPrefix(path, "/api/auth/") || strings.HasPrefix(path, "/api/settings/directory") || (mutating && (strings.HasPrefix(path, "/api/tokens") || strings.HasPrefix(path, "/api/users"))) {
+		// Dashboard layouts belong to people, not service accounts.
+		if strings.HasPrefix(path, "/api/auth/") || strings.HasPrefix(path, "/api/settings/directory") || strings.HasPrefix(path, "/api/dashboard/layout") || (mutating && (strings.HasPrefix(path, "/api/tokens") || strings.HasPrefix(path, "/api/users"))) {
 			s.security(r.Context(), r, "auth.denied", u.Username, r.Method+" "+path+" is not available to api tokens", "denied")
 			writeErr(w, http.StatusForbidden, "api tokens cannot manage authentication, sign-in providers or users")
 			return false

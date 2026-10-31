@@ -235,6 +235,8 @@ type Store interface {
 	// Settings (small JSON values)
 	GetSetting(ctx context.Context, key string, dst any) error
 	SetSetting(ctx context.Context, key string, v any) error
+	// DeleteSetting removes a key; a missing key is not an error.
+	DeleteSetting(ctx context.Context, key string) error
 	// Secret settings: sealed with the master key, write-only from the
 	// outside (secret_settings.go). "" clears; Get returns ErrNotFound then.
 	SetSecretSetting(ctx context.Context, key, plain string) error

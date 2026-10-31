@@ -91,12 +91,25 @@ type ComplianceSummary struct {
 	Compliant    int     `json:"compliant"`
 	NonCompliant int     `json:"nonCompliant"`
 	AvgScore     float64 `json:"avgScore"`
+	// Unknown is the number of items, across every assessed device, that the
+	// device would not reveal. They are excluded from each score's denominator
+	// and reported here so they are never mistaken for passes.
+	Unknown int `json:"unknown"`
+	// NotAssessed is the number of devices in the caller's view with no latest
+	// assessment (only known when the caller passes the view's size).
+	NotAssessed int `json:"notAssessed"`
 	// FailingItems counts failures per item id across the fleet.
 	FailingItems map[string]int `json:"failingItems"`
 }
 
 // Summarize rolls up assessments.
 func Summarize(as []*model.Assessment) ComplianceSummary {
+	return SummarizeFor(as, len(as))
+}
+
+// SummarizeFor rolls up assessments for a view of devicesInView devices, so
+// the summary can also say how many devices have not been assessed.
+func SummarizeFor(as []*model.Assessment, devicesInView int) ComplianceSummary {
 	sum := ComplianceSummary{FailingItems: map[string]int{}}
 	var total float64
 	for _, a := range as {
@@ -107,6 +120,7 @@ func Summarize(as []*model.Assessment) ComplianceSummary {
 			sum.NonCompliant++
 		}
 		total += a.Score
+		sum.Unknown += a.Unknown
 		for _, it := range a.Items {
 			if it.Status == model.ItemFail {
 				sum.FailingItems[it.ItemID]++
@@ -115,6 +129,9 @@ func Summarize(as []*model.Assessment) ComplianceSummary {
 	}
 	if sum.Devices > 0 {
 		sum.AvgScore = float64(int(total/float64(sum.Devices)*10+0.5)) / 10
+	}
+	if devicesInView > sum.Devices {
+		sum.NotAssessed = devicesInView - sum.Devices
 	}
 	return sum
 }

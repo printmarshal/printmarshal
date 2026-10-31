@@ -231,4 +231,9 @@ func (s *Postgres) SetSetting(ctx context.Context, key string, v any) error {
 	return err
 }
 
+func (s *Postgres) DeleteSetting(ctx context.Context, key string) error {
+	_, err := pgExec(ctx, s.db, `DELETE FROM settings WHERE key=?`, key)
+	return err
+}
+
 var _ Store = (*Postgres)(nil)

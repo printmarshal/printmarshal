@@ -431,4 +431,9 @@ func (s *SQLite) SetSetting(ctx context.Context, key string, v any) error {
 	return err
 }
 
+func (s *SQLite) DeleteSetting(ctx context.Context, key string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM settings WHERE key=?`, key)
+	return err
+}
+
 var _ Store = (*SQLite)(nil)
