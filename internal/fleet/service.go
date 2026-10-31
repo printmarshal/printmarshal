@@ -561,9 +561,10 @@ func (s *Service) RunScheduler(ctx context.Context) {
 	}
 }
 
-// scheduledDiscoveryParams are the parameters of a scheduled discovery run.
+// scheduledDiscoveryParams are the parameters of a scheduled discovery run. The
+// zeroconf setting applies here only: a manual run states its own.
 func (s *Service) scheduledDiscoveryParams(r RuntimeSettings) DiscoveryParams {
-	return DiscoveryParams{Targets: r.DiscoveryTargets, ZeroConf: true}
+	return DiscoveryParams{Targets: r.DiscoveryTargets, ZeroConf: s.Cfg.Discovery.ZeroConf}
 }
 
 func (s *Service) scheduledPoll(ctx context.Context) {

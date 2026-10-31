@@ -414,6 +414,7 @@ func Load(path string) (*Config, error) {
 	}
 	envBool("PM_IPP_WRITE_REQUIRE_TLS", &c.Poll.IPPWriteRequireTLS)
 	envBool("PM_DISCOVERY_ENABLED", &c.Discovery.Enabled)
+	envBool("PM_DISCOVERY_ZEROCONF", &c.Discovery.ZeroConf)
 	envDur("PM_DISCOVERY_INTERVAL", &c.Discovery.Interval)
 	if v := os.Getenv("PM_DISCOVERY_TARGETS"); v != "" {
 		c.Discovery.Targets = strings.Split(v, ",")
