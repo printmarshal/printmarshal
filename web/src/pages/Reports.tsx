@@ -432,7 +432,7 @@ function Compliance({ r }: { r: ComplianceReport }) {
   if (r.available) return <Banner tone="ok">Compliance data available.</Banner>
   return (
     <Card title="Compliance" id="c-hook" sub="per device, group and policy, over time (spec §8.5)">
-      <div className="cb"><EmptyState tone="muted" icon={<Ic.shield size={20} />} title="Not available yet" text={r.reason || 'Compliance reports appear once security assessments are stored.'} /></div>
+      <div className="cb"><EmptyState tone="muted" icon={<Ic.shield size={20} />} title="Not available yet" text={r.reason || 'This report does not include stored assessment history yet.'} action={<Link className="btn sm" to="/security"><Ic.shield />Open security</Link>} /></div>
     </Card>
   )
 }
