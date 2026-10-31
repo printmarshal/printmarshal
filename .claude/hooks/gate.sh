@@ -5,12 +5,19 @@ set -eu
 cmd=$(sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' | head -1)
 [ -n "$cmd" ] || exit 0
 block() { echo "$1" >&2; exit 2; }
-case "$cmd" in
-  *"git push"*" main"*|*"git push"*":main"*|*"git push"*"HEAD:main"*)
-    block "Pushing to main is blocked: open a PR from a branch; the owner merges." ;;
-  *"git push"*"--force"*|*"git push"*" -f "*|*"git push"*"--force-with-lease"*)
-    echo "$cmd" | grep -q " main" && block "Force-pushing main is blocked." ;;
-esac
+# Judge each simple command on its own, so "git pull origin main && git push origin
+# feature" is not read as a push to main. Segments split on &&, ||, ; and |.
+printf '%s\n' "$cmd" | sed 's/&&/\n/g; s/||/\n/g; s/;/\n/g; s/|/\n/g' | while IFS= read -r seg; do
+  case "$seg" in
+    *"git push"*)
+      case "$seg" in
+        *" main"|*" main "*|*":main"*|*":main "*|*"refs/heads/main"*)
+          block "Pushing to main is blocked: open a PR from a branch; the owner merges." ;;
+        *"--force"*|*" -f "*|*" -f"|*"--force-with-lease"*)
+          block "Force-pushing is blocked; ask the owner." ;;
+      esac ;;
+  esac
+done || exit 2
 case "$cmd" in
   *"git filter-repo"*|*"git filter-branch"*)
     block "History rewriting is blocked: it needs the owner's explicit go-ahead and a disabled ruleset." ;;
