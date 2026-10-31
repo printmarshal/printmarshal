@@ -34,3 +34,7 @@ The web has no test runner, so proof there is typecheck, build and screenshots.
 
 ## Proof
 `make test`, `cd web && npm run typecheck && npm run build`, and screenshots of each visible change against `cmd/pm-sim` on loopback.
+
+## As built, group C
+The dashboard customise text needed no change: `web/src/dashboard/EditBar.tsx` already varies by role and never described a link the role lacks.
+The compliance report still does not read stored assessments. That is a moderate change, left for later: the report's store interface, aggregation, CSV rows and a results view.
