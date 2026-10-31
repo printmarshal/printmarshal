@@ -1,12 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
-import type { BulkPatchResponse } from '../types'
+import type { BulkPatchResponse, Device } from '../types'
 import { Btn, Dialog } from './ui'
 
 type Tri = 'leave' | 'on' | 'off'
 
+/** Whether reverse DNS lookup is switched off in Settings (read as the device page does). */
+export function useReverseDnsOff(): boolean {
+  const [off, setOff] = useState(false)
+  useEffect(() => { api.get<{ runtime?: { reverseDns?: { enabled?: boolean } } }>('/api/settings').then((st) => setOff(st.runtime?.reverseDns?.enabled === false)).catch(() => {}) }, [])
+  return off
+}
+
+/** The hint that DNS sync only follows DNS while reverse DNS lookup runs. */
+export function ReverseDnsOffHint({ canEdit }: { canEdit: boolean }) {
+  return <span className="cap" style={{ fontSize: 11 }}>Reverse DNS is off, so DNS sync will not keep these names up to date on its own. {canEdit ? <Link to="/settings">Turn it on in Settings</Link> : 'An administrator can turn it on in Settings'}.</span>
+}
+
 /** Edit operator fields on many devices at once; every field can be left unchanged. */
-export function BulkEditDialog({ deviceIds, onClose, onApplied }: { deviceIds: string[]; onClose: () => void; onApplied: (res: BulkPatchResponse) => void }) {
+export function BulkEditDialog({ deviceIds, devices, onClose, onApplied }: { deviceIds: string[]; devices: Device[]; onClose: () => void; onApplied: (res: BulkPatchResponse) => void }) {
   const [dnsSync, setDnsSync] = useState<Tri>('leave')
   const [rename, setRename] = useState(false)
   const [withLocation, setWithLocation] = useState(false)
@@ -15,6 +28,8 @@ export function BulkEditDialog({ deviceIds, onClose, onApplied }: { deviceIds: s
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const n = deviceIds.length
+  const syncedNow = devices.filter((d) => d.dnsSync).length
+  const rdnsOff = useReverseDnsOff()
   const nothing = dnsSync === 'leave' && !rename && !(withLocation && location.trim()) && !note.trim()
 
   const apply = async () => {
@@ -49,7 +64,9 @@ export function BulkEditDialog({ deviceIds, onClose, onApplied }: { deviceIds: s
             <option value="on">On: keep display names synced with DNS</option>
             <option value="off">Off</option>
           </select>
+          <span className="cap" style={{ color: 'var(--text-3)' }}>Currently on for {syncedNow} of {devices.length}</span>
         </div>
+        {rdnsOff && <ReverseDnsOffHint canEdit />}
         <label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           <input className="cbx" type="checkbox" checked={rename} onChange={(e) => setRename(e.target.checked)} />
           Rename from DNS now <span style={{ color: 'var(--text-3)' }}>(devices without a usable DNS name are skipped)</span>

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, ago } from '../api'
-import type { Device, Group, Job, RenameResponse, RenameRow, User } from '../types'
+import type { BulkPatchResponse, Device, Group, Job, RenameResponse, RenameRow, User } from '../types'
 import { deviceName } from '../types'
 import { useEvents } from '../ws'
 import { useDensity } from '../theme'
 import { Ic } from '../components/icons'
 import { Bar, Btn, Card, ChipSelect, DevicePill, Dialog, EmptyState, Msb, Pill, SearchBox, Seg, Tag, fmtInt, remaining, supplyColor } from '../components/ui'
-import { BulkEditDialog } from '../components/BulkEditDialog'
+import { BulkEditDialog, ReverseDnsOffHint, useReverseDnsOff } from '../components/BulkEditDialog'
 
 export default function Devices({ user }: { user: User }) {
   const [params, setParams] = useSearchParams()
@@ -38,7 +38,8 @@ export default function Devices({ user }: { user: User }) {
   const activeFilters = ['severity', 'state', 'group', 'make', 'model'].filter((k) => params.get(k))
   const makes = useMemo(() => Array.from(new Set(devices.map((d) => d.make).filter(Boolean))).sort(), [devices])
   const models = useMemo(() => Array.from(new Set(devices.map((d) => d.model).filter(Boolean))).sort(), [devices])
-  const selected = Object.keys(sel).filter((id) => sel[id])
+  const selected = useMemo(() => Object.keys(sel).filter((id) => sel[id]), [sel])
+  const selectedDevices = useMemo(() => devices.filter((d) => sel[d.id]), [devices, sel])
   const toggle = (id: string) => setSel((s) => ({ ...s, [id]: !s[id] }))
   const toggleAll = () => { if (selected.length === devices.length) setSel({}); else setSel(Object.fromEntries(devices.map((d) => [d.id, true]))) }
   const pollSelected = async () => {
@@ -125,10 +126,11 @@ export default function Devices({ user }: { user: User }) {
                       <td>
                         <Link to={`/devices/${d.id}`} style={{ fontWeight: 500 }} onClick={(e) => e.stopPropagation()}>{deviceName(d)}</Link>
                         {d.serial && <div className="cap mono" style={{ fontSize: 11 }}>{d.serial}</div>}
-                        {d.dnsNameChanged && (
+                        {(d.dnsNameChanged || d.dnsSync) && (
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 2 }} onClick={(e) => e.stopPropagation()}>
-                            <Pill tone="warn" xs>DNS name changed</Pill>
-                            {canOperate && !d.dnsNameSuspect && <Btn sm variant="ghost" style={{ height: 20, padding: '0 6px', fontSize: 11 }} onClick={() => useDNSName(d.id)}>Use DNS name</Btn>}
+                            {d.dnsSync && <Pill tone="off" xs noIcon title="Display name kept in sync with DNS">DNS sync</Pill>}
+                            {d.dnsNameChanged && <Pill tone="warn" xs>DNS name changed</Pill>}
+                            {d.dnsNameChanged && canOperate && !d.dnsNameSuspect && <Btn sm variant="ghost" style={{ height: 20, padding: '0 6px', fontSize: 11 }} onClick={() => useDNSName(d.id)}>Use DNS name</Btn>}
                           </div>
                         )}
                       </td>
@@ -164,10 +166,11 @@ export default function Devices({ user }: { user: User }) {
                   <div>
                     <div className="mono" style={{ color: 'var(--text-2)' }}>{d.model} · {d.address}</div>
                     <div className="cap">{d.location || d.serial}</div>
-                    {d.dnsNameChanged && (
+                    {(d.dnsNameChanged || d.dnsSync) && (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                        <Pill tone="warn" xs>DNS name changed</Pill>
-                        {canOperate && !d.dnsNameSuspect && <Btn sm variant="ghost" style={{ height: 20, padding: '0 6px', fontSize: 11 }} onClick={() => useDNSName(d.id)}>Use DNS name</Btn>}
+                        {d.dnsSync && <Pill tone="off" xs noIcon title="Display name kept in sync with DNS">DNS sync</Pill>}
+                        {d.dnsNameChanged && <Pill tone="warn" xs>DNS name changed</Pill>}
+                        {d.dnsNameChanged && canOperate && !d.dnsNameSuspect && <Btn sm variant="ghost" style={{ height: 20, padding: '0 6px', fontSize: 11 }} onClick={() => useDNSName(d.id)}>Use DNS name</Btn>}
                       </div>
                     )}
                   </div>
@@ -192,11 +195,11 @@ export default function Devices({ user }: { user: User }) {
       {editing && (
         <BulkEditDialog
           deviceIds={selected}
+          devices={selectedDevices}
           onClose={() => setEditing(false)}
           onApplied={(res) => {
             setEditing(false)
-            const skippedNote = res.results.filter((r) => r.skipped && r.skipped !== 'unchanged').length
-            setMsg(`Edited ${res.changed} device${res.changed === 1 ? '' : 's'}${res.skipped ? `, ${res.skipped} unchanged` : ''}${skippedNote ? ` (${skippedNote} with a note, see the audit trail)` : ''}.`)
+            setMsg(bulkResultMessage(res))
             setSel({})
             load()
           }}
@@ -205,6 +208,8 @@ export default function Devices({ user }: { user: User }) {
       {renaming && (
         <RenameDialog
           deviceIds={selected}
+          devices={selectedDevices}
+          canEdit={canOperate}
           onClose={() => setRenaming(false)}
           onApplied={(n) => {
             setRenaming(false)
@@ -218,14 +223,35 @@ export default function Devices({ user }: { user: User }) {
   )
 }
 
-function RenameDialog({ deviceIds, onClose, onApplied }: { deviceIds: string[]; onClose: () => void; onApplied: (updated: number) => void }) {
+/** Counts reasons as "DNS name is empty" for one reason, or "a (3), b (2)" for several. */
+function reasonSummary(reasons: string[]): string {
+  const counts = new Map<string, number>()
+  for (const r of reasons) counts.set(r, (counts.get(r) || 0) + 1)
+  const entries = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])
+  return entries.length === 1 ? entries[0][0] : entries.map(([r, c]) => `${r} (${c})`).join(', ')
+}
+
+/** The bulk edit's result line, with the reasons devices were skipped spelled out. */
+function bulkResultMessage(res: BulkPatchResponse): string {
+  const notes = (r: BulkPatchResponse['results'][number]) => (r.skipped || '').split('; ').filter(Boolean).map((n) => n.replace(/^rename skipped: /, ''))
+  const skippedRows = res.results.filter((r) => r.changed.length === 0)
+  const notedRows = res.results.filter((r) => r.changed.length > 0 && r.skipped)
+  let msg = `Edited ${res.changed} device${res.changed === 1 ? '' : 's'}`
+  if (skippedRows.length) msg += `; ${skippedRows.length} skipped: ${reasonSummary(skippedRows.flatMap(notes))}`
+  if (notedRows.length) msg += `; rename skipped on ${notedRows.length} edited: ${reasonSummary(notedRows.flatMap(notes))}`
+  return `${msg}.`
+}
+
+function RenameDialog({ deviceIds, devices, canEdit, onClose, onApplied }: { deviceIds: string[]; devices: Device[]; canEdit: boolean; onClose: () => void; onApplied: (updated: number) => void }) {
   const [source, setSource] = useState<'dns' | 'hostname' | 'sysName' | 'pattern'>('dns')
   const [pattern, setPattern] = useState('{location}-{model}')
   const [rows, setRows] = useState<RenameRow[]>([])
   const [busy, setBusy] = useState(false)
   const [applying, setApplying] = useState(false)
   const [err, setErr] = useState('')
-  const [keepSynced, setKeepSynced] = useState(false)
+  const syncedNow = devices.filter((d) => d.dnsSync).length
+  const [keepSynced, setKeepSynced] = useState(devices.length > 0 && syncedNow === devices.length)
+  const rdnsOff = useReverseDnsOff()
 
   useEffect(() => {
     if (source === 'pattern' && !pattern.trim()) {
@@ -299,10 +325,14 @@ function RenameDialog({ deviceIds, onClose, onApplied }: { deviceIds: string[]; 
           </select>
         </div>
         {source === 'dns' && (
-          <label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <input className="cbx" type="checkbox" checked={keepSynced} onChange={(e) => setKeepSynced(e.target.checked)} />
-            Keep these names in sync with DNS from now on
-          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label className="cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <input className="cbx" type="checkbox" checked={keepSynced} onChange={(e) => setKeepSynced(e.target.checked)} />
+              Keep these names in sync with DNS from now on
+              <span style={{ color: 'var(--text-3)' }}>(already on for {syncedNow} of {devices.length})</span>
+            </label>
+            {rdnsOff && <ReverseDnsOffHint canEdit={canEdit} />}
+          </div>
         )}
         {source === 'pattern' && (
           <div>
