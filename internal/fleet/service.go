@@ -109,7 +109,44 @@ func (s *Service) CredsFor(ctx context.Context, dev *model.Device, purpose model
 
 // IdentifyAndUpsert identifies an address and records it (spec §8.1).
 func (s *Service) IdentifyAndUpsert(ctx context.Context, address string, methods []string, hints discovery.Candidate) (*model.Device, bool, error) {
-	creds := s.Creds(ctx, &model.Device{Address: address})
+	return s.identifyWith(ctx, s.Creds(ctx, &model.Device{Address: address}), address, methods, hints)
+}
+
+// identifyLaterTimeout bounds the identification of an address-only record
+// within a poll, so a poll's own read and store writes keep their share of
+// the caller's deadline.
+const identifyLaterTimeout = 45 * time.Second
+
+// needsIdentification reports whether a record has never been identified: no
+// make, model or serial and no capability profile. The CSV import leaves such
+// a record for a printer that did not answer.
+func needsIdentification(d *model.Device) bool {
+	return d.Make == "" && d.Model == "" && d.Serial == "" && len(d.Capabilities) == 0
+}
+
+// identifyLater tries the read-only identification of an address-only record
+// and returns the record to poll: identified when the printer answered, as it
+// was otherwise. It merges through UpsertDevice, which matches the record by
+// its address and leaves operator fields alone.
+func (s *Service) identifyLater(ctx context.Context, dev *model.Device) *model.Device {
+	ictx, cancel := context.WithTimeout(ctx, identifyLaterTimeout)
+	defer cancel()
+	upd, _, err := s.identifyWith(ictx, s.Creds(ctx, dev), dev.Address, nil, discovery.Candidate{Address: dev.Address, Hostname: dev.Hostname})
+	if err != nil {
+		s.Log.Debug("address-only record not identified yet", "device", dev.ID, "err", err)
+		return dev
+	}
+	if upd.ID != dev.ID {
+		// The printer is already recorded (by serial) and has moved to this
+		// address: that record now holds the address; this one is left for
+		// an administrator to remove.
+		s.Log.Warn("address-only record is a printer already recorded", "device", dev.ID, "recorded", upd.ID)
+		return dev
+	}
+	return upd
+}
+
+func (s *Service) identifyWith(ctx context.Context, creds model.Creds, address string, methods []string, hints discovery.Candidate) (*model.Device, bool, error) {
 	ident, caps, err := s.Engine.Identify(ctx, address, creds)
 	if err != nil {
 		return nil, false, err
@@ -174,6 +211,9 @@ func (s *Service) PollDevice(ctx context.Context, dev *model.Device) (*model.Dev
 		s.pollMu.Unlock()
 	}()
 
+	if needsIdentification(dev) {
+		dev = s.identifyLater(ctx, dev)
+	}
 	creds := s.Creds(ctx, dev)
 	res := s.Engine.Poll(ctx, dev, creds)
 	updated, err := s.Store.ApplyPoll(ctx, dev.ID, store.PollUpdate{

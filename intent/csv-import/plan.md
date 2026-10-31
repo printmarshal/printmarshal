@@ -71,6 +71,13 @@ Server
   `setDeviceState`, the other two operator write paths, beyond the plan's list. There is no
   per-job cancel API yet; the job stops when the runner's context ends (shutdown), writing one
   result that says where it stopped (`outcome: cancelled`) rather than one per remaining row.
+- *Built, review fix 1:* a printer that does not answer is still created: on an identification
+  error the row makes an address-only record through `UpsertDevice`, with the file's fields and
+  sources, and reports `created`. `fleet.Service.PollDevice` identifies a record with no make,
+  model, serial or capability profile before polling it, through the read-only `Engine.Identify`
+  with the record's own credentials; a later discovery merges by address in `findByIdentity`.
+  If the printer turns out to be recorded already under another address (matched by serial),
+  that record takes the address and the address-only one stays for an administrator to remove.
 
 Web
 - `web/src/components/ImportDialog.tsx` (new): file input, "Download template" (a header-only

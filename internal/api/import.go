@@ -321,8 +321,18 @@ func (s *Server) applyImportRow(ctx, wctx context.Context, p *importPayload, row
 		ictx, cancel := context.WithTimeout(ctx, importIdentifyTimeout)
 		dev, created, err := s.identifyForImport(ictx, row.Address, row.Hostname)
 		cancel()
+		unreachable := false
 		if err != nil {
-			return "failed", "", "not created: " + err.Error()
+			if ctx.Err() != nil {
+				return "failed", "", "not created: " + err.Error()
+			}
+			// The printer did not answer, the case the intent names: record
+			// it now with the file's fields. A poll or a discovery identifies
+			// the record when it answers (fleet.Service.PollDevice).
+			if dev, created, err = s.recordUnidentified(wctx, row.Address, row.Hostname); err != nil {
+				return "failed", "", "not created: " + err.Error()
+			}
+			unreachable = created
 		}
 		fields := row.Fields
 		if !created {
@@ -343,9 +353,20 @@ func (s *Server) applyImportRow(ctx, wctx context.Context, p *importPayload, row
 				return "skipped", dev.ID, "already recorded; unchanged"
 			}
 		}
-		return s.applyImportFields(wctx, p, dev, fields, row.GroupID, created)
+		status, deviceID, msg = s.applyImportFields(wctx, p, dev, fields, row.GroupID, created)
+		if unreachable && status == "created" {
+			msg += "; not reachable yet, so it will be identified when it answers"
+		}
+		return status, deviceID, msg
 	}
 	return "skipped", row.DeviceID, row.Reason
+}
+
+// recordUnidentified creates the address-only record of a printer that did
+// not answer. The empty capability map stores as an object, which the device
+// page reads; nil would store as null.
+func (s *Server) recordUnidentified(ctx context.Context, address, hostname string) (*model.Device, bool, error) {
+	return s.Store.UpsertDevice(ctx, &model.Identity{Address: address, Hostname: hostname, Method: "import"}, map[model.Capability]string{}, []string{"import"})
 }
 
 // importFieldOrder is the order fields are applied and named in messages.
