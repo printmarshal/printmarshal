@@ -250,7 +250,8 @@ function RenameDialog({ deviceIds, devices, canEdit, onClose, onApplied }: { dev
   const [applying, setApplying] = useState(false)
   const [err, setErr] = useState('')
   const syncedNow = devices.filter((d) => d.dnsSync).length
-  const [keepSynced, setKeepSynced] = useState(devices.length > 0 && syncedNow === devices.length)
+  const allSyncedAtStart = devices.length > 0 && syncedNow === devices.length
+  const [keepSynced, setKeepSynced] = useState(allSyncedAtStart)
   const rdnsOff = useReverseDnsOff()
 
   useEffect(() => {
@@ -288,9 +289,10 @@ function RenameDialog({ deviceIds, devices, canEdit, onClose, onApplied }: { dev
         pattern: source === 'pattern' ? pattern : undefined,
         dryRun: false,
       })
-      if (source === 'dns' && keepSynced) {
-        const renamed = (res.results || []).filter((r) => !r.skipped).map((r) => r.id)
-        if (renamed.length) await api.post('/api/devices/bulk', { deviceIds: renamed, set: { dnsSync: true } })
+      // The box starts ticked when every selected device is already synced, so
+      // either direction of change applies to the whole selection.
+      if (source === 'dns' && keepSynced !== allSyncedAtStart) {
+        await api.post('/api/devices/bulk', { deviceIds, set: { dnsSync: keepSynced } })
       }
       onApplied(res.updated)
     } catch (e) {
