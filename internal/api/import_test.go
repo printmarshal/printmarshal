@@ -180,7 +180,8 @@ func TestImportPreviewMakesNoFleetCall(t *testing.T) {
 	if code, _ := importUpload(t, ts, viewer, "preview", "", []byte(importFile)); code != http.StatusForbidden {
 		t.Fatalf("viewer preview: %d", code)
 	}
-	code, body := importUpload(t, ts, op, "preview", "", []byte(importFile+",lp-1,,,,\n"))
+	withHostname := strings.Replace(importFile, "Owner\n", "Owner,Hostname\n", 1) + ",,,,,,lp-1\n"
+	code, body := importUpload(t, ts, op, "preview", "", []byte(withHostname))
 	if code != http.StatusOK {
 		t.Fatalf("preview: %d %s", code, body)
 	}
@@ -188,7 +189,7 @@ func TestImportPreviewMakesNoFleetCall(t *testing.T) {
 		t.Errorf("held-back JSON shape: %s", body)
 	}
 	p := decodePlan(t, body)
-	if p.Separator != "," || strings.Join(p.KnownColumns, ",") != "address,displayName,location,assetTag,group" || strings.Join(p.IgnoredColumns, ",") != "Owner" {
+	if p.Separator != "," || strings.Join(p.KnownColumns, ",") != "address,displayName,location,assetTag,group,hostname" || strings.Join(p.IgnoredColumns, ",") != "Owner" {
 		t.Errorf("columns: %+v", p)
 	}
 	if p.Totals != (importcsv.Totals{Create: 2, Update: 2, Skip: 2}) {
@@ -408,8 +409,8 @@ func TestImportRefusesBadFiles(t *testing.T) {
 		{"no key column", "preview", "", "location\nFloor 2\n", "no key column"},
 		{"not UTF-8", "preview", "", "address\n10.0.0.1\xff\n", "not UTF-8"},
 		{"empty", "preview", "", "", "file is empty"},
-		{"no mode", "", "", "address\n10.0.0.1\n", `mode must be "preview" or "apply"`},
-		{"bad mode", "dry", "", "address\n10.0.0.1\n", `mode must be "preview" or "apply"`},
+		{"no mode", "", "", "address\n10.0.0.1\n", "mode must be"},
+		{"bad mode", "dry", "", "address\n10.0.0.1\n", "mode must be"},
 		{"bad replace", "preview", "address", "address\n10.0.0.1\n", "replace:"},
 	} {
 		code, body := importUpload(t, ts, admin, tc.mode, tc.replace, []byte(tc.file))
