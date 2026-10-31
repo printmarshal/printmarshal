@@ -702,15 +702,23 @@ func (s *Server) renameDevices(w http.ResponseWriter, r *http.Request) {
 		}
 		devices = append(devices, d)
 	}
+	// beforeNames keeps each name as it was ahead of the lookup: a device kept
+	// in sync with DNS is renamed by the lookup itself, and that rename is
+	// still this request's doing.
+	beforeNames := make([]string, len(devices))
+	for i, d := range devices {
+		beforeNames[i] = d.Name()
+	}
 	if body.Source == "dns" || (body.Source == "pattern" && strings.Contains(body.Pattern, "{dnsName}")) {
 		s.ensureDNSNames(r.Context(), devices)
 	}
 	results := make([]renameResult, 0, len(body.DeviceIDs))
 	updated := 0
 	skipped := 0
-	for _, d := range devices {
+	for i, d := range devices {
 		current := d.Name()
 		res := renameResult{ID: d.ID, From: current}
+		renamedByLookup := false
 		switch body.Source {
 		case "dns":
 			if to, reason := dnsRenameTarget(d); reason != "" {
@@ -751,15 +759,22 @@ func (s *Server) renameDevices(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if !res.Skipped && res.To == current {
-			res.Skipped = true
-			res.Reason = "unchanged"
+			if beforeNames[i] != current {
+				// The lookup already applied this name (DNS sync): report it
+				// as done, in a preview as well as an apply.
+				res.From = beforeNames[i]
+				renamedByLookup = true
+			} else {
+				res.Skipped = true
+				res.Reason = "unchanged"
+			}
 		}
 		if res.Skipped {
 			skipped++
 			results = append(results, res)
 			continue
 		}
-		if !dryRun {
+		if !dryRun && !renamedByLookup {
 			to := res.To
 			src := body.Source
 			upd, err := s.Store.PatchDevice(r.Context(), d.ID, store.DevicePatch{
