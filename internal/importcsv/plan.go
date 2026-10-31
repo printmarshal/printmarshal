@@ -364,7 +364,8 @@ func (p *planner) values(c map[string]string, row *Row) (map[string]any, string)
 }
 
 // Diff decides which supplied values to set on dev (nil for a new device):
-// a value equal to the current one is dropped, one over a field an operator
+// a value equal to the current one (for a display name, the name the device
+// already goes by) is dropped, one over a field an operator
 // set is held back unless its column is in replace (R10), and a group is set
 // unless dev is already a member. A state the lifecycle cannot reach from
 // the device's (a new device starts "discovered") is held back with the
@@ -386,6 +387,9 @@ func Diff(dev *model.Device, values map[string]any, isMember bool, replace map[s
 		case dev == nil:
 			fields[col] = v
 		case current(dev, col) == v:
+		case col == ColDisplayName && dev.Name() == v:
+			// The export's name column is Name(): a derived name stays
+			// derived, so the device keeps following the name-source setting.
 		case !replace[col] && holdBackReason(dev, col) != "":
 			held = append(held, HeldBack{Field: col, Reason: holdBackReason(dev, col)})
 		default:
