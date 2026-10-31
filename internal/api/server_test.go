@@ -464,3 +464,45 @@ func TestRenameSkipsSuspectAfterLookup(t *testing.T) {
 		t.Fatalf("suspect name must not rename, got %q", after.DisplayName)
 	}
 }
+
+// A device kept in sync with DNS is renamed by the lookup itself; the rename
+// preview must report that rename, not "unchanged".
+func TestRenameCountsSyncRename(t *testing.T) {
+	ts, s := newTestServer(t)
+	s.Fleet.Resolver = &testResolver{
+		ptrs:  map[string][]string{"10.0.0.22": {"copier-22.corp.example.com."}},
+		hosts: map[string][]string{"copier-22.corp.example.com": {"10.0.0.22"}},
+	}
+	admin := login(t, ts, "admin", "adminpass123")
+	ctx := context.Background()
+	d, _, err := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.22", Serial: "SN22", Make: "Acme", Model: "Laser 22", Method: "snmp"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sync := true
+	if _, err := s.Store.PatchDevice(ctx, d.ID, store.DevicePatch{DNSSync: &sync}); err != nil {
+		t.Fatal(err)
+	}
+	code, body := do(t, ts, admin, "POST", "/api/devices/rename", fmt.Sprintf(`{"deviceIds":[%q],"source":"dns","dryRun":true}`, d.ID))
+	if code != 200 {
+		t.Fatalf("dry-run dns rename: %d %s", code, body)
+	}
+	var resp struct {
+		Updated int            `json:"updated"`
+		Skipped int            `json:"skipped"`
+		Results []renameResult `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(body), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Updated != 1 || resp.Skipped != 0 || len(resp.Results) != 1 {
+		t.Fatalf("sync rename reported as unchanged: %s", body)
+	}
+	if r := resp.Results[0]; r.Skipped || r.From != "Laser 22" || r.To != "copier-22" {
+		t.Fatalf("sync rename row: %+v", r)
+	}
+	after, _ := s.Store.GetDevice(ctx, d.ID)
+	if after.DisplayName != "copier-22" || after.DisplayNameSource != "dns" {
+		t.Fatalf("after sync rename: displayName=%q source=%q", after.DisplayName, after.DisplayNameSource)
+	}
+}
