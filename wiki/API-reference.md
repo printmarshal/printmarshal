@@ -141,7 +141,7 @@ Import jobs are listed by `GET /api/jobs?type=import` and, with discovery runs, 
 
 | Result `status` | `message` |
 | --- | --- |
-| `created` | `created`, then `; set displayName, location` when fields were set, then `; not reachable yet, so it will be identified when it answers` for a printer that did not answer. |
+| `created` | `created`, then `; set Display name, Location` when fields were set, then `; not reachable yet, so it will be identified when it answers` for a printer that did not answer. |
 | `updated` | `set Location, Asset tag`. A row planned as `create` ends here when identification finds the printer already recorded. |
 | `skipped` | The plan's reason. A row planned as `create` can also end with `already recorded; unchanged` or `outside your groups`. |
 | `failed` | `not updated: …`, `not created: …`, or `created, but …` when the record exists but a field, state or group could not be written. |
