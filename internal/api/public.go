@@ -851,6 +851,42 @@ func (c *publicStatusConfig) validate() error {
 	return nil
 }
 
+// publicStatusAudit is one side of the audit row for a save: flat keys, so the
+// trail lists each changed setting on its own. It is built field by field and
+// has no slug field on purpose: operators read the audit log, and on an
+// unlisted board the slug is the only thing keeping the address private. Only
+// whether this save issued a new one is recorded (always false on the before
+// side, so the row shows a change only when one was issued).
+func publicStatusAudit(c publicStatusConfig, slugRegenerated bool) map[string]any {
+	ids := make([]string, 0, len(c.Devices))
+	labels := map[string]string{}
+	for _, d := range c.Devices {
+		ids = append(ids, d.ID)
+		if d.Label != "" {
+			labels[d.ID] = d.Label
+		}
+	}
+	origins := c.FrameOrigins
+	if origins == nil {
+		origins = []string{}
+	}
+	return map[string]any{
+		"enabled":         c.Enabled,
+		"unlisted":        c.Unlisted,
+		"title":           c.Title,
+		"frameOrigins":    origins,
+		"deviceIds":       ids, // in board order
+		"deviceLabels":    labels,
+		"show.location":   c.Show.Location,
+		"show.online":     c.Show.Online,
+		"show.state":      c.Show.State,
+		"show.paper":      c.Show.Paper,
+		"show.toner":      c.Show.Toner,
+		"show.alerts":     c.Show.Alerts,
+		"slugRegenerated": slugRegenerated,
+	}
+}
+
 func (s *Server) putPublicStatusSettings(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	r.Body = http.MaxBytesReader(w, r.Body, publicMaxBody)
@@ -918,9 +954,9 @@ func (s *Server) putPublicStatusSettings(w http.ResponseWriter, r *http.Request)
 	detail := fmt.Sprintf("public status board: enabled=%t unlisted=%t devices=%d show=%s frameOrigins=%d slugRegenerated=%t",
 		next.Enabled, next.Unlisted, len(next.Devices), show, len(next.FrameOrigins), regenerated)
 	who := actor(r)
-	s.security(ctx, r, "public.status.changed", who, detail, "ok")
+	s.securityChange(ctx, r, "public.status.changed", who, detail, publicStatusAudit(prev, false), publicStatusAudit(next, regenerated), "ok")
 	if next.Enabled && !prev.Enabled {
-		s.security(ctx, r, "public.status.enabled", who, detail, "ok")
+		s.securityChange(ctx, r, "public.status.enabled", who, detail, map[string]any{"enabled": false}, map[string]any{"enabled": true}, "ok")
 	}
 	writeJSON(w, http.StatusOK, next)
 }
