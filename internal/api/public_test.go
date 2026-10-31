@@ -427,7 +427,7 @@ func TestAlertCategoryMapping(t *testing.T) {
 		{"offline", "offline", "offline"},
 		{"poll", "state:down", "other"}, // it answered the poll, so it is reachable
 		{"poll", "error:offline", "offline"},
-		{"trap", "trap:link-down", "offline"},
+		{"trap", "trap:link-down", "other"}, // a report from a printer that may still answer polls
 		{"poll", "paper:A4", "paper"},
 		{"poll", "paper:*", "paper"},
 		{"poll", "error:lowPaper", "paper"},
