@@ -180,6 +180,30 @@ func TestTrapFromDecommissionedIsIgnored(t *testing.T) {
 	}
 }
 
+// A reused address: the replacement printer's trap belongs to the replacement,
+// even though the retired record has the same address and sorts first.
+func TestTrapFromReusedAddressReachesDeviceInService(t *testing.T) {
+	svc, st, sessions, webProbes := newTripwireService(t)
+	ctx := context.Background()
+	retired := decommissioned(t, svc, st, "10.0.0.9", sessions, webProbes)
+	replacement, created, err := st.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.9", Serial: "REPLACEMENT", SysName: "zz-replacement", Method: "snmp"},
+		map[model.Capability]string{model.CapReadStatus: "snmp"}, []string{"scan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !created || replacement.ID == retired.ID {
+		t.Fatalf("the replacement must be its own record: created=%v", created)
+	}
+	svc.HandleTrap(ctx, "10.0.0.9", "paper jam", model.SeverityCritical, nil)
+	waitForJobs(t, svc, st)
+	if as, _ := st.ListAlerts(ctx, store.AlertFilter{DeviceID: retired.ID, ActiveOnly: true}); len(as) != 0 {
+		t.Errorf("the retired record took the alert: %+v", as[0])
+	}
+	if as, _ := st.ListAlerts(ctx, store.AlertFilter{DeviceID: replacement.ID, ActiveOnly: true}); len(as) == 0 {
+		t.Error("the replacement printer lost its trap")
+	}
+}
+
 // A sweep reaches addresses, so it may meet a retired printer: identification
 // is how it finds out. Nothing further happens once the record is known.
 func TestDiscoveryDoesNotPollRediscoveredDecommissioned(t *testing.T) {
