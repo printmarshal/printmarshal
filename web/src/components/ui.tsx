@@ -247,15 +247,17 @@ export function Mk({ op }: { op: boolean }) {
   return <span className={`mk ${op ? 'op' : 'dc'}`} title={op ? 'Set by operator — never overwritten' : 'Discovered from device'}>{op ? <Ic.user /> : <Ic.discovered />}</span>
 }
 
-export function Dialog({ title, sub, icon, children, footer, onClose }: { title: string; sub?: React.ReactNode; icon?: React.ReactNode; children?: React.ReactNode; footer?: React.ReactNode; onClose: () => void }) {
+/** Modal dialog. `width` widens it past the default 480px and lets the body scroll inside the viewport. */
+export function Dialog({ title, sub, icon, children, footer, onClose, width }: { title: string; sub?: React.ReactNode; icon?: React.ReactNode; children?: React.ReactNode; footer?: React.ReactNode; onClose: () => void; width?: number }) {
+  const wide: React.CSSProperties | undefined = width ? { maxWidth: width, maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column' } : undefined
   return (
     <div className="drawer-backdrop" style={{ justifyContent: 'center', alignItems: 'center', padding: 16 }} onClick={onClose}>
-      <div className="dialog" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+      <div className="dialog" role="dialog" aria-modal="true" aria-label={title} style={wide} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: '18px 20px 6px', display: 'flex', gap: 12 }}>
           {icon}
           <div><h3 style={{ fontSize: 16, fontWeight: 600 }}>{title}</h3>{sub && <p className="cap" style={{ margin: '4px 0 0' }}>{sub}</p>}</div>
         </div>
-        {children && <div style={{ padding: '6px 20px 14px' }}>{children}</div>}
+        {children && <div style={{ padding: '6px 20px 14px', ...(width ? { overflow: 'auto', minHeight: 0 } : null) }}>{children}</div>}
         {footer && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 20px', borderTop: '1px solid var(--border)' }}>{footer}</div>}
       </div>
     </div>
