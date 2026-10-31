@@ -156,6 +156,9 @@ func (s *Service) identifyWith(ctx context.Context, creds model.Creds, address s
 	if err != nil {
 		return nil, false, err
 	}
+	if dev.Decommissioned() {
+		return dev, created, nil // the sweep found it; nothing more goes to it
+	}
 	dev = s.refreshHostname(ctx, dev)
 	s.ensureWebURL(ctx, dev, true)
 	if created {
@@ -196,8 +199,12 @@ func applyHints(id *model.Identity, c discovery.Candidate) {
 }
 
 // PollDevice reads a device, stores the result, records telemetry and
-// reconciles alerts. It never writes to the device.
+// reconciles alerts. It never writes to the device, and it never touches a
+// decommissioned one.
 func (s *Service) PollDevice(ctx context.Context, dev *model.Device) (*model.Device, *engine.PollResult, error) {
+	if dev.Decommissioned() {
+		return dev, nil, model.ErrDecommissioned
+	}
 	s.pollMu.Lock()
 	if s.polling[dev.ID] {
 		s.pollMu.Unlock()
@@ -445,7 +452,9 @@ func (s *Service) runDiscovery(ctx context.Context, jc *jobs.Context) error {
 				data["identifyErrors"] = dev.IdentifyErrors
 			}
 			// Read-only first poll so the record has status straight away.
-			if _, _, perr := s.PollDevice(ictx, dev); perr != nil {
+			if dev.Decommissioned() {
+				msg += "; decommissioned, not polled"
+			} else if _, _, perr := s.PollDevice(ictx, dev); perr != nil {
 				msg += "; poll: " + perr.Error()
 			}
 			jc.Result(dev.ID, c.Address, "ok", msg, data)
@@ -456,7 +465,18 @@ func (s *Service) runDiscovery(ctx context.Context, jc *jobs.Context) error {
 }
 
 // SubmitPoll queues a poll of the given devices (all pollable devices if empty).
+// A list with only decommissioned devices is refused; in a longer list they are
+// skipped when the job runs.
 func (s *Service) SubmitPoll(ctx context.Context, deviceIDs []string, by string) (*model.Job, error) {
+	if len(deviceIDs) > 0 {
+		devs, err := s.Store.ListDevices(ctx, store.DeviceFilter{IDs: deviceIDs, IncludeDecommissioned: true})
+		if err != nil {
+			return nil, err
+		}
+		if model.AllDecommissioned(devs) {
+			return nil, model.ErrDecommissioned
+		}
+	}
 	ids := make([]any, len(deviceIDs))
 	for i, id := range deviceIDs {
 		ids[i] = id
@@ -491,6 +511,10 @@ func (s *Service) runPoll(ctx context.Context, jc *jobs.Context) error {
 	for _, d := range devs {
 		if ctx.Err() != nil {
 			break
+		}
+		if d.Decommissioned() {
+			jc.Result(d.ID, d.Address, "skipped", model.ErrDecommissioned.Error(), nil)
+			continue
 		}
 		wg.Add(1)
 		sem <- struct{}{}
@@ -561,7 +585,7 @@ func (s *Service) RunScheduler(ctx context.Context) {
 			}
 			if now.After(nextDisc) {
 				if r.DiscoveryEnabled {
-					if _, err := s.SubmitDiscovery(ctx, DiscoveryParams{Targets: r.DiscoveryTargets, ZeroConf: true}, "scheduler"); err != nil {
+					if _, err := s.SubmitDiscovery(ctx, s.scheduledDiscoveryParams(r), "scheduler"); err != nil {
 						s.Log.Warn("scheduled discovery", "err", err)
 					}
 				}
@@ -575,6 +599,12 @@ func (s *Service) RunScheduler(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// scheduledDiscoveryParams are the parameters of a scheduled discovery run. The
+// zeroconf setting applies here only: a manual run states its own.
+func (s *Service) scheduledDiscoveryParams(r RuntimeSettings) DiscoveryParams {
+	return DiscoveryParams{Targets: r.DiscoveryTargets, ZeroConf: s.Cfg.Discovery.ZeroConf}
 }
 
 func (s *Service) scheduledPoll(ctx context.Context) {
@@ -660,15 +690,20 @@ func (s *Service) HandleTrap(ctx context.Context, sourceIP string, description s
 	if err != nil {
 		return
 	}
+	// An address can have a retired record and its replacement's: the printer
+	// in service is the one that sent this.
 	var dev *model.Device
 	for _, d := range devs {
-		if d.Address == sourceIP {
+		if d.Address == sourceIP && (dev == nil || dev.Decommissioned()) {
 			dev = d
-			break
 		}
 	}
 	if dev == nil {
 		s.Log.Info("trap from unknown device", "source", sourceIP, "description", description)
+		return
+	}
+	if dev.Decommissioned() {
+		s.Log.Info("trap from a decommissioned device's address ignored", "source", sourceIP, "description", description)
 		return
 	}
 	s.Log.Info("trap", "device", dev.Name(), "description", description, "severity", severity)

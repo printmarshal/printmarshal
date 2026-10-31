@@ -1,14 +1,24 @@
-// The public, session-less status board (spec R11, R12, R16-R18; design.md). It never touches the
-// authenticated client: one plain fetch with credentials omitted, no links, no buttons.
+// The public, session-less status board (spec R11, R12, R16-R18; design.md version 2). It never
+// touches the authenticated client: one plain fetch with credentials omitted, no links, no buttons.
+// Each printer answers "can I print there now?" with one state word derived from its signals.
 import { useEffect, useRef, useState } from 'react'
-import type { PublicAlert, PublicBoard, PublicDevice, PublicLevel, PublicSupply, PublicTray } from '../types-public'
+import type { PublicAlert, PublicBoard, PublicDevice, PublicSupply, PublicTray } from '../types-public'
 
 const REFRESH_MS = 30_000
 const PAGE_MS = 10_000
 const PER_PAGE = 12
 const MAX_FAILURES = 3
 
-type Tone = 'ok' | 'warn' | 'crit' | 'off' | 'unk' | 'info'
+type Tone = 'ok' | 'warn' | 'crit' | 'off'
+
+/** The derived view of one printer: the state word, its tone, and the detail that does not repeat it. */
+interface DeviceView {
+  word: string
+  tone: Tone
+  paper: string | null
+  toner: PublicSupply[] | null
+  extra: string[]
+}
 
 /** The endpoint for the current path: /status → plain, /status/<slug> → slug. */
 function endpoint(pathname: string): string {
@@ -23,29 +33,75 @@ function since(ms: number): string {
   return `${Math.floor(sec / 3600)} h`
 }
 
-function levelTone(s: PublicLevel | string): Tone {
-  switch (s) { case 'ok': return 'ok'; case 'low': return 'warn'; case 'empty': return 'crit'; default: return 'unk' }
-}
-
-function sevTone(s: string): Tone {
-  switch (s) { case 'critical': return 'crit'; case 'warning': return 'warn'; case 'ok': return 'ok'; default: return 'info' }
-}
-
-const categoryWords: Record<string, string> = {
+const alertWords: Record<string, string> = {
   jam: 'paper jam',
   door: 'cover open',
-  toner: 'toner low',
-  paper: 'out of paper',
   maintenance: 'needs service',
-  offline: 'not reachable',
   other: 'needs attention',
 }
 
-const colorants: Record<string, { letter: string; color: string }> = {
-  cyan: { letter: 'C', color: 'var(--sup-c)' },
-  magenta: { letter: 'M', color: 'var(--sup-m)' },
-  yellow: { letter: 'Y', color: 'var(--sup-y)' },
-  black: { letter: 'K', color: 'var(--sup-k)' },
+/** Paper as one sentence: the trays that need naming, at most two, then "+N more". */
+function paperSentence(trays: PublicTray[]): string {
+  const known = trays.filter((t) => t.status !== 'unknown')
+  if (known.length === 0) return 'Paper unknown'
+  const bad = known.filter((t) => t.status === 'low' || t.status === 'empty')
+  if (bad.length === 0) return 'Paper ok'
+  const named = bad.slice(0, 2)
+  const rest = bad.length - named.length
+  const sameStatus = named.every((t) => t.status === named[0].status)
+  let text: string
+  if (named.length === 1) text = `${named[0].name} ${named[0].status}`
+  else if (sameStatus && rest === 0) text = `${named[0].name} and ${named[1].name} ${named[0].status}`
+  else if (sameStatus) text = `${named[0].name}, ${named[1].name} ${named[0].status}`
+  else text = `${named[0].name} ${named[0].status}, ${named[1].name} ${named[1].status}`
+  return rest > 0 ? `${text}, +${rest} more` : text
+}
+
+/** The state word and tone from the signals, in the fixed precedence of design.md. */
+function derive(d: PublicDevice): DeviceView {
+  const trays = d.paper ?? null
+  const supplies = d.toner ?? null
+  const alerts: PublicAlert[] = d.alerts || []
+  const has = (cat: string, sev?: string) => alerts.some((a) => a.category === cat && (!sev || a.severity === sev))
+  const known = trays ? trays.filter((t) => t.status !== 'unknown') : []
+  const anyOkTray = known.some((t) => t.status === 'ok')
+  const anyEmptyTray = known.some((t) => t.status === 'empty')
+  const anyBadTray = known.some((t) => t.status === 'low' || t.status === 'empty')
+  const emptySupply = supplies ? supplies.some((s) => s.status === 'empty') : false
+  const lowSupply = supplies ? supplies.some((s) => s.status === 'low') : false
+  const signals = d.online !== undefined || trays !== null || supplies !== null || d.alerts !== undefined
+
+  let word: string
+  let tone: Tone
+  if (d.online === false) { word = 'Not reachable'; tone = 'off' }
+  else if (d.unconfirmed) { word = 'No status'; tone = 'off' }
+  else if (has('maintenance')) { word = 'Needs service'; tone = has('maintenance', 'critical') ? 'crit' : 'warn' }
+  else if (has('jam')) { word = 'Paper jam'; tone = 'crit' }
+  else if (has('door')) { word = 'Cover open'; tone = 'crit' }
+  else if (trays ? known.length > 0 && !anyOkTray && anyEmptyTray : has('paper', 'critical')) { word = 'Out of paper'; tone = 'crit' }
+  else if (supplies ? emptySupply : has('toner', 'critical')) { word = 'Toner empty'; tone = 'crit' }
+  else if (trays ? anyBadTray : has('paper')) { word = 'Low paper'; tone = 'warn' }
+  else if (supplies ? lowSupply : has('toner')) { word = 'Toner low'; tone = 'warn' }
+  else if (has('other')) { word = 'Needs attention'; tone = 'warn' }
+  else if (signals) { word = 'Ready'; tone = 'ok' }
+  else { word = 'No status'; tone = 'off' }
+
+  // Alerts that add something: never paper or toner (the sentence and the bars say it), never the
+  // one that became the state word, never offline (the word says it), each category once.
+  const extra: string[] = []
+  for (const a of alerts) {
+    const w = alertWords[a.category]
+    if (!w || w.toLowerCase() === word.toLowerCase() || extra.includes(w)) continue
+    extra.push(w)
+  }
+  return { word, tone, paper: trays ? paperSentence(trays) : null, toner: supplies, extra }
+}
+
+const colorants: Record<string, string> = {
+  cyan: 'var(--sup-c)',
+  magenta: 'var(--sup-m)',
+  yellow: 'var(--sup-y)',
+  black: 'var(--sup-k)',
 }
 
 function ShieldGlyph({ size }: { size: number }) {
@@ -57,64 +113,55 @@ function ShieldGlyph({ size }: { size: number }) {
   )
 }
 
-function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
-  return <span className={`pub-pill pub-${tone}`}>{children}</span>
-}
-
-function Gauge({ supplies }: { supplies: PublicSupply[] }) {
+/** Four bars in the supply colours and one number: the lowest known level, or the empty colour named. */
+function Toner({ supplies }: { supplies: PublicSupply[] }) {
+  const levels = supplies.map((s) => (typeof s.percent === 'number' ? Math.max(0, Math.min(100, Math.round(s.percent))) : null))
+  const empty = supplies.find((s) => s.status === 'empty')
+  const knownLevels = levels.filter((n): n is number => n !== null)
+  const lowest = knownLevels.length > 0 ? Math.min(...knownLevels) : null
+  const number = empty ? `${empty.name} empty` : lowest !== null ? `${lowest}%` : 'Toner unknown'
+  const sr = supplies.map((s, i) => `${s.name} ${levels[i] === null ? 'unknown' : `${levels[i]}%`}${s.status === 'low' || s.status === 'empty' ? ` ${s.status}` : ''}`).join(', ')
   return (
     <span className="pub-toner">
-      {supplies.map((s, i) => {
-        const c = colorants[s.colorant?.toLowerCase()] || { letter: s.name, color: 'var(--off)' }
-        const known = typeof s.percent === 'number'
-        const pct = known ? Math.max(0, Math.min(100, Math.round(s.percent as number))) : 0
-        const last = i === supplies.length - 1
-        return (
-          <span className="pub-supply" key={`${s.name}-${i}`}>
-            <span className={known ? 'pub-bar' : 'pub-bar-unknown'} aria-hidden="true">
-              {known && <span className="pub-fill" style={{ width: `${pct}%`, background: c.color }} />}
+      <span className="pub-bars" aria-hidden="true">
+        {supplies.map((s, i) => {
+          const color = colorants[s.colorant?.toLowerCase()] || 'var(--off)'
+          const level = levels[i]
+          return (
+            <span className={level === null ? 'pub-bar-unknown' : 'pub-bar'} key={`${s.name}-${i}`}>
+              {level !== null && <span className="pub-fill" style={{ height: `${level}%`, background: color }} />}
             </span>
-            <span className="pub-letter" aria-hidden="true">{c.letter}</span>
-            <span className="pub-sr">{`${s.name} ${known ? `${pct}%` : 'unknown'}${s.status === 'low' || s.status === 'empty' ? `, ${s.status}` : ''}`}</span>
-            {last && known && <span className="pub-pct" aria-hidden="true">{pct}%</span>}
-          </span>
-        )
-      })}
+          )
+        })}
+      </span>
+      <span className="pub-toner-num" aria-hidden="true">{number}</span>
+      <span className="pub-sr">{`Toner: ${sr}`}</span>
     </span>
   )
 }
 
-function Row({ d }: { d: PublicDevice }) {
-  const down = d.online === false
-  const edge = d.online === undefined ? 'var(--off)' : down ? 'var(--crit)' : 'var(--accent)'
-  const alerts: PublicAlert[] = (d.alerts || []).filter((a) => !(down && a.category === 'offline'))
-  const trays: PublicTray[] = d.paper || []
-  const toner: PublicSupply[] = d.toner || []
-  const hasSignals = down || trays.length > 0 || toner.length > 0 || alerts.length > 0
+function Row({ d, tile }: { d: PublicDevice; tile: boolean }) {
+  const v = derive(d)
+  const detail = v.paper !== null || v.toner !== null || v.extra.length > 0
   return (
-    <section className="pub-row">
-      <span className="pub-edge" style={{ background: edge }} aria-hidden="true" />
+    <section className={tile ? 'pub-row pub-tile' : 'pub-row'}>
+      <div className={`pub-state pub-${v.tone}${tile ? ' pub-band' : ''}`}>
+        <span className="pub-word">{v.word}</span>
+      </div>
       <div className="pub-body">
         <h2 className="pub-label">
+          <span className="pub-sr">{`${v.word}: `}</span>
           {d.label}
-          {d.state && <span className="pub-state-word">{d.state}</span>}
+          {typeof d.online === 'boolean' && <>{' '}<span className="pub-verb">{d.online ? 'Online' : 'Offline'}</span></>}
+          {d.state && !(d.online === false && d.state === 'offline') && <>{' '}<span className="pub-verb">{d.state}</span></>}
         </h2>
         {d.location && <p className="pub-location">{d.location}</p>}
-        {hasSignals && (
-          <div className="pub-signals">
-            {down && <Pill tone="crit">not reachable</Pill>}
-            {trays.length > 0 && (
-              <span className="pub-trays">
-                {trays.map((t, i) => <Pill key={`${t.name}-${i}`} tone={levelTone(t.status)}>{`${t.name} ${t.status}`}</Pill>)}
-              </span>
-            )}
-            {toner.length > 0 && <Gauge supplies={toner} />}
-            {alerts.length > 0 && (
-              <span className="pub-alerts">
-                {alerts.map((a, i) => <Pill key={`${a.category}-${i}`} tone={sevTone(a.severity)}>{categoryWords[a.category] || 'needs attention'}</Pill>)}
-              </span>
-            )}
-          </div>
+        {detail && (
+          <p className="pub-detail">
+            {v.paper !== null && <span className="pub-paper">{v.paper}</span>}
+            {v.toner !== null && v.toner.length > 0 && <Toner supplies={v.toner} />}
+            {v.extra.map((w) => <span className="pub-extra" key={w}>{w}</span>)}
+          </p>
         )}
       </div>
     </section>
@@ -214,20 +261,16 @@ export default function PublicStatus() {
   return (
     <div className={wall ? 'pub-wall' : 'pub-page'}>
       <header className="pub-head">
-        <div className="pub-head-in">
-          <ShieldGlyph size={28} />
-          <h1 className="pub-title">{board.title || 'Printer status'}</h1>
-          <p className="pub-updated" aria-live="polite">{lastOk !== null ? `Updated ${since(now - (isNaN(updatedAt) ? lastOk : updatedAt))} ago` : ''}</p>
-        </div>
+        <ShieldGlyph size={wall ? 36 : 28} />
+        <h1 className="pub-title">{board.title || 'Printer status'}</h1>
+        <p className="pub-updated" aria-live="polite">{lastOk !== null ? `Updated ${since(now - (isNaN(updatedAt) ? lastOk : updatedAt))} ago` : ''}</p>
       </header>
       {board.stale && (
-        <div className="pub-stale">
-          <p className="pub-stale-in">{`Last update ${isNaN(updatedAt) ? 'a while' : since(now - updatedAt)} ago. This may be out of date.`}</p>
-        </div>
+        <p className="pub-stale">{`Last update ${isNaN(updatedAt) ? 'a while' : since(now - updatedAt)} ago. This may be out of date.`}</p>
       )}
       <main className="pub-main">
         <div key={wall ? page : 0} className={wall ? (reduced ? 'pub-grid' : 'pub-grid-fade') : 'pub-list'}>
-          {shown.map((d, i) => <Row key={`${page}-${i}-${d.label}`} d={d} />)}
+          {shown.map((d, i) => <Row key={`${page}-${i}-${d.label}`} d={d} tile={wall} />)}
         </div>
         {wall && pages > 1 && (
           <div className="pub-dots">

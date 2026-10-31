@@ -111,6 +111,10 @@ export interface RenameResponse {
   dryRun: boolean; source: string; pattern?: string; updated: number; skipped: number; results: RenameRow[]
 }
 
+/** A decommissioned printer is never contacted (the server refuses with 409); its stored record stays readable. */
+export const isDecommissioned = (d: Pick<Device, 'state'>) => d.state === 'decommissioned'
+export const decommissionedReason = 'This printer is decommissioned and is not contacted'
+
 export function deviceName(d: Device): string {
   if (currentNameSource === 'dns' && d.dnsName && !d.dnsNameSuspect) {
     return d.dnsName

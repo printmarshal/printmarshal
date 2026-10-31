@@ -425,16 +425,16 @@ func TestPublicBoardNeverCarriesIdentity(t *testing.T) {
 func TestAlertCategoryMapping(t *testing.T) {
 	for _, c := range []struct{ source, key, want string }{
 		{"offline", "offline", "offline"},
-		{"poll", "state:down", "offline"},
+		{"poll", "state:down", "other"}, // it answered the poll, so it is reachable
 		{"poll", "error:offline", "offline"},
-		{"trap", "trap:link-down", "offline"},
+		{"trap", "trap:link-down", "other"}, // a report from a printer that may still answer polls
 		{"poll", "paper:A4", "paper"},
 		{"poll", "paper:*", "paper"},
 		{"poll", "error:lowPaper", "paper"},
 		{"poll", "error:media-low", "paper"},
 		{"poll", "error:inputTrayMissing", "paper"},
 		{"poll", "device:input:inputMediaSupplyEmpty:2", "paper"},
-		{"supply", "supply:1", "toner"},
+		{"supply", "supply:1", "other"}, // the board uses supplyAlertCategory for these
 		{"poll", "error:noToner", "toner"},
 		{"poll", "error:marker-supply-empty-error", "toner"},
 		{"poll", "error:markerSupplyMissing", "toner"},

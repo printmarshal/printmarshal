@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ago } from '../api'
 import type { AuditEntry, Dashboard as DashboardData, InstalledSupply, LayoutEntry, User } from '../types'
@@ -16,28 +16,44 @@ export default function Dashboard({ user }: { user: User }) {
   const [low, setLow] = useState<InstalledSupply[]>([])
   const [audit, setAudit] = useState<AuditEntry[]>([])
   const [error, setError] = useState('')
+  const [errorDismissed, setErrorDismissed] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [tick, setTick] = useState(0)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<LayoutEntry[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  const latest = useRef(0) // the newest dashboard request sent
+  const applied = useRef(0) // the newest dashboard response shown
   const load = useCallback(() => {
-    api.get<DashboardData>('/api/dashboard').then(setData).catch((e) => setError(e.message))
+    // Live events can overlap requests. Only a newer response replaces the data, and only the
+    // newest request can report a failure, so one that a later success has overtaken stays silent.
+    // The error stays set while a request is in flight, so a refresh never flashes it off and on.
+    const id = ++latest.current
+    const done = api.get<DashboardData>('/api/dashboard').then((d) => {
+      if (id > applied.current) { applied.current = id; setData(d); setError(''); setErrorDismissed(false) }
+    }).catch((e) => { if (id === latest.current) setError(e.message) })
     api.get<InstalledSupply[]>('/api/consumables/installed?forecast=true').then((r) => setLow(r.filter((s) => remaining(s.supply) !== null && (remaining(s.supply) as number) <= 20).sort((a, b) => (remaining(a.supply) ?? 0) - (remaining(b.supply) ?? 0)).slice(0, 6))).catch(() => {})
     if (user.role !== 'viewer') api.get<AuditEntry[]>('/api/audit?limit=6').then(setAudit).catch(() => {})
+    return done
   }, [user.role])
+  // Asked for by hand: a failure shows again even if the last warning was dismissed.
+  const refresh = () => { setRetrying(true); setErrorDismissed(false); load().finally(() => setRetrying(false)) }
   useEffect(() => { load() }, [load])
   useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t) }, [])
   useEffect(() => { if (tick) load() }, [tick, load])
-  useEvents(() => load(), [load])
+  // A dropped stream says nothing new about the data, and fetching then would fail during a server restart.
+  useEvents((e) => { if (e.type !== 'stream.disconnected') load() }, [load])
 
   const saved = useMemo(() => effectiveEntries(data?.layout.effective), [data])
   const entries = editing && draft ? draft : saved
   const dirty = !!draft && !sameLayout(draft, saved)
 
-  if (error) return <Banner tone="crit">{error}</Banner>
-  if (!data) return <DashboardSkeleton />
+  if (!data) {
+    if (!error) return <DashboardSkeleton />
+    return <Banner tone="crit" role="alert" right={<Btn sm disabled={retrying} onClick={refresh}><Ic.refresh />Retry</Btn>}>Could not load the dashboard: {error}</Banner>
+  }
   const s = data.summary
   const newCrit = data.alerts.filter((a) => a.severity === 'critical' && !a.ackedAt)
   const lastPoll = data.jobs.find((j) => j.type === 'poll' && j.finishedAt)
@@ -64,10 +80,15 @@ export default function Dashboard({ user }: { user: User }) {
         <div><h1 className="h1">Fleet overview</h1><div className="cap num">{fmtInt(s.devices)} devices{lastPoll ? ` · last full poll ${ago(lastPoll.finishedAt)}` : ''}</div></div>
         <div className="row">
           <span className="cap num" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Ic.clock />Auto-refresh every 30 s</span>
-          <Btn sm onClick={load}><Ic.refresh />Refresh</Btn>
+          <Btn sm onClick={refresh}><Ic.refresh />Refresh</Btn>
           {!editing && <Btn sm onClick={startEdit}><Ic.sliders />Customise</Btn>}
         </div>
       </div>
+      {error && !errorDismissed && (
+        <Banner tone="warn" role="alert" right={<><Btn sm disabled={retrying} onClick={refresh}><Ic.refresh />Retry</Btn><Btn sm variant="ghost" ic aria-label="Dismiss warning" onClick={() => setErrorDismissed(true)}><Ic.x /></Btn></>}>
+          Could not refresh the dashboard: {error}. Showing the last loaded data.
+        </Banner>
+      )}
       {notice && <Banner tone="info" right={<Btn sm variant="ghost" ic aria-label="Dismiss" onClick={() => setNotice('')}><Ic.x /></Btn>}>{notice}</Banner>}
       {editing && draft && (
         <EditBar

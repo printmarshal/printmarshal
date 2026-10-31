@@ -42,7 +42,8 @@ type Config struct {
 	} `json:"poll"`
 
 	Discovery struct {
-		Enabled      bool       `json:"enabled"` // run zero-config discovery on a schedule
+		Enabled      bool       `json:"enabled"`  // run discovery on a schedule
+		ZeroConf     bool       `json:"zeroconf"` // scheduled runs also browse mDNS and WS-Discovery
 		Interval     Duration   `json:"interval"`
 		MDNSWait     Duration   `json:"mdnsWait"`
 		WSDWait      Duration   `json:"wsdWait"`
@@ -327,6 +328,7 @@ func Default() *Config {
 	c.Poll.IPPTimeout = Duration(4 * time.Second)
 	c.Poll.IPPInsecureTLS = true
 	c.Discovery.Enabled = false
+	c.Discovery.ZeroConf = true
 	c.Discovery.Interval = Duration(1 * time.Hour)
 	c.Discovery.MDNSWait = Duration(5 * time.Second)
 	c.Discovery.WSDWait = Duration(3 * time.Second)
@@ -412,6 +414,7 @@ func Load(path string) (*Config, error) {
 	}
 	envBool("PM_IPP_WRITE_REQUIRE_TLS", &c.Poll.IPPWriteRequireTLS)
 	envBool("PM_DISCOVERY_ENABLED", &c.Discovery.Enabled)
+	envBool("PM_DISCOVERY_ZEROCONF", &c.Discovery.ZeroConf)
 	envDur("PM_DISCOVERY_INTERVAL", &c.Discovery.Interval)
 	if v := os.Getenv("PM_DISCOVERY_TARGETS"); v != "" {
 		c.Discovery.Targets = strings.Split(v, ",")

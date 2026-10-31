@@ -20,6 +20,7 @@ export function sevTone(sev?: Severity | string): Tone {
 
 /** Device reachability & health as a pill. */
 export function DevicePill({ d, xs }: { d: Device; xs?: boolean }) {
+  if (d.state === 'decommissioned') return <Pill tone="unk" xs={xs}>Not contacted</Pill>
   if (!d.status) return <Pill tone="unk" xs={xs}>Not polled</Pill>
   if (!d.status.online) return <Pill tone="off" xs={xs}>Offline</Pill>
   if (d.status.severity === 'critical') return <Pill tone="crit" xs={xs}>Critical</Pill>

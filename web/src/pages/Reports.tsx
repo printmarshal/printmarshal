@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, fmtTime } from '../api'
 import type { Group } from '../types'
@@ -6,7 +6,7 @@ import type {
   AlertsReport, ComplianceReport, FirmwareReport, FirmwareStatus, HealthReport, ReportName, ReportRange, SuppliesReport, UtilisationReport,
 } from '../types-reports'
 import { Ic } from '../components/icons'
-import { Banner, Card, ChipSelect, EmptyState, Kpi, Pill, Seg, SevPill, Tabs, Tag, fmtInt, supplyColor } from '../components/ui'
+import { Banner, Btn, Card, ChipSelect, EmptyState, Kpi, Pill, Seg, SevPill, Tabs, Tag, fmtInt, supplyColor } from '../components/ui'
 import { fmtDays } from '../components/consumables'
 
 type Tab = 'utilisation' | 'health' | 'supplies' | 'alerts' | 'firmware' | 'compliance'
@@ -20,16 +20,19 @@ function isoDay(d: Date): string { return d.toISOString().slice(0, 10) }
 /** Reports: utilisation, fleet health, supplies, alerts, firmware (spec §8.2, §8.3, §8.5). */
 export default function Reports() {
   const [params, setParams] = useSearchParams()
-  const tab = (params.get('tab') as Tab) || 'utilisation'
+  const named = params.get('tab') as Tab
+  const tab: Tab = Object.prototype.hasOwnProperty.call(tabReport, named) ? named : 'utilisation'
   const preset = (params.get('range') as Preset) || '30'
   const group = params.get('group') || ''
   const today = isoDay(new Date())
   const from = params.get('from') || isoDay(new Date(Date.now() - 30 * 86400000))
   const to = params.get('to') || today
   const [groups, setGroups] = useState<Group[]>([])
-  const [data, setData] = useState<object | null>(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  // A result remembers which report and query asked for it: `tab` changes before the new response
+  // arrives, and every tab reads a different shape, so a result only counts while its key matches.
+  const [loaded, setLoaded] = useState<{ key: string; data: object } | null>(null)
+  const [failed, setFailed] = useState<{ key: string; message: string } | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   const set = (kv: Record<string, string>) => { const p = new URLSearchParams(params); for (const [k, v] of Object.entries(kv)) { if (v) p.set(k, v); else p.delete(k) } setParams(p, { replace: true }) }
   const qs = useMemo(() => {
@@ -40,11 +43,17 @@ export default function Reports() {
   }, [preset, from, to, group])
 
   useEffect(() => { api.get<Group[]>('/api/groups').then(setGroups).catch(() => {}) }, [])
-  const load = useCallback(() => {
-    setLoading(true); setError('')
-    api.get<object>(`/api/reports/${tabReport[tab]}?${qs}`).then((r) => { setData(r); setLoading(false) }).catch((e) => { setError(e.message); setData(null); setLoading(false) })
-  }, [tab, qs])
-  useEffect(() => { load() }, [load])
+  const key = `${tabReport[tab]}?${qs}`
+  useEffect(() => {
+    let current = true // cleared when the tab or query moves on, so a late response is ignored
+    setFailed(null)
+    api.get<object>(`/api/reports/${key}`)
+      .then((r) => { if (current) setLoaded({ key, data: r }) })
+      .catch((e) => { if (current) { setLoaded(null); setFailed({ key, message: e.message }) } })
+    return () => { current = false }
+  }, [key, attempt])
+  const data = loaded?.key === key ? loaded.data : null
+  const error = failed?.key === key ? failed.message : ''
 
   const csv = (table: string) => `/api/reports/${tabReport[tab]}?${qs}&format=csv&table=${table}`
   const range = (data as { range?: ReportRange } | null)?.range
@@ -70,8 +79,8 @@ export default function Reports() {
         { v: 'utilisation', label: 'Utilisation' }, { v: 'health', label: 'Fleet health' }, { v: 'supplies', label: 'Supplies' },
         { v: 'alerts', label: 'Alerts' }, { v: 'firmware', label: 'Firmware' }, { v: 'compliance', label: 'Compliance' },
       ]} />
-      {error && <Banner tone="crit">{error}</Banner>}
-      {loading && !data && <div className="cap" aria-busy="true">Computing report…</div>}
+      {error && <Banner tone="crit" role="alert" right={<Btn sm onClick={() => setAttempt((n) => n + 1)}><Ic.refresh />Retry</Btn>}>{error}</Banner>}
+      {!data && !error && <div className="cap" aria-busy="true">Computing report…</div>}
       {data && tab === 'utilisation' && <Utilisation r={data as UtilisationReport} csv={csv} />}
       {data && tab === 'health' && <Health r={data as HealthReport} csv={csv} />}
       {data && tab === 'supplies' && <Supplies r={data as SuppliesReport} csv={csv} />}
@@ -432,7 +441,7 @@ function Compliance({ r }: { r: ComplianceReport }) {
   if (r.available) return <Banner tone="ok">Compliance data available.</Banner>
   return (
     <Card title="Compliance" id="c-hook" sub="per device, group and policy, over time (spec §8.5)">
-      <div className="cb"><EmptyState tone="muted" icon={<Ic.shield size={20} />} title="Not available yet" text={r.reason || 'Compliance reports appear once security assessments are stored.'} /></div>
+      <div className="cb"><EmptyState tone="muted" icon={<Ic.shield size={20} />} title="Not available yet" text={r.reason || 'This report does not include stored assessment history yet.'} action={<Link className="btn sm" to="/security"><Ic.shield />Open security</Link>} /></div>
     </Card>
   )
 }

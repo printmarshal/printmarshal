@@ -24,7 +24,7 @@ const empty: PublicStatusConfig = {
 
 const SIGNALS: { k: keyof PublicStatusShow; label: string; summary: string; hint: string }[] = [
   { k: 'location', label: 'Location', summary: 'location', hint: 'The location written on each printer’s record in the console.' },
-  { k: 'online', label: 'Up or down', summary: 'up/down', hint: 'Whether the console could reach the printer at its last check.' },
+  { k: 'online', label: 'Up or down', summary: 'up/down', hint: 'Whether the console could reach the printer at its last check. When off, a printer that did not answer reads No status.' },
   { k: 'state', label: 'Printer state', summary: 'state', hint: 'The printer’s own word for what it is doing, such as ready, sleeping or printing.' },
   { k: 'paper', label: 'Paper', summary: 'paper', hint: 'How full each paper tray is, where the printer reports it.' },
   { k: 'toner', label: 'Toner', summary: 'toner', hint: 'How much toner or ink is left in each supply.' },

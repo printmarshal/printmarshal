@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, ago, fmtTime } from '../../api'
 import type { Device, Job } from '../../types'
+import { decommissionedReason, isDecommissioned } from '../../types'
 import { useEvents } from '../../ws'
 import { Ic } from '../icons'
 import { Banner, Btn, Card, Pill, Tag } from '../ui'
@@ -45,6 +46,9 @@ export default function DeviceSecurityTab({ device, canOperate }: { device: Devi
   const failing = (shown?.items || []).filter((i) => i.status === 'fail')
   const unknown = (shown?.items || []).filter((i) => i.status === 'unknown')
 
+  const retired = isDecommissioned(device)
+  const off = retired ? { disabled: true, title: decommissionedReason } : {}
+
   const assessNow = async () => {
     const pid = policyId || policies[0]?.id
     if (!pid) return
@@ -75,11 +79,11 @@ export default function DeviceSecurityTab({ device, canOperate }: { device: Devi
           right={<div className="row">
             {assessments.length > 1 && <label className="chip"><select aria-label="Policy" value={shown?.policyId || ''} onChange={(e) => setPolicyId(e.target.value)}>{assessments.map((a) => <option key={a.policyId} value={a.policyId}>{policies.find((p) => p.id === a.policyId)?.name || a.policyId.slice(0, 8)}</option>)}</select></label>}
             {canOperate && assessments.length <= 1 && policies.length > 1 && <label className="chip"><select aria-label="Policy to assess" value={policyId} onChange={(e) => setPolicyId(e.target.value)}>{policies.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
-            {canOperate && <Btn sm onClick={assessNow} disabled={!!(job.job && !job.done) || policies.length === 0}><Ic.refresh />Assess now</Btn>}
-            {canOperate && policy && failing.length > 0 && <Btn sm variant="wr" onClick={() => setRemediate(true)}><Ic.upload />Remediate…</Btn>}
+            {canOperate && <Btn sm onClick={assessNow} disabled={retired || !!(job.job && !job.done) || policies.length === 0} title={retired ? decommissionedReason : undefined}><Ic.refresh />Assess now</Btn>}
+            {canOperate && policy && failing.length > 0 && <Btn sm variant="wr" onClick={() => setRemediate(true)} {...off}><Ic.upload />Remediate…</Btn>}
           </div>}>
           {!shown ? (
-            <div className="cb"><div className="state" style={{ minHeight: 120 }}><span className="ring" style={{ background: 'var(--accent-weak)', color: 'var(--accent)' }}><Ic.shield size={20} /></span><b>Not assessed yet</b><span className="cap">{policies.length ? `Run “${policies[0].name}” against this device to see its compliance.` : 'Create a policy under Security first.'}</span></div></div>
+            <div className="cb"><div className="state" style={{ minHeight: 120 }}><span className="ring" style={{ background: 'var(--accent-weak)', color: 'var(--accent)' }}><Ic.shield size={20} /></span><b>Not assessed yet</b><span className="cap">{retired ? 'It was not assessed before it was decommissioned, and it is not contacted now.' : policies.length ? `Run “${policies[0].name}” against this device to see its compliance.` : 'Create a policy under Security first.'}</span></div></div>
           ) : (
             <div className="cb" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -105,8 +109,8 @@ export default function DeviceSecurityTab({ device, canOperate }: { device: Devi
           )}
         </Card>
         <Card style={{ flex: '1 1 400px' }} id="dcert" title="Certificates" sub={`${certs.length} known · installed, observed by the TLS probe, and issued by PrintMarshal`}
-          right={canOperate && <Btn sm variant="wr" onClick={() => setEnroll(true)}><Ic.upload />Enroll / renew…</Btn>}>
-          {certs.length === 0 ? <div className="cb cap">No certificates observed yet. Running an assessment probes TLS on ports 443 and 631.</div> : (
+          right={canOperate && <Btn sm variant="wr" onClick={() => setEnroll(true)} {...off}><Ic.upload />Enroll / renew…</Btn>}>
+          {certs.length === 0 ? <div className="cb cap">{retired ? 'No certificates were stored before this printer was decommissioned.' : 'No certificates observed yet. Running an assessment probes TLS on ports 443 and 631.'}</div> : (
             <div className="tw"><table className="tbl" style={{ minWidth: 520 }}>
               <thead><tr><th>Subject</th><th>Use</th><th>Source</th><th>Expires</th><th /></tr></thead>
               <tbody>{certs.map((c) => (
@@ -115,7 +119,7 @@ export default function DeviceSecurityTab({ device, canOperate }: { device: Devi
                   <td className="cap">{c.use}</td>
                   <td><Tag>{c.source}</Tag></td>
                   <td><ExpiryPill notAfter={c.notAfter} /></td>
-                  <td className="r">{c.issuedId && !c.installed && canOperate && <Btn sm variant="wr" onClick={() => install(c.issuedId!)} title="Retry installing this issued certificate through a driver"><Ic.upload />Install</Btn>}{c.issuedId && !c.installed && <div className="cap">issued · not installed</div>}</td>
+                  <td className="r">{c.issuedId && !c.installed && canOperate && <Btn sm variant="wr" onClick={() => install(c.issuedId!)} title="Retry installing this issued certificate through a driver" {...off}><Ic.upload />Install</Btn>}{c.issuedId && !c.installed && <div className="cap">issued · not installed</div>}</td>
                 </tr>
               ))}</tbody>
             </table></div>

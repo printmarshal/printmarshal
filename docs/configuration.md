@@ -225,6 +225,19 @@ Jobs are read through the existing `GET /api/jobs/{id}`; each per-device result
 carries `data.writeId`, `data.results[]` (the per-setting status and, for real
 applies, `outcome` / `readBack`) and `data.verified` / `data.diverged`.
 
+## Zero-config browsing in scheduled discovery (`discovery.zeroconf`)
+
+| Config key | Environment variable | Default | Meaning |
+| --- | --- | --- | --- |
+| `discovery.zeroconf` | `PM_DISCOVERY_ZEROCONF` | `true` | Scheduled discovery runs also browse mDNS and send a WS-Discovery probe, then identify whatever answers. |
+
+Set it to `false` on an instance that must stay on its listed targets, such as a test
+instance whose `discovery.targets` are all loopback: with browsing on, a scheduled run
+still reaches the real addresses it finds on the local network. Scheduled runs then scan
+`discovery.targets` only. The setting takes effect at start-up and has no runtime
+override. A manual run is unaffected, because `POST /api/discovery/runs` carries its own
+`zeroconf` value.
+
 ## Reverse DNS hostname lookup (`discovery.reverseDns`)
 
 Reverse DNS is **optional and off by default** (`discovery.reverseDns.enabled: false`).

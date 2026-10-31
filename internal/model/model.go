@@ -6,7 +6,15 @@
 // Model, EnterpriseID) that plugins may interpret.
 package model
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// ErrDecommissioned refuses anything that would contact a decommissioned
+// printer (issue #65): it may no longer be ours and its address may belong to
+// another device now. Its stored record stays readable.
+var ErrDecommissioned = errors.New("this printer is decommissioned and is not contacted")
 
 // Capability names a thing a driver can do for a device (spec §6).
 type Capability string
@@ -152,6 +160,20 @@ const (
 	SourceOperator = "operator" // an edit through the API (one device, bulk or rename)
 	SourceDNS      = "dns"      // the DNS-sync rename
 )
+
+// Decommissioned reports whether the device must not be contacted.
+func (d *Device) Decommissioned() bool { return d.State == StateDecommissioned }
+
+// AllDecommissioned reports whether a non-empty target has no device left that
+// may be contacted, which is when a request for it is refused rather than run.
+func AllDecommissioned(devs []*Device) bool {
+	for _, d := range devs {
+		if !d.Decommissioned() {
+			return false
+		}
+	}
+	return len(devs) > 0
+}
 
 // Name returns the operator's display name if set, else the best automatic name.
 func (d *Device) Name() string {

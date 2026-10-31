@@ -31,7 +31,8 @@ Boundary
 - R2. The response is built from a purpose-built struct with exactly these keys and no others:
   `title`, `updatedAt`, `stale` (true when `updatedAt` is older than three poll intervals), and
   `devices[]` with `label` always, `location` only when the location switch is on, `online` only
-  when the up/down switch is on, `state` only when the state switch is on, `paper[]` only when the
+  when the up/down switch is on, `unconfirmed: true` only when that switch is off and the printer did
+  not answer its last poll or is decommissioned, `state` only when the state switch is on, `paper[]` only when the
   paper switch is on (`name`, `status` in ok/low/empty/unknown), `toner[]` only when the toner switch
   is on (`name`, `colorant`, `percent` or null, `status` in ok/low/empty/unknown), `alerts[]` only
   when the alerts switch is on (`severity`, `category`). A test marshals a board with every switch

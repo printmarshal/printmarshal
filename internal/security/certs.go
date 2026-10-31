@@ -39,6 +39,9 @@ type DeviceCertificates struct {
 // ListCertificates lists a device's certificates live: every manage_certs
 // driver plus the TLS probe, stored as observations, plus the issued records.
 func (s *Service) ListCertificates(ctx context.Context, dev *model.Device) (*DeviceCertificates, error) {
+	if dev.Decommissioned() {
+		return nil, model.ErrDecommissioned
+	}
 	out := &DeviceCertificates{DeviceID: dev.ID, Installed: []model.DeviceCertificate{}, Observed: []model.DeviceCertificate{}, Issued: []*model.IssuedCertificate{}}
 	creds := s.creds(ctx, dev)
 	now := s.Now()
@@ -113,7 +116,11 @@ type EnrollRequest struct {
 // key and CSR, obtain the certificate from the CA profile, record it, and
 // install it through a manage_certs driver when one exists.
 func (s *Service) EnrollCertificate(ctx context.Context, deviceID string, req EnrollRequest, actor string) (*model.Job, error) {
-	if _, err := s.Store.GetDevice(ctx, deviceID); err != nil {
+	dev, err := s.Store.GetDevice(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.refuseDecommissioned(ctx, []*model.Device{dev}, JobEnroll, actor, req.DryRun); err != nil {
 		return nil, err
 	}
 	if _, err := s.Store.GetCAProfile(ctx, req.CAProfileID); err != nil {
@@ -301,6 +308,13 @@ func (s *Service) install(ctx context.Context, dev *model.Device, issued *model.
 // InstallIssued queues installation of an already issued certificate (job
 // "security.install"), for devices that gained a manage_certs driver later.
 func (s *Service) InstallIssued(ctx context.Context, deviceID, issuedID string, actor string) (*model.Job, error) {
+	dev, err := s.Store.GetDevice(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.refuseDecommissioned(ctx, []*model.Device{dev}, JobInstall, actor, false); err != nil {
+		return nil, err
+	}
 	issued, err := s.Store.GetIssuedCertificate(ctx, issuedID)
 	if err != nil {
 		return nil, err

@@ -26,6 +26,8 @@ export interface PublicDevice {
   label: string
   location?: string
   online?: boolean
+  /** Sent only when `online` is hidden and the printer did not answer its last poll. */
+  unconfirmed?: boolean
   state?: string
   paper?: PublicTray[]
   toner?: PublicSupply[]
