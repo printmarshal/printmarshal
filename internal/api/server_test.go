@@ -406,3 +406,61 @@ func TestRenameDevicesAndNameSourceSetting(t *testing.T) {
 		t.Fatalf("reset should restore the reverseDns defaults: %d %s", code, body)
 	}
 }
+
+// intent/dns-rename-lookup: renaming from DNS looks the name up when none is
+// stored, in the preview as well as the apply.
+func TestRenamePreviewLooksUpEmptyDNSName(t *testing.T) {
+	ts, s := newTestServer(t)
+	s.Fleet.Resolver = &testResolver{
+		ptrs:  map[string][]string{"10.0.0.21": {"copier-21.corp.example.com."}},
+		hosts: map[string][]string{"copier-21.corp.example.com": {"10.0.0.21"}},
+	}
+	admin := login(t, ts, "admin", "adminpass123")
+	ctx := context.Background()
+	d, _, err := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.21", Serial: "SN21", Make: "Acme", Model: "Laser 21", Method: "snmp"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, body := do(t, ts, admin, "POST", "/api/devices/rename", fmt.Sprintf(`{"deviceIds":[%q],"source":"dns","dryRun":true}`, d.ID))
+	if code != 200 {
+		t.Fatalf("dry-run dns rename: %d %s", code, body)
+	}
+	var resp struct {
+		Updated int            `json:"updated"`
+		Skipped int            `json:"skipped"`
+		Results []renameResult `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(body), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Updated != 1 || resp.Skipped != 0 || len(resp.Results) != 1 || resp.Results[0].Skipped || resp.Results[0].To != "copier-21" {
+		t.Fatalf("preview did not look up the empty DNS name: %s", body)
+	}
+	after, _ := s.Store.GetDevice(ctx, d.ID)
+	if after.DisplayName != "" {
+		t.Fatalf("dry run must not persist displayName, got %q", after.DisplayName)
+	}
+}
+
+// A looked-up name that is an address in disguise stays skipped.
+func TestRenameSkipsSuspectAfterLookup(t *testing.T) {
+	ts, s := newTestServer(t)
+	s.Fleet.Resolver = &testResolver{
+		ptrs:  map[string][]string{"10.0.0.9": {"10-0-0-9.example.net."}},
+		hosts: map[string][]string{"10-0-0-9.example.net": {"10.0.0.9"}},
+	}
+	admin := login(t, ts, "admin", "adminpass123")
+	ctx := context.Background()
+	d, _, err := s.Store.UpsertDevice(ctx, &model.Identity{Address: "10.0.0.9", Serial: "SN9", Make: "Acme", Model: "Laser 9", Method: "snmp"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, body := do(t, ts, admin, "POST", "/api/devices/rename", fmt.Sprintf(`{"deviceIds":[%q],"source":"dns","dryRun":false}`, d.ID))
+	if code != 200 || !strings.Contains(body, `"updated":0`) || !strings.Contains(body, "DNS name is suspect") {
+		t.Fatalf("suspect name after lookup: %d %s", code, body)
+	}
+	after, _ := s.Store.GetDevice(ctx, d.ID)
+	if after.DisplayName != "" {
+		t.Fatalf("suspect name must not rename, got %q", after.DisplayName)
+	}
+}
