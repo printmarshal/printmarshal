@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -35,6 +36,45 @@ type importServerOpts struct {
 	noFleet  bool
 	resolver *testResolver
 	failID   map[string]bool // addresses the fake identification cannot identify
+	// drivers, when set, go in the engine and the import identifies through
+	// the real IdentifyAndUpsert; they never touch a network.
+	drivers []engine.Driver
+}
+
+// answerDriver is a printer the test switches on and off: an identifier and
+// a status reader, with no network and no write path.
+type answerDriver struct {
+	on         atomic.Bool
+	identified atomic.Int64
+}
+
+func (d *answerDriver) Name() string { return "answer" }
+func (d *answerDriver) Capabilities() []model.Capability {
+	return []model.Capability{model.CapIdentify, model.CapReadStatus}
+}
+func (d *answerDriver) Supports(dev *model.Device, c model.Capability) bool {
+	return engine.ProfileSupports(dev, d.Name(), c)
+}
+func (d *answerDriver) Priority(model.Capability) int { return 10 }
+func (d *answerDriver) Identify(_ context.Context, address string, _ model.Creds) (*model.Identity, error) {
+	if !d.on.Load() {
+		return nil, errors.New("timeout")
+	}
+	d.identified.Add(1)
+	return &model.Identity{Address: address, Serial: "SN-" + address, Make: "Acme", Model: "Acme 100", DeviceType: "printer", SysLocation: "from the agent",
+		Capabilities: []model.Capability{model.CapReadStatus}}, nil
+}
+func (d *answerDriver) ReadStatus(context.Context, *model.Device, model.Creds) (*model.Status, error) {
+	if !d.on.Load() {
+		return nil, errors.New("timeout")
+	}
+	return &model.Status{Online: true, State: "idle", Severity: model.SeverityOK, At: time.Now().UTC()}, nil
+}
+
+type noNetwork struct{}
+
+func (noNetwork) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("no network in import tests")
 }
 
 func newImportServer(t *testing.T, o importServerOpts) (*httptest.Server, *Server) {
@@ -63,19 +103,26 @@ func newImportServer(t *testing.T, o importServerOpts) (*httptest.Server, *Serve
 	if !o.noFleet {
 		runner := jobs.New(st, log, 1, hub.Publish)
 		t.Cleanup(runner.Stop)
-		eng := engine.New(engine.NewRegistry(), log, 2)
+		reg := engine.NewRegistry()
+		for _, d := range o.drivers {
+			reg.Register(d)
+		}
+		eng := engine.New(reg, log, 2)
 		fl := fleet.New(st, eng, runner, cfg, log, hub.Publish, nil)
+		fl.WebClient = &http.Client{Transport: noNetwork{}}
 		fl.Resolver = &testResolver{}
 		if o.resolver != nil {
 			fl.Resolver = o.resolver
 		}
 		s.Fleet = fl
 	}
-	s.importIdentify = func(ctx context.Context, address, hostname string) (*model.Device, bool, error) {
-		if o.failID[address] {
-			return nil, false, errors.New("no answer on SNMP or IPP")
+	if len(o.drivers) == 0 {
+		s.importIdentify = func(ctx context.Context, address, hostname string) (*model.Device, bool, error) {
+			if o.failID[address] {
+				return nil, false, errors.New("no answer on SNMP or IPP")
+			}
+			return st.UpsertDevice(ctx, &model.Identity{Address: address, Hostname: hostname, Serial: "SN-" + address, Model: "Sim 1", Method: "snmp"}, nil, []string{"import"})
 		}
-		return st.UpsertDevice(ctx, &model.Identity{Address: address, Hostname: hostname, Serial: "SN-" + address, Model: "Sim 1", Method: "snmp"}, nil, []string{"import"})
 	}
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)
@@ -168,7 +215,7 @@ const importFile = "Address,Display name,Location,Asset tag,Group,Owner\n" +
 	"10.0.0.6,,Floor 3,,Floor 2,\n" + // 3 update and join the group
 	"10.0.0.8,New one,Floor 4,A-8,Floor 2,\n" + // 4 create
 	"10.0.0.5,,Floor 9,,,\n" + // 5 duplicate of row 2
-	"10.0.0.99,,Floor 5,,,\n" // 6 create that identification cannot finish
+	"10.0.0.99,,Floor 5,,,\n" // 6 create of a printer that does not answer
 
 // R6: the preview answers from the store alone; with no fleet at all it
 // still works, so it cannot have contacted a device. Viewers cannot use it.
@@ -246,7 +293,7 @@ func TestImportApply(t *testing.T) {
 		n, _ := r.Data["row"].(float64)
 		byRow[int(n)] = r
 	}
-	want := map[int]string{2: "updated", 3: "updated", 4: "created", 5: "skipped", 6: "failed"}
+	want := map[int]string{2: "updated", 3: "updated", 4: "created", 5: "skipped", 6: "created"}
 	for row, status := range want {
 		if r := byRow[row]; r == nil || r.Status != status {
 			t.Errorf("row %d: %+v, want %s", row, r, status)
@@ -255,7 +302,10 @@ func TestImportApply(t *testing.T) {
 	if r := byRow[5]; r != nil && r.Message != "duplicate of row 2" {
 		t.Errorf("duplicate message: %q", r.Message)
 	}
-	if job.Status != model.JobPartial || job.Failed != 1 || job.Done != 5 || job.Total != 5 {
+	if r := byRow[6]; r != nil && !strings.Contains(r.Message, "not reachable yet") {
+		t.Errorf("unreachable message: %q", r.Message)
+	}
+	if job.Status != model.JobSucceeded || job.Failed != 0 || job.Done != 5 || job.Total != 5 {
 		t.Errorf("job: %+v", job)
 	}
 
@@ -286,8 +336,8 @@ func TestImportApply(t *testing.T) {
 	if len(gg.MemberIDs) != 2 || !slices.Contains(gg.MemberIDs, b.ID) || !slices.Contains(gg.MemberIDs, dc.ID) {
 		t.Errorf("group members %v", gg.MemberIDs)
 	}
-	if devs, _ := s.Store.ListDevices(ctx, store.DeviceFilter{Q: "10.0.0.99"}); len(devs) != 0 {
-		t.Errorf("a failed identification created a device")
+	if devs, _ := s.Store.ListDevices(ctx, store.DeviceFilter{Q: "10.0.0.99"}); len(devs) != 1 || devs[0].Location != "Floor 5" || src(devs[0], "location") != "import" {
+		t.Errorf("a printer that did not answer: %+v", devs)
 	}
 
 	// Audit: one devices.import entry with counts and flags, never a cell value.
@@ -311,10 +361,10 @@ func TestImportApply(t *testing.T) {
 			t.Errorf("import audit entry carries %q: %s", cell, raw)
 		}
 	}
-	if imp.After["created"] != float64(1) || imp.After["updated"] != float64(2) || imp.After["skipped"] != float64(1) || imp.After["failed"] != float64(1) || imp.After["rows"] != float64(5) {
+	if imp.After["created"] != float64(2) || imp.After["updated"] != float64(2) || imp.After["skipped"] != float64(1) || imp.After["failed"] != float64(0) || imp.After["rows"] != float64(5) {
 		t.Errorf("import audit counts: %v", imp.After)
 	}
-	if createdAudit != 1 {
+	if createdAudit != 2 {
 		t.Errorf("%d device.created entries", createdAudit)
 	}
 
@@ -493,5 +543,73 @@ func TestFieldSourcesOnRenameAndState(t *testing.T) {
 	}
 	if d.FieldSources["displayName"].Source != "operator" || d.FieldSources["state"].Source != "operator" {
 		t.Errorf("sources: %v", d.FieldSources)
+	}
+}
+
+// The intent's gap: a printer switched off during the import is still
+// created, with the file's fields, through the real IdentifyAndUpsert; the
+// scheduled poll then identifies it when it answers, in the same record.
+func TestImportCreatesAPrinterThatIsOff(t *testing.T) {
+	printer := &answerDriver{}
+	ts, s := newImportServer(t, importServerOpts{drivers: []engine.Driver{printer}})
+	_, _, g := seedImportFleet(t, s)
+	ctx := context.Background()
+	admin := login(t, ts, "admin", "adminpass123")
+	job, results := applyAndWait(t, ts, s, admin, "", []byte("address,hostname,location,asset tag,group\n10.0.0.50,lp-50,Floor 7,A-50,Floor 2\n"))
+	if len(results) != 1 || results[0].Status != "created" || !strings.Contains(results[0].Message, "not reachable yet") || !strings.Contains(results[0].Message, "location") {
+		t.Fatalf("results: %+v", results)
+	}
+	if job.Status != model.JobSucceeded {
+		t.Errorf("job: %+v", job)
+	}
+	id := results[0].DeviceID
+	d, err := s.Store.GetDevice(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Address != "10.0.0.50" || d.Hostname != "lp-50" || d.Make != "" || d.Serial != "" || d.Location != "Floor 7" || d.AssetTag != "A-50" || d.FieldSources["location"].Source != "import" {
+		t.Errorf("address-only record: %+v", d)
+	}
+	if gg, _ := s.Store.GetGroup(ctx, g.ID); !slices.Contains(gg.MemberIDs, id) {
+		t.Errorf("not in the group: %v", gg.MemberIDs)
+	}
+	// The device page reads capabilities as an object.
+	if code, body := do(t, ts, admin, "GET", "/api/devices/"+id, ""); code != 200 || !strings.Contains(body, `"capabilities":{}`) {
+		t.Errorf("device JSON: %d %s", code, body)
+	}
+
+	// Still off: a poll leaves it alone. Then it answers: the same record is
+	// identified, and keeps what the file said over what the agent reports.
+	poll := func() {
+		t.Helper()
+		j, err := s.Fleet.SubmitPoll(ctx, nil, "scheduler")
+		if err != nil {
+			t.Fatal(err)
+		}
+		wctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		if done, err := s.Fleet.Jobs.Wait(wctx, j.ID); err != nil || done.FinishedAt == nil {
+			t.Fatalf("poll: %+v %v", done, err)
+		}
+	}
+	poll()
+	if d, _ = s.Store.GetDevice(ctx, id); d.Serial != "" {
+		t.Errorf("identified while off: %+v", d)
+	}
+	printer.on.Store(true)
+	poll()
+	d, _ = s.Store.GetDevice(ctx, id)
+	if d.Serial != "SN-10.0.0.50" || d.Make != "Acme" || d.Capabilities[model.CapReadStatus] != "answer" {
+		t.Errorf("not identified by the poll: %+v", d)
+	}
+	if d.Location != "Floor 7" || d.AssetTag != "A-50" || d.FieldSources["assetTag"].Source != "import" {
+		t.Errorf("identification lost the imported fields: %+v", d)
+	}
+	if d.Status == nil || d.Status.State != "idle" {
+		t.Errorf("not polled after identification: %+v", d.Status)
+	}
+	devs, _ := s.Store.ListDevices(ctx, store.DeviceFilter{Q: "10.0.0.50"})
+	if len(devs) != 1 {
+		t.Errorf("%d records for one printer", len(devs))
 	}
 }
