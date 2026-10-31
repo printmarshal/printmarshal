@@ -58,8 +58,8 @@ Server
   once per plan (devices including decommissioned, and groups) and matches in memory.
   `DevicePatch.Empty()` replaces the bulk edit's `patch != (DevicePatch{})`, which no longer
   compiles once the patch holds a map. A field with a recorded source counts as set by someone
-  for the held-back rule, so DNS sync turned off or a state left at "discovered" on purpose is
-  kept too. Migration 9 on both stores (SQLite `TEXT`, PostgreSQL `JSONB`, default `'{}'`).
+  for the held-back rule (narrowed by review fix 3, below), so DNS sync turned off or a state left
+  at "discovered" on purpose by an operator is kept too. Migration 9 on both stores (SQLite `TEXT`, PostgreSQL `JSONB`, default `'{}'`).
 - *Built, step 3:* the parsed file waits in memory (`Server.imports`, under a random key in the
   job's params) until the job takes it, so no file content is persisted; a restart fails the job
   as usual. The job type is registered in `Handler()`, which runs after the scheduler has started,
@@ -83,6 +83,10 @@ Server
   and the row writes are sequential. `Job.Done` therefore stays at 0 during identification. A stop
   ends new identifications; a printer already identified still gets its row applied, the job ends
   `failed` with "stopped at row N" as its error, and the audit entry says `cancelled`.
+- *Built, review fix 3:* hold-back goes by source, each with its own reason: `import` is not held
+  back, so an import may overwrite its own earlier value; `operator` says "set by an operator";
+  `dns` says "kept in sync with DNS"; a non-empty value with no source says "already has a value",
+  since it may be an old operator edit or seeded from `sysLocation`.
 
 Web
 - `web/src/components/ImportDialog.tsx` (new): file input, "Download template" (a header-only

@@ -15,9 +15,16 @@ const (
 	OutcomeSkip   = "skip"
 )
 
-// ReasonHeldBack explains a value left alone because an operator set the
-// field and the column is not marked replace (spec R10).
-const ReasonHeldBack = "set by an operator; column not marked replace"
+// Why a supplied value is left alone when its column is not marked replace
+// (spec R10), by where the present value came from.
+const (
+	ReasonOperatorSet = "set by an operator; column not marked replace"
+	ReasonDNSSync     = "kept in sync with DNS; column not marked replace"
+	// ReasonHasValue is for a value with no recorded source: an operator's
+	// edit from before sources were recorded, or one seeded from the agent's
+	// sysLocation. Which of them cannot be told.
+	ReasonHasValue = "already has a value; column not marked replace"
+)
 
 // ReasonOutOfScope skips a row whose device or group the caller may not touch (R12).
 const ReasonOutOfScope = "outside your groups"
@@ -379,8 +386,8 @@ func Diff(dev *model.Device, values map[string]any, isMember bool, replace map[s
 		case dev == nil:
 			fields[col] = v
 		case current(dev, col) == v:
-		case isSet(dev, col) && !replace[col]:
-			held = append(held, HeldBack{Field: col, Reason: ReasonHeldBack})
+		case !replace[col] && holdBackReason(dev, col) != "":
+			held = append(held, HeldBack{Field: col, Reason: holdBackReason(dev, col)})
 		default:
 			fields[col] = v
 		}
@@ -432,13 +439,30 @@ func current(d *model.Device, col string) any {
 	return nil
 }
 
-// isSet reports whether a field holds a value someone chose: one with a
-// recorded source, a non-empty text, DNS sync turned on, a lifecycle state
-// past "discovered".
-func isSet(d *model.Device, col string) bool {
-	if _, ok := d.FieldSources[col]; ok {
-		return true
+// holdBackReason says why a field's present value is kept over a supplied
+// one, or "" when it may be overwritten: an import may overwrite its own
+// value, so a typo is fixed by importing again.
+func holdBackReason(d *model.Device, col string) string {
+	if src, ok := d.FieldSources[col]; ok {
+		switch src.Source {
+		case model.SourceImport:
+			return ""
+		case model.SourceOperator:
+			return ReasonOperatorSet
+		case model.SourceDNS:
+			return ReasonDNSSync
+		}
+		return ReasonHasValue
 	}
+	if hasValue(d, col) {
+		return ReasonHasValue
+	}
+	return ""
+}
+
+// hasValue reports whether a field differs from what a new record holds: a
+// non-empty text, DNS sync turned on, a lifecycle state past "discovered".
+func hasValue(d *model.Device, col string) bool {
 	switch col {
 	case ColDNSSync:
 		return d.DNSSync
