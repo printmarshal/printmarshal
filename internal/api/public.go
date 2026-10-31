@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -266,7 +267,12 @@ func buildPublicBoard(cfg publicStatusConfig, devices []*model.Device, alerts []
 		if _, ok := publicSeverityRank[a.Severity]; !ok {
 			continue
 		}
-		cat := alertCategory(a.Source, a.Key)
+		var cat string
+		if a.Source == "supply" {
+			cat = supplyAlertCategory(byID[a.DeviceID], a.Key)
+		} else {
+			cat = alertCategory(a.Source, a.Key)
+		}
 		if cat == "" {
 			continue
 		}
@@ -380,6 +386,8 @@ func buildPublicBoard(cfg publicStatusConfig, devices []*model.Device, alerts []
 //
 //	source "offline"  key "offline"                       alerts/rules.go Evaluate
 //	source "supply"   key "supply:<index>"                alerts/rules.go Evaluate
+//	                      (categorised by the device's supply at that index,
+//	                      see supplyAlertCategory)
 //	source "poll"     key "state:down"                    alerts/rules.go Evaluate
 //	                  key "paper:<media size>|*"          alerts/rules.go Evaluate
 //	                  key "error:<flag>"                  alerts/rules.go errorSeverity
@@ -424,8 +432,40 @@ var deviceCodeCategories = map[string]string{
 	"markerWasteTonerReceptacleFull": "maintenance", "markerWasteInkReceptacleFull": "maintenance",
 }
 
+// supplyAlertCategory categorises a supply alert by the part it concerns. The
+// key only names the supply's index, so the part comes from the device's own
+// supply data, never from the alert's free text: marker supplies (isToner) are
+// toner, waste containers and other named parts (drum, developer, fuser, ...)
+// are maintenance. A supply the device no longer reports, or one whose type it
+// will not name, is "other": broader, and still true.
+func supplyAlertCategory(d *model.Device, key string) string {
+	idx, err := strconv.Atoi(strings.TrimPrefix(key, "supply:"))
+	if err != nil || d == nil {
+		return "other"
+	}
+	for _, sp := range d.Supplies {
+		if sp.Index != idx {
+			continue
+		}
+		switch {
+		case isToner(sp):
+			return "toner"
+		case sp.Class == "filled":
+			return "maintenance"
+		}
+		switch strings.ToLower(strings.TrimSpace(sp.Type)) {
+		case "", "other", "unknown":
+			return "other"
+		}
+		return "maintenance"
+	}
+	return "other"
+}
+
 // alertCategory maps an alert to offline, paper, toner, door, jam,
-// maintenance or other, or "" for alerts that never appear on the board.
+// maintenance or other, or "" for alerts that never appear on the board. It
+// sees the source and key only, which cannot tell a toner from a drum, so the
+// board sends source "supply" through supplyAlertCategory instead.
 func alertCategory(source, key string) string {
 	switch source {
 	case "security", "consumable":
