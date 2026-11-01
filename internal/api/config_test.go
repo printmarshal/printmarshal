@@ -224,3 +224,30 @@ func TestConfigAPIRolesAndFlow(t *testing.T) {
 		t.Errorf("deleted profile = %d", code)
 	}
 }
+
+// The profile editor's picker explains each setting from the catalogue.
+func TestConfigCatalogReturnsHelp(t *testing.T) {
+	ts, _ := newTestServer(t)
+	admin := login(t, ts, "admin", "adminpass123")
+	code, body := do(t, ts, admin, "GET", "/api/config/catalog", "")
+	if code != 200 {
+		t.Fatalf("catalog: %d %s", code, body)
+	}
+	var cat struct {
+		Settings []struct {
+			Key  string `json:"key"`
+			Help string `json:"help"`
+		} `json:"settings"`
+	}
+	if err := json.Unmarshal([]byte(body), &cat); err != nil {
+		t.Fatal(err)
+	}
+	if len(cat.Settings) == 0 {
+		t.Fatal("empty catalogue")
+	}
+	for _, s := range cat.Settings {
+		if s.Help == "" {
+			t.Errorf("%s comes without its explanation", s.Key)
+		}
+	}
+}
