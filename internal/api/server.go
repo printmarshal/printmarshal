@@ -5,7 +5,6 @@ package api
 
 import (
 	"context"
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +23,7 @@ import (
 	"printmarshal/internal/auth/saml"
 	"printmarshal/internal/config"
 	"printmarshal/internal/configmgmt"
+	"printmarshal/internal/csvsafe"
 	"printmarshal/internal/events"
 	"printmarshal/internal/firmware"
 	"printmarshal/internal/fleet"
@@ -1002,7 +1002,7 @@ func (s *Server) exportDevicesCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="devices.csv"`)
-	cw := csv.NewWriter(w)
+	cw := csvsafe.NewWriter(w)
 	_ = cw.Write([]string{"id", "name", "make", "model", "serial", "address", "hostname", "mac", "firmware", "type", "state", "status", "severity", "location", "assetTag", "pagesTotal", "lastSeen", "lastPolled"})
 	for _, d := range devs {
 		status, sev := "", ""
@@ -1030,7 +1030,7 @@ func (s *Server) exportSuppliesCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="supplies.csv"`)
-	cw := csv.NewWriter(w)
+	cw := csvsafe.NewWriter(w)
 	_ = cw.Write([]string{"device", "model", "serial", "address", "supply", "type", "colorant", "percent", "level", "maxCapacity", "unit"})
 	for _, d := range devs {
 		for _, sp := range d.Supplies {

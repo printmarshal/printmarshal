@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"printmarshal/internal/csvsafe"
 	"printmarshal/internal/model"
 	"printmarshal/internal/reports"
 	"printmarshal/internal/store"
@@ -165,7 +165,7 @@ func (s *Server) report(name string, run func(context.Context, *reports.Service,
 		}
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-%s.csv"`, name, table.Name))
-		cw := csv.NewWriter(w)
+		cw := csvsafe.NewWriter(w)
 		_ = cw.Write(table.Columns)
 		for _, row := range table.Rows {
 			_ = cw.Write(row)
