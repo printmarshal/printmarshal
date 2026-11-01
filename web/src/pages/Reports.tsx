@@ -62,7 +62,7 @@ export default function Reports() {
   return (
     <>
       <div className="ph">
-        <div><h1 className="h1">Reports</h1><div className="cap num">{range ? `${range.from.slice(0, 10)} → ${isoDay(new Date(new Date(range.to).getTime() - 1))} · ${range.days} days · ${range.devices} device${range.devices === 1 ? '' : 's'}${groupName ? ` in ${groupName}` : ''}` : 'compliance, utilisation and health over time'}</div></div>
+        <div><h1 className="h1">Reports</h1><div className="cap num">{range ? `${range.from.slice(0, 10)} → ${isoDay(new Date(new Date(range.to).getTime() - 1))} · ${range.days} days · ${range.devices} device${range.devices === 1 ? '' : 's'}${range.decommissioned ? ` including ${range.decommissioned} decommissioned` : ''}${groupName ? ` in ${groupName}` : ''}` : 'compliance, utilisation and health over time'}</div></div>
         <div className="row">
           <Seg label="Range" value={preset} onChange={(v) => set({ range: v })} options={[{ v: '7', label: '7d' }, { v: '30', label: '30d' }, { v: '90', label: '90d' }, { v: 'custom', label: 'Custom' }]} />
           {preset === 'custom' && (

@@ -1,6 +1,7 @@
 /* PrintMarshal design system — tokens from the design canvas ("Steel & Signal").
    Components reference tokens only; [data-theme] on <html> switches the palette. */
 :root, :root[data-theme="light"] {
+  color-scheme:light;
   --bg:#F5F6F8; --surface:#FFFFFF; --surface-2:#F1F3F6; --hover:#F4F6FA; --border:#E3E6EB; --border-strong:#CBD1D9;
   --text:#14171C; --text-2:#454D5A; --text-3:#5F6876; --track:#E6E9EE;
   --accent:#2E54E6; --accent-weak:#EEF2FE; --on-accent:#FFFFFF;
@@ -12,8 +13,9 @@
   --glint:#D7A442; --font:'IBM Plex Sans',system-ui,-apple-system,sans-serif; --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace; --display:'Barlow',var(--font);
 }
 :root[data-theme="dark"] {
+  color-scheme:dark;
   --bg:#0D1015; --surface:#141920; --surface-2:#1A2029; --hover:#1C2330; --border:#252C37; --border-strong:#353E4B;
-  --text:#E6E9EE; --text-2:#B0B8C4; --text-3:#8E98A6; --track:#2A313C;
+  --text:#E6E9EE; --text-2:#B0B8C4; --text-3:#A2ABB8; --track:#2A313C;
   --accent:#8DA4F2; --accent-weak:#1B2550; --on-accent:#0D1015;
   --ok:#5ACF86; --ok-bg:#12291C; --warn:#F1B65A; --warn-bg:#2D2312; --warn-line:#8A6526; --crit:#FF8A80; --crit-bg:#341818;
   --info:#64B9EC; --info-bg:#0F2638; --off:#A0A9B6; --off-bg:#222933;
@@ -168,6 +170,12 @@ textarea.fin{height:auto;padding:6px 10px;resize:vertical}
 
 /* Tables */
 .tw{overflow-x:auto}
+.th-sort{all:unset;display:inline-flex;align-items:center;gap:4px;cursor:pointer;border-radius:3px}
+.th-sort:hover{color:var(--text)}
+.th-sort:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+th[aria-sort] .th-sort{color:var(--text);font-weight:600}
+.long-msg{display:inline}
+.long-msg summary{cursor:pointer;display:inline}
 .tbl{width:100%;border-collapse:separate;border-spacing:0}
 .tbl th{position:sticky;top:0;text-align:left;font-weight:500;font-size:12px;color:var(--text-2);background:var(--surface-2);padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap;z-index:1}
 .tbl td{padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:middle}
@@ -181,6 +189,7 @@ textarea.fin{height:auto;padding:6px 10px;resize:vertical}
 .tbl tr.clickable{cursor:pointer}
 .tbl td.wrap{white-space:normal;min-width:240px}
 .tbl .r{text-align:right}
+@media (max-width:640px){.hide-sm{display:none}.tbl td.wrap{min-width:96px}}
 .mx td{text-align:center}.mx td:first-child{text-align:left}
 .bulk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;background:var(--accent-weak);border-bottom:1px solid var(--border)}
 .savebar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 14px;background:var(--accent-weak);border-bottom:1px solid var(--accent)}

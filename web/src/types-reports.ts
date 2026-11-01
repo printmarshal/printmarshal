@@ -3,7 +3,7 @@
 
 export type ReportName = 'utilisation' | 'fleet-health' | 'supplies' | 'alerts' | 'firmware' | 'compliance'
 
-export interface ReportRange { from: string; to: string; days: number; group?: string; device?: string; devices: number }
+export interface ReportRange { from: string; to: string; days: number; group?: string; device?: string; devices: number; decommissioned?: number }
 
 export interface ReportIndex { available: boolean; maxRangeDays: number; reports: { name: ReportName; title: string; tables: string[] }[] }
 

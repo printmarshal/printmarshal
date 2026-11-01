@@ -467,9 +467,22 @@ func deviceFilter(r *http.Request) store.DeviceFilter {
 	return f
 }
 
-func (s *Server) listDevices(w http.ResponseWriter, r *http.Request) {
+// sortedDevices is the device list a request asked for: filtered, in its sort
+// order, then paged.
+func (s *Server) sortedDevices(r *http.Request) ([]*model.Device, error) {
 	f := deviceFilter(r)
+	limit, offset := f.Limit, f.Offset
+	f.Limit, f.Offset = 0, 0
 	devs, err := s.resolveDevices(r.Context(), f)
+	if err != nil {
+		return nil, err
+	}
+	sortDevices(devs, f.Sort, r.URL.Query().Get("dir"))
+	return pageDevices(devs, limit, offset), nil
+}
+
+func (s *Server) listDevices(w http.ResponseWriter, r *http.Request) {
+	devs, err := s.sortedDevices(r)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -982,7 +995,7 @@ func (s *Server) telemetry(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) exportDevicesCSV(w http.ResponseWriter, r *http.Request) {
-	devs, err := s.resolveDevices(r.Context(), deviceFilter(r))
+	devs, err := s.sortedDevices(r)
 	if err != nil {
 		s.fail(w, err)
 		return

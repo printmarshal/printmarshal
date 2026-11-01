@@ -6,8 +6,24 @@ import { deviceName } from '../types'
 import { useEvents } from '../ws'
 import { useDensity } from '../theme'
 import { Ic } from '../components/icons'
-import { Bar, Btn, Card, ChipSelect, DevicePill, Dialog, EmptyState, Msb, Pill, SearchBox, Seg, Tag, fmtInt, remaining, supplyColor } from '../components/ui'
+import { Bar, Btn, Card, ChipSelect, DevicePill, Dialog, EmptyState, Msb, Pill, SearchBox, Seg, Tag, fmtInt, remaining, supplyColor, supplyShortLabel } from '../components/ui'
 import { BulkEditDialog, ReverseDnsOffHint, useReverseDnsOff } from '../components/BulkEditDialog'
+
+/** Sort keys, the API's names (internal/api/device_sort.go). naturalDesc starts with the highest or newest. */
+const sortKeys: { v: string; label: string; naturalDesc?: boolean }[] = [
+  { v: 'severity', label: 'Status' }, { v: 'name', label: 'Display name' }, { v: 'model', label: 'Model' }, { v: 'address', label: 'Address' }, { v: 'location', label: 'Location' },
+  { v: 'supplies', label: 'Lowest supply' }, { v: 'pages', label: 'Pages', naturalDesc: true }, { v: 'firmware', label: 'Firmware' }, { v: 'state', label: 'Lifecycle' }, { v: 'lastSeen', label: 'Last seen', naturalDesc: true },
+]
+
+/** A column header that sorts the table, and says so to assistive technology. */
+function SortTh({ k, label, sort, desc, onSort, right }: { k: string; label: string; sort: string; desc: boolean; onSort: (k: string) => void; right?: boolean }) {
+  const on = sort === k
+  return (
+    <th className={right ? 'r' : undefined} aria-sort={on ? (desc ? 'descending' : 'ascending') : undefined}>
+      <button type="button" className="th-sort" onClick={() => onSort(k)}>{label}{on && <span aria-hidden="true">{desc ? '↓' : '↑'}</span>}</button>
+    </th>
+  )
+}
 
 export default function Devices({ user }: { user: User }) {
   const [params, setParams] = useSearchParams()
@@ -15,7 +31,7 @@ export default function Devices({ user }: { user: User }) {
   const [groups, setGroups] = useState<Group[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'table' | 'cards'>(() => { try { return (localStorage.getItem('pm.devices.view') as 'table' | 'cards') || 'table' } catch { return 'table' } })
+  const [view, setView] = useState<'table' | 'cards'>(() => { try { return (localStorage.getItem('pm.devices.view') as 'table' | 'cards') || (window.innerWidth < 900 ? 'cards' : 'table') } catch { return 'table' } })
   const [density, setDensity] = useDensity()
   const [sel, setSel] = useState<Record<string, boolean>>({})
   const [msg, setMsg] = useState('')
@@ -34,6 +50,18 @@ export default function Devices({ user }: { user: User }) {
   useEvents((e) => { if (e.type.startsWith('device.')) load() }, [load])
 
   const set = (k: string, v: string) => { const p = new URLSearchParams(params); if (v) p.set(k, v); else p.delete(k); setParams(p, { replace: true }) }
+  const sort = params.get('sort') || 'name'
+  const sortDef = sortKeys.find((k) => k.v === sort)
+  const desc = params.get('dir') ? params.get('dir') === 'desc' : !!sortDef?.naturalDesc
+  // A new column starts in its natural order; the same column turns the order round.
+  const sortBy = (k: string) => {
+    const p = new URLSearchParams(params)
+    if (k === sort) { p.set('sort', k); p.set('dir', desc ? 'asc' : 'desc') } else { p.set('sort', k); p.delete('dir') }
+    setParams(p, { replace: true })
+  }
+  const setSortKey = (k: string) => { const p = new URLSearchParams(params); if (k) p.set('sort', k); else p.delete('sort'); p.delete('dir'); setParams(p, { replace: true }) }
+  const flipDir = () => { const p = new URLSearchParams(params); p.set('sort', sort); p.set('dir', desc ? 'asc' : 'desc'); setParams(p, { replace: true }) }
+  const th = (k: string, label: string, right?: boolean) => <SortTh k={k} label={label} sort={sort} desc={desc} onSort={sortBy} right={right} />
   const clearAll = () => setParams(new URLSearchParams(), { replace: true })
   const activeFilters = ['severity', 'state', 'group', 'make', 'model'].filter((k) => params.get(k))
   const makes = useMemo(() => Array.from(new Set(devices.map((d) => d.make).filter(Boolean))).sort(), [devices])
@@ -89,9 +117,10 @@ export default function Devices({ user }: { user: User }) {
       {msg && <div className="banner info" role="status"><Ic.info style={{ color: 'var(--info)' }} /><div style={{ flex: 1 }}>{msg}</div><Btn sm variant="ghost" ic onClick={() => setMsg('')}><Ic.x /></Btn></div>}
       <Card aria-label="Device results">
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
-          <span className="num" style={{ fontWeight: 500 }}>{devices.length} matching <span className="cap">· sorted by {params.get('sort') || 'name'}</span></span>
+          <span className="num" style={{ fontWeight: 500 }}>{devices.length} matching <span className="cap">· sorted by {(sortDef?.label || sort).toLowerCase()}, {desc ? 'descending' : 'ascending'}</span></span>
           <div className="row">
-            <ChipSelect label="Sort" value={params.get('sort') || ''} onChange={(v) => set('sort', v)} any="Name" options={[{ v: 'severity', label: 'Severity' }, { v: 'model', label: 'Model' }, { v: 'address', label: 'Address' }, { v: 'lastSeen', label: 'Last seen' }]} />
+            <ChipSelect label="Sort" value={params.get('sort') === 'name' ? '' : params.get('sort') || ''} onChange={setSortKey} any="Display name" options={sortKeys.filter((k) => k.v !== 'name').map(({ v, label }) => ({ v, label }))} />
+            <Btn sm variant="ghost" aria-label={`Sort ${desc ? 'ascending' : 'descending'}`} title={`Sort ${desc ? 'ascending' : 'descending'}`} onClick={flipDir}><span aria-hidden="true">{desc ? '↓' : '↑'}</span></Btn>
             <Seg label="View" value={view} onChange={setView2} options={[{ v: 'table', label: <><Ic.list />Table</> }, { v: 'cards', label: <><Ic.dashboard />Cards</> }]} />
             <Seg label="Density" value={density} onChange={setDensity} options={[{ v: 'comfortable', label: 'Comfortable' }, { v: 'compact', label: 'Compact' }]} />
           </div>
@@ -116,7 +145,7 @@ export default function Devices({ user }: { user: User }) {
               <table className={`tbl${density === 'compact' ? ' compact' : ''}`} style={{ minWidth: 1080 }}>
                 <thead><tr>
                   {canOperate && <th style={{ width: 36 }}><input className="cbx" type="checkbox" aria-label="Select all visible" checked={selected.length === devices.length && devices.length > 0} onChange={toggleAll} /></th>}
-                  <th>Status</th><th>Display name</th><th>Model</th><th>IP / hostname</th><th>Location</th><th>Supplies</th><th className="r">Pages</th><th>Firmware</th><th>Lifecycle</th><th className="r">Last seen</th>
+                  {th('severity', 'Status')}{th('name', 'Display name')}{th('model', 'Model')}{th('address', 'IP / hostname')}{th('location', 'Location')}{th('supplies', 'Supplies')}{th('pages', 'Pages', true)}{th('firmware', 'Firmware')}{th('state', 'Lifecycle')}{th('lastSeen', 'Last seen', true)}
                 </tr></thead>
                 <tbody>
                   {devices.map((d) => (
@@ -177,7 +206,7 @@ export default function Devices({ user }: { user: User }) {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {d.supplies.filter((s) => s.class !== 'other' && s.percent !== null).slice(0, 5).map((s) => {
                       const r = remaining(s) ?? 0
-                      return <div key={s.index} style={{ display: 'grid', gridTemplateColumns: '60px minmax(0,1fr) 34px', alignItems: 'center', gap: 8 }}><span className="cap">{s.colorant || s.type}</span><Bar pct={r} color={supplyColor(s)} /><span className="cap num" style={{ textAlign: 'right', color: r <= 10 ? 'var(--warn)' : undefined }}>{r}%</span></div>
+                      return <div key={s.index} style={{ display: 'grid', gridTemplateColumns: '84px minmax(0,1fr) 34px', alignItems: 'center', gap: 8 }}><span className="cap" title={s.description}>{supplyShortLabel(s)}</span><Bar pct={r} color={supplyColor(s)} /><span className="cap num" style={{ textAlign: 'right', color: r <= 10 ? 'var(--warn)' : undefined }}>{r}%</span></div>
                     })}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
@@ -253,6 +282,7 @@ function RenameDialog({ deviceIds, devices, canEdit, onClose, onApplied }: { dev
   const allSyncedAtStart = devices.length > 0 && syncedNow === devices.length
   const [keepSynced, setKeepSynced] = useState(allSyncedAtStart)
   const rdnsOff = useReverseDnsOff()
+  const [lookup, setLookup] = useState({ running: false, done: 0, runs: 0, failed: 0 })
 
   useEffect(() => {
     if (source === 'pattern' && !pattern.trim()) {
@@ -275,7 +305,23 @@ function RenameDialog({ deviceIds, devices, canEdit, onClose, onApplied }: { dev
       if (!cancelled) setBusy(false)
     })
     return () => { cancelled = true }
-  }, [deviceIds, source, pattern])
+  }, [deviceIds, source, pattern, lookup.runs])
+
+  // A DNS query for each selected device, never a request to the printer: four
+  // at a time, then the preview runs again with whatever came back.
+  const lookUpNames = async () => {
+    setLookup((l) => ({ ...l, running: true, done: 0, failed: 0 }))
+    let failed = 0
+    const queue = [...deviceIds]
+    const worker = async () => {
+      for (let id = queue.shift(); id; id = queue.shift()) {
+        try { await api.post(`/api/devices/${id}/refresh-hostname`) } catch { failed++ }
+        setLookup((l) => ({ ...l, done: l.done + 1 }))
+      }
+    }
+    await Promise.all(Array.from({ length: 4 }, worker))
+    setLookup((l) => ({ running: false, done: l.done, runs: l.runs + 1, failed }))
+  }
 
   const willUpdate = rows.filter((r) => !r.skipped).length
 
@@ -334,6 +380,12 @@ function RenameDialog({ deviceIds, devices, canEdit, onClose, onApplied }: { dev
               <span style={{ color: 'var(--text-3)' }}>(already on for {syncedNow} of {devices.length})</span>
             </label>
             {rdnsOff && <ReverseDnsOffHint canEdit={canEdit} />}
+            {canEdit && rows.some((r) => r.skipped) && (
+              <div className="row" style={{ gap: 8, marginTop: 4 }}>
+                <Btn sm disabled={lookup.running || busy} onClick={lookUpNames}><Ic.refresh size={13} />{lookup.running ? `Looking up ${lookup.done} of ${deviceIds.length}…` : 'Look up DNS names'}</Btn>
+                <span className="cap">{lookup.runs > 0 && !lookup.running ? `Looked up ${deviceIds.length}${lookup.failed ? `, ${lookup.failed} failed` : ''}. The preview below is up to date.` : 'Asks DNS now for names not yet looked up.'}</span>
+              </div>
+            )}
           </div>
         )}
         {source === 'pattern' && (

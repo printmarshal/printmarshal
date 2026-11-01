@@ -98,3 +98,38 @@ func TestConsumableDesired(t *testing.T) {
 		t.Error("stock above zero with no thresholds must not alert")
 	}
 }
+
+// #54: "Any" is not a media size. An empty Any tray is not out of paper while
+// another tray has some, and the alert never reads "all Any trays".
+func TestPaperRuleTreatsAnyAsNoSize(t *testing.T) {
+	th := Thresholds{SupplyWarningPercent: 20, SupplyCriticalPercent: 5, OfflineAfterFailures: 3}
+	eval := func(trays ...model.Tray) map[string]Desired {
+		out, _ := Evaluate(&model.Device{}, &engine.PollResult{Reachable: true, Trays: trays}, 0, th)
+		got := map[string]Desired{}
+		for _, d := range out {
+			got[d.Key] = d
+		}
+		return got
+	}
+	anyEmpty := model.Tray{Kind: "input", Index: 1, MediaSize: "Any", Status: "empty"}
+	a4OK := model.Tray{Kind: "input", Index: 2, MediaSize: "A4", Status: "ok"}
+	a4Empty := model.Tray{Kind: "input", Index: 2, MediaSize: "A4", Status: "empty"}
+	noSizeEmpty := model.Tray{Kind: "input", Index: 3, Status: "empty"}
+
+	if got := eval(anyEmpty, a4OK); len(got) != 0 {
+		t.Errorf("A4 trays have paper: %+v", got)
+	}
+	if got := eval(noSizeEmpty, a4OK); len(got) != 0 {
+		t.Errorf("a tray of unknown size is not every tray: %+v", got)
+	}
+	got := eval(anyEmpty, a4Empty)
+	if d, ok := got["paper:*"]; !ok || d.Description != "Out of paper: all input trays are empty" {
+		t.Errorf("every tray is empty: %+v", got)
+	}
+	if _, ok := got["paper:Any"]; ok {
+		t.Errorf("Any is not a size: %+v", got)
+	}
+	if got := eval(noSizeEmpty); got["paper:*"].Description != "Out of paper: all input trays are empty" {
+		t.Errorf("one tray of unknown size, empty: %+v", got)
+	}
+}

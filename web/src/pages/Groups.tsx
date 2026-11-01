@@ -86,7 +86,7 @@ export default function Groups({ user }: { user: User }) {
   return (
     <>
       <div className="ph">
-        <div><h1 className="h1">Groups</h1><div className="cap num">{groups.filter((g) => g.id).length} groups · {groups.filter((g) => g.kind === 'rule').length} rule-based, {groups.filter((g) => g.kind === 'static').length} static · rule groups re-evaluate on every poll</div></div>
+        <div><h1 className="h1">Groups</h1><div className="cap num">{groups.filter((g) => g.id).length} groups · {groups.filter((g) => g.id && g.kind === 'rule').length} rule-based, {groups.filter((g) => g.id && g.kind === 'static').length} static · rule groups re-evaluate on every poll</div></div>
         {canOperate && <Btn sm variant="pri" onClick={newGroup}><Ic.plus />New group</Btn>}
       </div>
       <div className="cols">
@@ -128,7 +128,7 @@ export default function Groups({ user }: { user: User }) {
                 </div>
               </Card>
               <Card title="Live member preview" id="mp" right={<Link to={selected?.id ? `/devices?group=${selected.id}` : '/devices'} className="cap" style={{ color: 'var(--accent)' }}>Open as filter in Devices →</Link>}>
-                <div className="ch" style={{ borderBottom: 0, paddingBottom: 0 }}><div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}><span className="num" style={{ fontSize: 20, fontWeight: 600, color: 'var(--accent)' }}>{members.length}</span><span className="cap">devices match · {dirty ? `${joins ? `+${joins} join` : ''}${joins && leaves ? ', ' : ''}${leaves ? `${leaves} leave` : ''}${!joins && !leaves ? 'no change' : ''} on save` : 'saved'}</span></div></div>
+                <div className="ch" style={{ borderBottom: 0, paddingBottom: 0 }}><div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}><span className="num" style={{ fontSize: 20, fontWeight: 600, color: 'var(--accent)' }}>{members.length}</span><span className="cap">devices match · {dirty ? `${joins ? `+${joins} join` : ''}${joins && leaves ? ', ' : ''}${leaves ? `${leaves} leave` : ''}${!joins && !leaves ? 'no change' : ''} on save` : selected?.id ? 'saved' : 'not saved yet'}</span></div></div>
                 <div className="tw"><table className="tbl" style={{ minWidth: 640 }}>
                   <thead><tr>{draft.kind === 'static' && canOperate && <th style={{ width: 36 }} />}<th>Device</th><th>Model</th><th>IP</th><th>Location</th><th>Status</th><th>Change on save</th></tr></thead>
                   <tbody>{(draft.kind === 'static' && canOperate ? devices : members).map((d) => { const inSaved = savedMembers.includes(d.id); const inDraft = members.some((m) => m.id === d.id); return (

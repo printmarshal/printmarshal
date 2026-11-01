@@ -129,6 +129,29 @@ export function supplyColor(s: Pick<Supply, 'colorant' | 'description' | 'class'
   return 'var(--text-3)'
 }
 
+const supplyTypeWords: Record<string, string> = { opc: 'Drum', tonerCartridge: 'Toner', inkCartridge: 'Ink', cleanerUnit: 'Cleaner', transferUnit: 'Transfer unit', coronaWire: 'Corona wire', fuserCleaningPad: 'Fuser cleaning pad' }
+
+/** A supply's RFC 3805 type in plain words: opc is a drum, wasteToner is Waste toner. */
+export function supplyTypeLabel(type?: string): string {
+  if (!type) return 'Supply'
+  if (supplyTypeWords[type]) return supplyTypeWords[type]
+  const words = type.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/** A short name for a supply where space is tight: the colour of toner or ink, otherwise the part. */
+export function supplyShortLabel(s: Pick<Supply, 'colorant' | 'type'>): string {
+  const colourIsTheName = !s.type || ['toner', 'tonerCartridge', 'ink', 'inkCartridge', 'unknown', 'other'].includes(s.type)
+  if (colourIsTheName && s.colorant) return s.colorant.charAt(0).toUpperCase() + s.colorant.slice(1)
+  return supplyTypeLabel(s.type)
+}
+
+/** A message long enough to swamp its row: the start of it, with the rest one click away. */
+export function LongMessage({ text, limit = 140 }: { text: string; limit?: number }) {
+  if (text.length <= limit) return <>{text}</>
+  return <details className="long-msg" onClick={(e) => e.stopPropagation()}><summary>{text.slice(0, limit).trimEnd()}…</summary>{text}</details>
+}
+
 /** Effective "remaining" percent: receptacles that fill up are inverted. */
 export function remaining(s: Pick<Supply, 'percent' | 'class'>): number | null {
   if (s.percent === null) return null

@@ -110,7 +110,10 @@ func Evaluate(d *model.Device, res *engine.PollResult, failures int, t Threshold
 	}
 
 	// Paper: raise a fleet-level "no paper" only when every input tray of a media
-	// size is empty; per-tray state stays visible on the device (spec §8.3).
+	// size is empty; per-tray state stays visible on the device (spec §8.3). "Any"
+	// is not a size (#54): those trays and the ones with no known size raise only
+	// when every eligible tray of the printer is empty.
+	everyTrayEmpty := true
 	bySize := map[string][]model.Tray{}
 	for _, t := range res.Trays {
 		if t.Kind != "input" || t.Type == "sheetFeedManual" {
@@ -120,12 +123,18 @@ func Evaluate(d *model.Device, res *engine.PollResult, failures int, t Threshold
 		if size == "" {
 			size = t.MediaName
 		}
-		if size == "" {
+		if size == "" || strings.EqualFold(size, "any") {
 			size = "*"
+		}
+		if t.Status != "empty" {
+			everyTrayEmpty = false
 		}
 		bySize[size] = append(bySize[size], t)
 	}
 	for size, trays := range bySize {
+		if size == "*" && !everyTrayEmpty {
+			continue
+		}
 		allEmpty := len(trays) > 0
 		for _, t := range trays {
 			if t.Status != "empty" {

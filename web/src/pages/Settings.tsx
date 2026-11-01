@@ -140,6 +140,7 @@ function Notifications({ isAdmin }: { isAdmin: boolean }) {
   const drain = async () => { setMsg(''); try { await api.post('/api/notifications/drain', {}); setMsg('Outbox drained.'); load() } catch (e) { setMsg((e as Error).message) } }
   return (
     <>
+      {!isAdmin && <ReadOnlyNote />}
       <Card title="Channels" id="chn" sub="configured in the server's JSON config (notifiers); secrets stay in environment variables">
         {!s ? <div className="cb cap">Loading…</div> : s.notifiers.length === 0 ? <div className="cb"><EmptyState icon={<Ic.bell size={20} />} title="No channels configured" text="Add webhook (Slack, Teams, Discord, generic) or SMTP notifiers to the config file. See deploy/printmarshal.example.json." /></div> : (
           <div className="tw"><table className="tbl" style={{ minWidth: 600 }}><thead><tr><th>Channel</th><th>Type</th><th>Last delivery</th>{isAdmin && <th />}</tr></thead><tbody>
@@ -167,6 +168,10 @@ function Notifications({ isAdmin }: { isAdmin: boolean }) {
   )
 }
 
+function ReadOnlyNote() {
+  return <Banner tone="info"><b style={{ color: 'var(--info)' }}>Read-only for your role.</b> You can see these settings. Changing them needs the admin role.</Banner>
+}
+
 function System({ isAdmin }: { isAdmin: boolean }) {
   const [s, setS] = useState<RuntimeSettings | null>(null)
   const [drivers, setDrivers] = useState<{ name: string; capabilities: string[] }[]>([])
@@ -181,6 +186,7 @@ function System({ isAdmin }: { isAdmin: boolean }) {
   const num = (k: keyof ConsumableSettings) => (e: React.ChangeEvent<HTMLInputElement>) => cs && setCs({ ...cs, [k]: Math.max(0, Number(e.target.value) || 0) })
   return (
     <>
+      {!isAdmin && <ReadOnlyNote />}
       <ScheduleCard s={s} isAdmin={isAdmin} onSaved={setS} />
       <Card title="Drivers & plugins" id="drv" sub="vendor plugins register against the same driver interface; the core has no vendor-specific code">
         <div className="tw"><table className="tbl"><thead><tr><th>Driver</th><th>Capabilities</th></tr></thead><tbody>{drivers.map((d) => <tr key={d.name}><td style={{ fontWeight: 500 }}>{d.name}</td><td style={{ whiteSpace: 'normal' }}>{d.capabilities.map((c) => <Tag key={c}>{c.replace('_', ' ')}</Tag>)}</td></tr>)}</tbody></table></div>

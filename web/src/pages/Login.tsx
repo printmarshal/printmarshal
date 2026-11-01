@@ -17,6 +17,7 @@ export default function Login({ onLogin }: { onLogin: (u: User) => void }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(initialError)
+  const [missing, setMissing] = useState<{ username?: boolean; password?: boolean }>({})
   const [busy, setBusy] = useState(false)
   const [providers, setProviders] = useState<Provider[]>([])
   useEffect(() => {
@@ -29,15 +30,22 @@ export default function Login({ onLogin }: { onLogin: (u: User) => void }) {
   const redirect = providers.filter((p) => p.method === 'redirect')
   const password_ = providers.filter((p) => p.method === 'password')
   const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setBusy(true); setError('')
-    try { const r = await api.login(username, password); onLogin(r.user) } catch (err) { setError((err as Error).message || 'login failed') } finally { setBusy(false) }
+    e.preventDefault(); setError('')
+    const need = { username: !username.trim(), password: !password }
+    setMissing(need)
+    if (need.username || need.password) return
+    setBusy(true)
+    try { const r = await api.login(username, password); onLogin(r.user) } catch (err) {
+      const m = (err as Error).message
+      setError(m === 'invalid credentials' ? 'Wrong username or password.' : m || 'Sign-in failed.')
+    } finally { setBusy(false) }
   }
   const formHint = password_.length
     ? `or use your ${password_.map((p) => p.name).join(' / ')} or local account`
     : 'or use a local account'
   return (
     <div className="login">
-      <form onSubmit={submit} aria-label="Sign in">
+      <form onSubmit={submit} aria-label="Sign in" noValidate>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Mark size={30} /><b style={{ fontSize: 18, display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>Sign in to <Wordmark size={18} /></b></div>
         <span className="cap mono">{location.host} · self-hosted</span>
         {redirect.length > 0 && (
@@ -49,9 +57,11 @@ export default function Login({ onLogin }: { onLogin: (u: User) => void }) {
           </>
         )}
         <label className="cap" htmlFor="un">Username</label>
-        <input className="fin" id="un" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoFocus={redirect.length === 0} />
+        <input className="fin" id="un" value={username} onChange={(e) => { setUsername(e.target.value); setMissing((m) => ({ ...m, username: false })) }} autoComplete="username" autoFocus={redirect.length === 0} aria-invalid={missing.username || undefined} aria-describedby={missing.username ? 'un-err' : undefined} />
+        {missing.username && <div className="error small" id="un-err">Enter your username.</div>}
         <label className="cap" htmlFor="pw">Password</label>
-        <input className="fin" id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+        <input className="fin" id="pw" type="password" value={password} onChange={(e) => { setPassword(e.target.value); setMissing((m) => ({ ...m, password: false })) }} autoComplete="current-password" aria-invalid={missing.password || undefined} aria-describedby={missing.password ? 'pw-err' : undefined} />
+        {missing.password && <div className="error small" id="pw-err">Enter your password.</div>}
         {error && <div className="error small" role="alert">{error}</div>}
         <Btn type="submit" variant={redirect.length ? undefined : 'pri'} disabled={busy} style={{ marginTop: 4 }}>{busy ? 'Signing in…' : 'Sign in'}</Btn>
         {password_.length > 0 && redirect.length === 0 && (

@@ -27,6 +27,9 @@ export function isSecret(def?: CatalogDef): boolean { return def?.type === 'secr
 export function fmtValue(v: unknown, def?: CatalogDef): string {
   if (isSecret(def) || v === '<redacted>') return 'never displayed'
   if (v === undefined || v === null || v === '') return 'not set'
+  // RFC 3805 prtInputDefaultIndex: -1 is no default input for the printer as a whole.
+  if (def?.key === 'trays.defaultTray' && String(v) === '-1') return 'No default set on the printer'
+  if (def?.key === 'trays.defaultTray' && String(v) === '-2') return 'Unknown'
   if (typeof v === 'boolean') return v ? 'On' : 'Off'
   if (Array.isArray(v)) return v.length ? v.map(String).join(', ') : 'empty list'
   if (typeof v === 'object') return JSON.stringify(v)
