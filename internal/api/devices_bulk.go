@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"printmarshal/internal/model"
 	"printmarshal/internal/store"
@@ -15,9 +16,7 @@ import (
 // bulk edit is the operator speaking for all of them at once.
 
 const (
-	bulkMaxDevices  = 2000
-	bulkMaxLocation = 200
-	bulkMaxNote     = 2000
+	bulkMaxDevices = 2000
 )
 
 type bulkPatchBody struct {
@@ -67,8 +66,8 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.Set.Location != nil {
 		loc := strings.TrimSpace(*body.Set.Location)
-		if len(loc) > bulkMaxLocation {
-			writeErr(w, http.StatusBadRequest, fmt.Sprintf("location is over %d characters", bulkMaxLocation))
+		if len(loc) > model.MaxLocation {
+			writeErr(w, http.StatusBadRequest, fmt.Sprintf("location is over %d characters", model.MaxLocation))
 			return
 		}
 		body.Set.Location = &loc
@@ -79,8 +78,8 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadRequest, "appendNote is empty")
 			return
 		}
-		if len(note) > bulkMaxNote {
-			writeErr(w, http.StatusBadRequest, fmt.Sprintf("appendNote is over %d characters", bulkMaxNote))
+		if len(note) > model.MaxNote {
+			writeErr(w, http.StatusBadRequest, fmt.Sprintf("appendNote is over %d characters", model.MaxNote))
 			return
 		}
 		body.Set.AppendNote = &note
@@ -149,6 +148,17 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 			patch.Notes = &v
 			changed = append(changed, "notes")
 		}
+		// Record "operator" as the source of every field the patch writes (R11).
+		now := time.Now().UTC()
+		for _, f := range changed {
+			if f == "displayName" && patch.DisplayName == nil {
+				continue // renamed by the lookup's DNS sync, which records its own source
+			}
+			if patch.FieldSources == nil {
+				patch.FieldSources = map[string]model.FieldSource{}
+			}
+			patch.FieldSources[f] = model.FieldSource{Source: model.SourceOperator, At: now}
+		}
 		res := bulkResult{ID: d.ID, Changed: changed}
 		if len(changed) == 0 {
 			res.Changed = []string{}
@@ -162,7 +172,7 @@ func (s *Server) bulkPatchDevices(w http.ResponseWriter, r *http.Request) {
 		}
 		// A rename done by the lookup alone leaves nothing to patch.
 		upd := d
-		if patch != (store.DevicePatch{}) {
+		if !patch.Empty() {
 			var err error
 			if upd, err = s.Store.PatchDevice(r.Context(), d.ID, patch); err != nil {
 				s.fail(w, err)

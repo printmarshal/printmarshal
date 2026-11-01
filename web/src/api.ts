@@ -8,8 +8,8 @@ export class ApiError extends Error {
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    headers: body !== undefined && !(body instanceof FormData) ? { 'Content-Type': 'application/json' } : undefined,
+    body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
     credentials: 'same-origin',
   })
   if (res.status === 401) {
@@ -31,6 +31,8 @@ export const api = {
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   del: <T>(path: string) => request<T>('DELETE', path),
+  /** POST a multipart form; the browser sets the boundary header. */
+  upload: <T>(path: string, form: FormData) => request<T>('POST', path, form),
   login: (username: string, password: string) => request<{ user: User }>('POST', '/api/auth/login', { username, password }),
   logout: () => request<unknown>('POST', '/api/auth/logout'),
   me: () => request<User>('GET', '/api/auth/me'),
@@ -41,6 +43,14 @@ export function fmtTime(s?: string | null): string {
   const d = new Date(s)
   if (isNaN(d.getTime()) || d.getFullYear() < 2000) return '—'
   return d.toLocaleString()
+}
+
+/** Short day and month, e.g. "31 Oct", in the browser's locale. */
+export function fmtDay(s?: string | null): string {
+  if (!s) return ''
+  const d = new Date(s)
+  if (isNaN(d.getTime()) || d.getFullYear() < 2000) return ''
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
 export function ago(s?: string | null): string {

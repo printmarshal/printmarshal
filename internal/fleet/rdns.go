@@ -100,6 +100,7 @@ func (s *Service) RefreshHostname(ctx context.Context, dev *model.Device) (*mode
 		synced, err := s.Store.PatchDevice(ctx, updated.ID, store.DevicePatch{
 			DisplayName:       &dnsName,
 			DisplayNameSource: &src,
+			FieldSources:      map[string]model.FieldSource{"displayName": {Source: model.SourceDNS, At: now}},
 		})
 		if err != nil {
 			return updated, err
@@ -121,6 +122,37 @@ func (s *Service) RefreshHostname(ctx context.Context, dev *model.Device) (*mode
 		})
 	}
 	return updated, nil
+}
+
+// LookupHostAddress resolves a hostname to one address with a forward
+// lookup through the configured DNS server, bounded by the reverse-DNS
+// timeout; an IPv4 address is preferred. The CSV import uses it for rows
+// that name a hostname instead of an address; it contacts no device.
+func (s *Service) LookupHostAddress(ctx context.Context, host string) (string, bool) {
+	host = strings.TrimSuffix(strings.TrimSpace(host), ".")
+	if host == "" {
+		return "", false
+	}
+	cfg := s.rdnsConfig(ctx)
+	timeout := cfg.Timeout.D()
+	if timeout <= 0 {
+		timeout = time.Second
+	}
+	lctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	addrs, err := s.resolver(cfg.Server).LookupHost(lctx, host)
+	if err != nil || len(addrs) == 0 {
+		return "", false
+	}
+	for _, a := range addrs {
+		if ip := net.ParseIP(strings.TrimSpace(a)); ip != nil && ip.To4() != nil {
+			return ip.String(), true
+		}
+	}
+	if ip := net.ParseIP(strings.TrimSpace(addrs[0])); ip != nil {
+		return ip.String(), true
+	}
+	return "", false
 }
 
 // refreshHostname wraps RefreshHostname for discovery/poll flows where store

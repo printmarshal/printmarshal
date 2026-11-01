@@ -44,6 +44,59 @@ Server
   and `bulkPatchDevices` set `FieldSources[field] = {operator, now}` for each field they change;
   the DNS sync rename in `fleet/rdns.go` sets `displayName → dns`.
 - `internal/api/export.go`: no change, but the import's alias test reads its header.
+  *Built:* the device export's header is written by `exportDevicesCSV` in `internal/api/server.go`
+  (`export.go` is the SIEM export). `importcsv.ExportHeader` keeps it as a literal list;
+  `importcsv`'s alias test checks every column is known or listed in `ExportIgnored`, and
+  `internal/api/import_test.go` checks the list equals the header the export writes.
+- *Built, step 1:* no asset-tag limit existed in `internal/api`; `internal/model/limits.go` holds
+  `MaxLocation` and `MaxNote` (moved from the bulk edit, same values) plus `MaxAssetTag` and
+  `MaxDisplayName` (200 each, applied by the import only). `Lookup.InScope` is two methods,
+  `DeviceInScope` and `GroupInScope`. A state the lifecycle cannot reach from the device's current
+  state (a new device is "discovered") is held back with "cannot move from X to Y" rather than
+  skipping the row; a scoped caller's create row needs a `group` cell in its scope.
+- *Built, step 2:* `DeviceFilter.Serials` is not added: the import's lookup loads the inventory
+  once per plan (devices including decommissioned, and groups) and matches in memory.
+  `DevicePatch.Empty()` replaces the bulk edit's `patch != (DevicePatch{})`, which no longer
+  compiles once the patch holds a map. A field with a recorded source counts as set by someone
+  for the held-back rule (narrowed by review fix 3, below), so DNS sync turned off or a state left
+  at "discovered" on purpose by an operator is kept too. Migration 9 on both stores (SQLite `TEXT`, PostgreSQL `JSONB`, default `'{}'`).
+- *Built, step 3:* the parsed file waits in memory (`Server.imports`, under a random key in the
+  job's params) until the job takes it, so no file content is persisted; a restart fails the job
+  as usual. The job type is registered in `Handler()`, which runs after the scheduler has started,
+  so `jobs.Runner` now guards its handler map; the runner also counts a result of status `failed`
+  as a failure, so an import with failed rows ends `partial`. `fleet.LookupHostAddress` is new
+  (the forward lookup; the resolver is unexported). `peekBody` in `scope.go` truncated any body
+  over 1 MB for a scoped principal; it now puts the whole body back. `Server.importIdentify` is the
+  test seam that keeps tests from probing. Field sources are also written by `renameDevices` and
+  `setDeviceState`, the other two operator write paths, beyond the plan's list. There is no
+  per-job cancel API yet; the job stops when the runner's context ends (shutdown), writing one
+  result that says where it stopped (`outcome: cancelled`) rather than one per remaining row.
+- *Built, review fix 1:* a printer that does not answer is still created: on an identification
+  error the row makes an address-only record through `UpsertDevice`, with the file's fields and
+  sources, and reports `created`. `fleet.Service.PollDevice` identifies a record with no make,
+  model, serial or capability profile before polling it, through the read-only `Engine.Identify`
+  with the record's own credentials; a later discovery merges by address in `findByIdentity`.
+  If the printer turns out to be recorded already under another address (matched by serial),
+  that record takes the address and the address-only one stays for an administrator to remove.
+- *Built, review fix 2:* the job identifies the create rows first (eight at a time, each bounded by
+  60 seconds), then applies every row in file order on one goroutine, so results keep row order
+  and the row writes are sequential. `Job.Done` therefore stays at 0 during identification. A stop
+  ends new identifications; a printer already identified still gets its row applied, the job ends
+  `failed` with "stopped at row N" as its error, and the audit entry says `cancelled`.
+- *Built, review fix 3:* hold-back goes by source, each with its own reason: `import` is not held
+  back, so an import may overwrite its own earlier value; `operator` says "set by an operator";
+  `dns` says "kept in sync with DNS"; a non-empty value with no source says "already has a value",
+  since it may be an old operator edit or seeded from `sysLocation`.
+- *Built, review fix 4:* a `displayName` value equal to the device's current `Name()` is no change,
+  so re-importing an export does not freeze a derived name. Create rows are unaffected.
+- *Built, review fix 5:* `authorize` refuses a group-scoped principal's JSON body over the 1 MiB
+  peek with 413 and an `auth.denied` entry, since the probe cannot have seen all of it.
+- *Built, not in the spec's wording:* skip reasons carry no "row N:" prefix (R4's example), since
+  the preview has a row column and job results carry the row in `data`. A non-IP address that
+  matches a recorded device is accepted, since a device discovered by name is recorded under it.
+  Joining a group writes a `group.members` audit entry beside R13's. R14: there is no per-job
+  cancel API yet, so only a shutdown stops the job; where it stopped is a result with `outcome:
+  cancelled`, an outcome beyond the plan JSON's create, update and skip.
 
 Web
 - `web/src/components/ImportDialog.tsx` (new): file input, "Download template" (a header-only
@@ -111,3 +164,12 @@ route shape in the spec.
   minute, the audit trail has the `devices.import` entry with counts and no cell values, and the
   runs list shows the import beside discovery runs. Screenshots of the preview, the results and
   one device page.
+
+## Departures found in verification
+- R15: the replace checkboxes sit in a row above the preview table, not in its header, and leave out Group, since a row only ever joins a group. "Import CSV…" sits in the page header beside "Past runs", because "Start discovery" is a full-width submit inside the run-setup form. "Past runs" now opens all jobs, since the jobs page filters on one type and a discovery filter hid imports.
+- R11: the date follows the browser locale like the rest of the console, so "Oct 31" on en-US.
+- "No file content is persisted" holds for the file itself, which stays in memory until the job takes it. Job results do keep what each row needs to explain itself: the address, and in a skip reason the unknown group or unresolved hostname. Results are readable by viewers, like every job result.
+- `identifyMethods` reads `["import"]` on a record that has not answered yet and gains `snmp` once it does.
+- The runs list shows a dash under "Found" for imports; the run's own panel has created, updated, skipped and failed counts.
+- Known limit: `Job.Done` stays at 0 while rows are being identified, so a large import shows no progress until the apply starts.
+- Known limit: a printer that answers later and is already recorded by serial at another address moves that record to the new address and leaves the address-only record behind for an administrator to remove, with a warning logged at each poll.

@@ -126,6 +126,10 @@ type Device struct {
 	Location          string `json:"location"`
 	AssetTag          string `json:"assetTag"`
 	Notes             string `json:"notes"`
+	// FieldSources records, per operator field, where its value came from
+	// and when (spec decision 4 of intent/csv-import). Read-only outside the
+	// writers named on the Source constants.
+	FieldSources map[string]FieldSource `json:"fieldSources,omitempty"`
 
 	State LifecycleState `json:"state"`
 
@@ -145,6 +149,21 @@ type Device struct {
 	CreatedAt  time.Time  `json:"createdAt"`
 	UpdatedAt  time.Time  `json:"updatedAt"`
 }
+
+// FieldSource says where the value of one operator field came from. It is
+// deliberately small and generic (a source and a time) so later provenance
+// work extends it without changing its shape.
+type FieldSource struct {
+	Source string    `json:"source"` // SourceImport | SourceOperator | SourceDNS | "group:<id>"
+	At     time.Time `json:"at"`
+}
+
+// Field sources.
+const (
+	SourceImport   = "import"   // a CSV import
+	SourceOperator = "operator" // an edit through the API (one device, bulk or rename)
+	SourceDNS      = "dns"      // the DNS-sync rename
+)
 
 // Decommissioned reports whether the device must not be contacted.
 func (d *Device) Decommissioned() bool { return d.State == StateDecommissioned }

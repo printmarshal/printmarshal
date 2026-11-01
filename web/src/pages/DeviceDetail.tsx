@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { api, ago, fmtTime } from '../api'
+import { api, ago, fmtDay, fmtTime } from '../api'
 import type { Alert, AuditEntry, Consumable, Device, InstalledSupply, Sample, StockEvent, Tray, User } from '../types'
 import { decommissionedReason, deviceName, isDecommissioned, makeModel } from '../types'
 import { useEvents } from '../ws'
@@ -292,6 +292,26 @@ function SuppliesCard({ d, canOperate, hist }: { d: Device; canOperate: boolean;
   )
 }
 
+/** Where an operator field's value came from, when it was not typed by an operator. */
+function sourceNote(d: Device, field: string): string {
+  const fs = d.fieldSources?.[field]
+  if (!fs) return ''
+  if (fs.source === 'import') { const day = fmtDay(fs.at); return day ? `from import, ${day}` : 'from import' }
+  if (fs.source === 'dns') return 'from DNS'
+  return ''
+}
+
+function SourceNote({ d, field }: { d: Device; field: string }) {
+  const note = sourceNote(d, field)
+  return note ? <span className="cap" style={{ fontSize: 11 }}>{note}</span> : null
+}
+
+/** An operator input with its source note underneath. */
+function WithSource({ d, field, children }: { d: Device; field: string; children: React.ReactNode }) {
+  if (!sourceNote(d, field)) return <>{children}</>
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>{children}<SourceNote d={d} field={field} /></div>
+}
+
 function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; onSaved: (d: Device) => void }) {
   const [form, setForm] = useState({ displayName: d.displayName, dnsSync: !!d.dnsSync, location: d.location, assetTag: d.assetTag, notes: d.notes, webUrl: d.webUrlOverride || '' })
   const [rdnsOff, setRdnsOff] = useState(false)
@@ -329,7 +349,7 @@ function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; on
           <label className="cap" htmlFor="f-name">Display name</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <input className="fin" id="f-name" value={form.displayName} disabled={!canEdit} placeholder={d.sysName || d.hostname || d.model} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
-            {d.displayNameSource && <span className="cap" style={{ fontSize: 11 }}>Set from {d.displayNameSource}</span>}
+            {sourceNote(d, 'displayName') ? <SourceNote d={d} field="displayName" /> : d.displayNameSource && <span className="cap" style={{ fontSize: 11 }}>Set from {d.displayNameSource}</span>}
             {d.dnsNameChanged && (
               <div style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
                 <Pill tone="warn" xs>DNS name changed</Pill>
@@ -346,14 +366,15 @@ function IdentityCard({ d, canEdit, onSaved }: { d: Device; canEdit: boolean; on
               <input className="cbx" type="checkbox" checked={form.dnsSync} disabled={!canEdit} onChange={(e) => setForm({ ...form, dnsSync: e.target.checked })} />
               Keep display name synced with DNS name
             </label>
+            <SourceNote d={d} field="dnsSync" />
             {rdnsOff && <span className="cap" style={{ fontSize: 11 }}>Reverse DNS is off, so names are looked up only when you press Refresh. {canEdit ? <Link to="/settings">Turn it on in Settings</Link> : 'An administrator can turn it on in Settings'}.</span>}
           </div>
           <Mk op />
         </div>
-        <div className="frow"><label className="cap" htmlFor="f-loc">Location</label><input className="fin" id="f-loc" value={form.location} disabled={!canEdit} onChange={(e) => setForm({ ...form, location: e.target.value })} /><Mk op /></div>
-        <div className="frow"><label className="cap" htmlFor="f-web">Web page</label><input className="fin mono" id="f-web" type="url" value={form.webUrl} disabled={!canEdit} placeholder={d.webUrl ? `${d.webUrl} (detected)` : 'https://… (none detected)'} onChange={(e) => setForm({ ...form, webUrl: e.target.value })} /><Mk op /></div>
-        <div className="frow"><label className="cap" htmlFor="f-tag">Asset tag</label><input className="fin mono" id="f-tag" value={form.assetTag} disabled={!canEdit} onChange={(e) => setForm({ ...form, assetTag: e.target.value })} /><Mk op /></div>
-        <div className="frow" style={{ alignItems: 'start' }}><label className="cap" htmlFor="f-notes" style={{ paddingTop: 6 }}>Notes</label><textarea className="fin" id="f-notes" rows={2} value={form.notes} disabled={!canEdit} onChange={(e) => setForm({ ...form, notes: e.target.value })} /><Mk op /></div>
+        <div className="frow"><label className="cap" htmlFor="f-loc">Location</label><WithSource d={d} field="location"><input className="fin" id="f-loc" value={form.location} disabled={!canEdit} onChange={(e) => setForm({ ...form, location: e.target.value })} /></WithSource><Mk op /></div>
+        <div className="frow"><label className="cap" htmlFor="f-web">Web page</label><WithSource d={d} field="webUrl"><input className="fin mono" id="f-web" type="url" value={form.webUrl} disabled={!canEdit} placeholder={d.webUrl ? `${d.webUrl} (detected)` : 'https://… (none detected)'} onChange={(e) => setForm({ ...form, webUrl: e.target.value })} /></WithSource><Mk op /></div>
+        <div className="frow"><label className="cap" htmlFor="f-tag">Asset tag</label><WithSource d={d} field="assetTag"><input className="fin mono" id="f-tag" value={form.assetTag} disabled={!canEdit} onChange={(e) => setForm({ ...form, assetTag: e.target.value })} /></WithSource><Mk op /></div>
+        <div className="frow" style={{ alignItems: 'start' }}><label className="cap" htmlFor="f-notes" style={{ paddingTop: 6 }}>Notes</label><WithSource d={d} field="notes"><textarea className="fin" id="f-notes" rows={2} value={form.notes} disabled={!canEdit} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></WithSource><Mk op /></div>
         {msg && <div className="cap" style={{ margin: '0 16px 4px 146px' }}>{msg}</div>}
         <div style={{ height: 1, background: 'var(--border)', margin: '6px 16px' }} />
         <Row label="Make / model" op={false}><span className="mono">{makeModel(d)}</span></Row>

@@ -61,6 +61,13 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) bool {
 		writeErr(w, http.StatusForbidden, "a group-scoped principal cannot manage groups, users or tokens")
 		return false
 	}
+	if jsonOverPeek(r) {
+		// The probe below cannot have seen all of it. Handlers cap JSON at the
+		// same size today; the check does not rely on every future one doing so.
+		s.security(r.Context(), r, "auth.denied", u.Username, r.Method+" "+path+" has a JSON body larger than the group scope check reads", "denied")
+		writeErr(w, http.StatusRequestEntityTooLarge, "the JSON body is over 1 MiB, more than the group scope check reads")
+		return false
+	}
 	if id := devicePathID(path); id != "" && !s.allowedDevice(r.Context(), id) {
 		return s.denyScope(w, r, u, path)
 	}
@@ -196,22 +203,53 @@ func devicePathID(path string) string {
 // peekBody returns the body of a POST/PUT/PATCH request when it looks like a
 // JSON value, and puts it back for the handler. The handlers decode bodies
 // without looking at Content-Type, so the scope check must not either
-// (audit NV-04); uploads and other non-JSON bodies are left alone.
+// (audit NV-04); uploads and other non-JSON bodies are left alone. The body
+// is put back whole: what was peeked, then the rest unread, so an upload
+// larger than the peek (the CSV import) reaches its handler intact.
 func peekBody(r *http.Request) []byte {
-	if r.Body == nil || r.Body == http.NoBody || (r.Method != http.MethodPost && r.Method != http.MethodPut && r.Method != http.MethodPatch) {
-		return nil
-	}
-	b, err := io.ReadAll(io.LimitReader(r.Body, 1<<20+1))
-	_ = r.Body.Close()
-	r.Body = io.NopCloser(bytes.NewReader(b))
-	if err != nil {
-		return nil
-	}
+	b := peekRaw(r)
 	t := bytes.TrimLeft(b, " \t\r\n")
 	if len(t) == 0 || (t[0] != '{' && t[0] != '[') {
 		return nil
 	}
 	return b
+}
+
+// bodyPeekLimit is how much of a request body the scope check reads.
+const bodyPeekLimit = 1 << 20
+
+// peekRaw reads up to one byte over bodyPeekLimit of a POST/PUT/PATCH body
+// and puts the whole body back.
+func peekRaw(r *http.Request) []byte {
+	if r.Body == nil || r.Body == http.NoBody || (r.Method != http.MethodPost && r.Method != http.MethodPut && r.Method != http.MethodPatch) {
+		return nil
+	}
+	orig := r.Body
+	b, err := io.ReadAll(io.LimitReader(orig, bodyPeekLimit+1))
+	r.Body = rejoinedBody{io.MultiReader(bytes.NewReader(b), orig), orig}
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+// jsonOverPeek reports whether a body runs past the peek and looks like JSON,
+// so that the probe cannot have seen all of it. Nothing but whitespace in the
+// peek counts: JSON may follow it. A multipart upload starts with its
+// boundary, so it is unaffected.
+func jsonOverPeek(r *http.Request) bool {
+	b := peekRaw(r)
+	if len(b) <= bodyPeekLimit {
+		return false
+	}
+	t := bytes.TrimLeft(b, " \t\r\n")
+	return len(t) == 0 || t[0] == '{' || t[0] == '['
+}
+
+// rejoinedBody reads the peeked bytes and then the rest of the original body.
+type rejoinedBody struct {
+	io.Reader
+	io.Closer
 }
 
 // bodyTargets peeks at a JSON request body for device and group references

@@ -23,7 +23,10 @@ export interface Device {
   severity?: Severity | 'offline'
   status?: Status; supplies: Supply[]; trays: Tray[]; counters?: Counters
   firstSeen: string; lastSeen: string; lastPolled?: string; createdAt: string; updatedAt: string
+  /** Where an operator field's value came from: field → source ("import", "operator", "dns", …) and time. */
+  fieldSources?: Record<string, FieldSource>
 }
+export interface FieldSource { source: 'import' | 'operator' | 'dns' | (string & {}); at: string }
 export interface Alert {
   id: string; deviceId: string; severity: Severity; source: string; key: string; description: string
   raisedAt: string; updatedAt: string; clearedAt?: string; ackedAt?: string; ackedBy?: string

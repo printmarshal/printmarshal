@@ -396,6 +396,63 @@ func testIdentifyErrorsFollowLatestScan(t *testing.T, s testStore) {
 	}
 }
 
+// Field sources (intent/csv-import, spec decision 4): a patch merges its
+// sources into the map, never replaces it; a scan leaves the map alone; the
+// list and the single read return the same map.
+func testFieldSourcesRoundTrip(t *testing.T, s testStore) {
+	ctx := context.Background()
+	d, _, err := s.UpsertDevice(ctx, &model.Identity{Address: "10.9.0.1", Serial: "FS1", Method: "snmp"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.FieldSources) != 0 {
+		t.Fatalf("new device has field sources: %v", d.FieldSources)
+	}
+	at1 := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
+	at2 := at1.Add(time.Hour)
+	loc, name := "Floor 2", "Front desk"
+	if _, err := s.PatchDevice(ctx, d.ID, DevicePatch{Location: &loc, FieldSources: map[string]model.FieldSource{"location": {Source: model.SourceImport, At: at1}}}); err != nil {
+		t.Fatal(err)
+	}
+	d, err = s.PatchDevice(ctx, d.ID, DevicePatch{DisplayName: &name, FieldSources: map[string]model.FieldSource{"displayName": {Source: model.SourceOperator, At: at2}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	same := func(got map[string]model.FieldSource, want map[string]model.FieldSource) bool {
+		if len(got) != len(want) {
+			return false
+		}
+		for k, w := range want {
+			if g, ok := got[k]; !ok || g.Source != w.Source || !g.At.Equal(w.At) {
+				return false
+			}
+		}
+		return true
+	}
+	want := map[string]model.FieldSource{"location": {Source: model.SourceImport, At: at1}, "displayName": {Source: model.SourceOperator, At: at2}}
+	if !same(d.FieldSources, want) {
+		t.Fatalf("after two patches: %v", d.FieldSources)
+	}
+	// A patch without sources keeps them; one with a source replaces that key only.
+	notes := "n"
+	if d, err = s.PatchDevice(ctx, d.ID, DevicePatch{Notes: &notes}); err != nil || !same(d.FieldSources, want) {
+		t.Fatalf("patch without sources: %v %v", d.FieldSources, err)
+	}
+	d, err = s.PatchDevice(ctx, d.ID, DevicePatch{FieldSources: map[string]model.FieldSource{"location": {Source: model.SourceDNS, At: at2}}})
+	want["location"] = model.FieldSource{Source: model.SourceDNS, At: at2}
+	if err != nil || !same(d.FieldSources, want) || d.Location != loc {
+		t.Fatalf("source-only patch: %v %q %v", d.FieldSources, d.Location, err)
+	}
+	// A scan of the same printer leaves them alone.
+	if d, _, err = s.UpsertDevice(ctx, &model.Identity{Address: "10.9.0.1", Serial: "FS1", Model: "M1", Method: "snmp"}, nil, nil); err != nil || !same(d.FieldSources, want) {
+		t.Fatalf("after a scan: %v %v", d.FieldSources, err)
+	}
+	list, err := s.ListDevices(ctx, DeviceFilter{IDs: []string{d.ID}})
+	if err != nil || len(list) != 1 || !same(list[0].FieldSources, want) {
+		t.Fatalf("listed: %v %v", list, err)
+	}
+}
+
 // #47: a device's severity is the worse of what the printer reports and its
 // active operating alerts, in every read: the device, the filter, the sort and
 // the dashboard's counts.

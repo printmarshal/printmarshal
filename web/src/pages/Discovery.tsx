@@ -5,6 +5,14 @@ import type { Credential, Job, JobResult, User } from '../types'
 import { useEvents } from '../ws'
 import { Ic } from '../components/icons'
 import { Btn, Card, JobBar, JobPill, Pill, Tag } from '../components/ui'
+import { ImportDialog } from '../components/ImportDialog'
+
+const importStatus: Record<string, { tone: 'ok' | 'info' | 'off' | 'crit'; label: string }> = {
+  created: { tone: 'ok', label: 'Created' },
+  updated: { tone: 'info', label: 'Updated' },
+  skipped: { tone: 'off', label: 'Skipped' },
+  failed: { tone: 'crit', label: 'Failed' },
+}
 
 export default function Discovery({ user }: { user: User }) {
   const [runs, setRuns] = useState<Job[]>([])
@@ -18,6 +26,7 @@ export default function Discovery({ user }: { user: User }) {
   const [creds, setCreds] = useState<Credential[]>([])
   const [settings, setSettings] = useState<{ discovery?: { maxAddresses?: number; targets?: string[] }; poll?: { concurrency?: number } } | null>(null)
   const [msg, setMsg] = useState('')
+  const [importing, setImporting] = useState(false)
   const navigate = useNavigate()
   const canOperate = user.role !== 'viewer'
 
@@ -26,7 +35,7 @@ export default function Discovery({ user }: { user: User }) {
   }, [])
   useEffect(() => { load(); api.get('/api/settings').then((s) => setSettings(s as typeof settings)).catch(() => {}); if (canOperate) api.get<Credential[]>('/api/credentials').then(setCreds).catch(() => {}) }, [load, canOperate])
   useEffect(() => { if (!selected) { setResults([]); return } api.get<{ job: Job; results: JobResult[] }>(`/api/jobs/${selected}`).then((r) => setResults(r.results)).catch(() => {}) }, [selected, runs])
-  useEvents((e) => { if (e.type === 'job.updated' && (e.data as Job).type === 'discovery') load() }, [load])
+  useEvents((e) => { if (e.type === 'job.updated' && ((e.data as Job).type === 'discovery' || (e.data as Job).type === 'import')) load() }, [load])
 
   const addTarget = (raw: string) => { const list = raw.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean); if (list.length) setTargets((t) => Array.from(new Set([...t, ...list]))); setInput('') }
   const start = async (e: React.FormEvent) => {
@@ -40,12 +49,15 @@ export default function Discovery({ user }: { user: User }) {
   const created = found.filter((r) => r.data?.created === true)
   const skipped = results.filter((r) => r.status === 'skipped')
   const errs = results.filter((r) => r.status === 'error')
+  const isImport = run?.type === 'import'
+  const imp = { created: results.filter((r) => r.status === 'created').length, updated: results.filter((r) => r.status === 'updated').length, skipped: results.filter((r) => r.status === 'skipped').length, failed: results.filter((r) => r.status === 'failed').length }
+  const rowOf = (r: JobResult) => (typeof r.data?.row === 'number' ? (r.data.row as number) : null)
 
   return (
     <>
       <div className="ph">
         <div><h1 className="h1">Discovery</h1><div className="cap">{run ? `Run ${run.id.slice(0, 8)} · ${run.status} · started ${ago(run.createdAt)} by ${run.createdBy}` : 'No runs yet'} · read-only — nothing is written to devices</div></div>
-        <div className="row"><Link className="btn sm" to="/jobs?type=discovery"><Ic.clock />Past runs</Link></div>
+        <div className="row">{canOperate && <Btn sm onClick={() => setImporting(true)}><Ic.upload />Import CSV…</Btn>}<Link className="btn sm" to="/jobs"><Ic.clock />Past runs</Link></div>
       </div>
       <div className="cols">
         <Card title="Run setup" id="cfg" sub={run?.status === 'running' ? 'a run is in progress' : undefined} style={{ flex: '1 1 360px', maxWidth: 460 }}>
@@ -85,9 +97,18 @@ export default function Discovery({ user }: { user: User }) {
             {!run ? <div className="cb cap">Start a run to see progress here.</div> : (
               <>
                 <div className="cb" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><JobPill status={run.status} /><span>Candidates identified</span></span><span className="num" style={{ fontWeight: 600 }}>{run.done} <span className="cap" style={{ fontWeight: 400 }}>/ {run.total}</span></span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><JobPill status={run.status} /><span>{isImport ? 'Rows processed' : 'Candidates identified'}</span></span><span className="num" style={{ fontWeight: 600 }}>{run.done} <span className="cap" style={{ fontWeight: 400 }}>/ {run.total}</span></span></div>
                   <JobBar done={run.done} failed={run.failed} total={run.total} running={run.status === 'running'} />
                 </div>
+                {isImport ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', borderTop: '1px solid var(--border)' }}>
+                  <div className="stat"><span className="cap">Rows</span><span className="v">{run.total}</span></div>
+                  <div className="stat"><span className="cap">Created</span><span className="v" style={{ color: 'var(--accent)' }}>{imp.created}</span></div>
+                  <div className="stat"><span className="cap">Updated</span><span className="v">{imp.updated}</span></div>
+                  <div className="stat"><span className="cap">Skipped</span><span className="v" style={{ color: 'var(--off)' }}>{imp.skipped}</span></div>
+                  <div className="stat"><span className="cap">Failed</span><span className="v" style={{ color: imp.failed ? 'var(--crit)' : undefined }}>{imp.failed}</span></div>
+                </div>
+                ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', borderTop: '1px solid var(--border)' }}>
                   <div className="stat"><span className="cap">Responding addresses</span><span className="v">{run.total}</span></div>
                   <div className="stat"><span className="cap">Printers identified</span><span className="v">{found.length}</span></div>
@@ -95,12 +116,29 @@ export default function Discovery({ user }: { user: User }) {
                   <div className="stat"><span className="cap">Already managed</span><span className="v">{found.length - created.length}</span></div>
                   <div className="stat"><span className="cap">Not printers</span><span className="v" style={{ color: 'var(--off)' }}>{skipped.length}</span></div>
                 </div>
-                <div className="cb" style={{ borderTop: '1px solid var(--border)' }}><div className="log" role="log" aria-label="Discovery log">{results.length === 0 ? 'waiting for the first result…' : results.slice().reverse().map((r) => <div key={r.id}>{new Date(r.at).toLocaleTimeString()} {r.address || '—'} · {(r.data?.methods as string[] | undefined)?.join('+') || ''} · {r.message}</div>)}</div></div>
+                )}
+                <div className="cb" style={{ borderTop: '1px solid var(--border)' }}><div className="log" role="log" aria-label={isImport ? 'Import log' : 'Discovery log'}>{results.length === 0 ? 'waiting for the first result…' : results.slice().reverse().map((r) => isImport
+                  ? <div key={r.id}>{new Date(r.at).toLocaleTimeString()} row {rowOf(r) ?? '—'} · {r.status} · {r.message}</div>
+                  : <div key={r.id}>{new Date(r.at).toLocaleTimeString()} {r.address || '—'} · {(r.data?.methods as string[] | undefined)?.join('+') || ''} · {r.message}</div>)}</div></div>
               </>
             )}
           </Card>
-          <Card title="Results" id="rs" right={<span className="cap num">{found.length} printers{skipped.length ? ` + ${skipped.length} not printers` : ''}{errs.length ? ` · ${errs.length} errors` : ''}</span>}>
-            {results.length === 0 ? <div className="cb cap">Nothing yet.</div> : (
+          <Card title="Results" id="rs" right={<span className="cap num">{isImport ? `${imp.created} created · ${imp.updated} updated · ${imp.skipped} skipped${imp.failed ? ` · ${imp.failed} failed` : ''}` : `${found.length} printers${skipped.length ? ` + ${skipped.length} not printers` : ''}${errs.length ? ` · ${errs.length} errors` : ''}`}</span>}>
+            {results.length === 0 ? <div className="cb cap">Nothing yet.</div> : isImport ? (
+              <div className="tw"><table className="tbl" style={{ minWidth: 560 }}>
+                <thead><tr><th className="r">Row</th><th>Outcome</th><th>Message</th></tr></thead>
+                <tbody>{results.slice().sort((a, b) => (rowOf(a) ?? 0) - (rowOf(b) ?? 0)).map((r) => {
+                  const st = importStatus[r.status] || { tone: 'off' as const, label: r.status }
+                  return (
+                    <tr key={r.id} className={r.deviceId ? 'clickable' : r.status === 'skipped' ? 'dim' : undefined} onClick={() => r.deviceId && navigate(`/devices/${r.deviceId}`)}>
+                      <td className="num r">{rowOf(r) ?? '—'}</td>
+                      <td><Pill tone={st.tone} xs>{st.label}</Pill></td>
+                      <td className="cap wrap">{r.message || '—'}{r.deviceId ? <> · <Link to={`/devices/${r.deviceId}`} onClick={(e) => e.stopPropagation()}>open device →</Link></> : null}</td>
+                    </tr>
+                  )
+                })}</tbody>
+              </table></div>
+            ) : (
               <div className="tw"><table className="tbl" style={{ minWidth: 720 }}>
                 <thead><tr><th>State</th><th>Address</th><th>Identified as</th><th>Found via</th><th>Detail</th></tr></thead>
                 <tbody>{results.map((r) => (
@@ -118,12 +156,13 @@ export default function Discovery({ user }: { user: User }) {
           {runs.length > 1 && (
             <Card title="Previous runs" id="prev">
               <div className="tw"><table className="tbl"><thead><tr><th>Started</th><th>By</th><th>Methods</th><th>Status</th><th className="r">Found</th></tr></thead><tbody>
-                {runs.slice(0, 10).map((j) => <tr key={j.id} className={`clickable${j.id === selected ? ' sel' : ''}`} onClick={() => setSelected(j.id)}><td className="num cap">{fmtTime(j.createdAt)}</td><td>{j.createdBy}</td><td>{j.target.zeroconf ? <Tag>zeroconf</Tag> : null} {(j.target.targets as string[] | undefined)?.length ? <Tag mono>{(j.target.targets as string[]).join(', ')}</Tag> : null}</td><td><JobPill status={j.status} xs /></td><td className="num r">{j.done - j.failed}</td></tr>)}
+                {runs.slice(0, 10).map((j) => <tr key={j.id} className={`clickable${j.id === selected ? ' sel' : ''}`} onClick={() => setSelected(j.id)}><td className="num cap">{fmtTime(j.createdAt)}</td><td>{j.createdBy}</td><td>{j.type === 'import' ? <Tag>Import</Tag> : null}{j.target?.zeroconf ? <Tag>zeroconf</Tag> : null} {(j.target?.targets as string[] | undefined)?.length ? <Tag mono>{(j.target.targets as string[]).join(', ')}</Tag> : null}</td><td><JobPill status={j.status} xs /></td><td className="num r">{j.type === 'import' ? '—' : j.done - j.failed}</td></tr>)}
               </tbody></table></div>
             </Card>
           )}
         </div>
       </div>
+      {importing && <ImportDialog user={user} onClose={() => setImporting(false)} onApplied={(j) => { setImporting(false); setSelected(j.id); load() }} />}
     </>
   )
 }

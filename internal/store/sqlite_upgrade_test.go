@@ -24,7 +24,7 @@ func TestUpgradeFromSchemaVersion4(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Roll the devices table back to what migration 4 left behind.
-	for _, c := range []string{"dns_name", "dns_name_suspect", "dns_checked_at", "display_name_source", "dns_sync", "web_url_probed", "web_url_override", "identify_errors"} {
+	for _, c := range []string{"dns_name", "dns_name_suspect", "dns_checked_at", "display_name_source", "dns_sync", "web_url_probed", "web_url_override", "identify_errors", "field_sources"} {
 		if _, err := s.db.Exec(`ALTER TABLE devices DROP COLUMN ` + c); err != nil {
 			t.Fatalf("drop %s: %v", c, err)
 		}
@@ -43,7 +43,7 @@ func TestUpgradeFromSchemaVersion4(t *testing.T) {
 		t.Fatalf("device after upgrade: %v", err)
 	}
 	var n int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version IN (5,6,7,8)`).Scan(&n); err != nil || n != 4 {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version IN (5,6,7,8,9)`).Scan(&n); err != nil || n != 5 {
 		t.Fatalf("migrations recorded after upgrade: %d (%v)", n, err)
 	}
 }

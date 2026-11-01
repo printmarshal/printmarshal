@@ -60,7 +60,8 @@ func (c *Context) SetTotal(n int) {
 	c.persist()
 }
 
-// Result records one per-device outcome and advances progress.
+// Result records one per-device outcome and advances progress. A status of
+// "error" or "failed" counts as a failure.
 func (c *Context) Result(deviceID, address, status, message string, data map[string]any) {
 	r := &model.JobResult{JobID: c.Job.ID, DeviceID: deviceID, Address: address, Status: status, Message: message, Data: data, At: time.Now().UTC()}
 	if err := c.runner.store.AddJobResult(context.Background(), r); err != nil {
@@ -68,7 +69,7 @@ func (c *Context) Result(deviceID, address, status, message string, data map[str
 	}
 	c.mu.Lock()
 	c.Job.Done++
-	if status == "error" {
+	if status == "error" || status == "failed" {
 		c.Job.Failed++
 	}
 	c.mu.Unlock()
@@ -105,12 +106,24 @@ func New(st store.Store, log *slog.Logger, workers int, events func(model.Event)
 	return r
 }
 
-// Register binds a job type to a handler.
-func (r *Runner) Register(jobType string, h Handler) { r.handlers[jobType] = h }
+// Register binds a job type to a handler. It may be called while workers
+// run jobs (the API registers the import job when it builds its routes).
+func (r *Runner) Register(jobType string, h Handler) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.handlers[jobType] = h
+}
+
+func (r *Runner) handler(jobType string) (Handler, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	h, ok := r.handlers[jobType]
+	return h, ok
+}
 
 // Submit persists and enqueues a job.
 func (r *Runner) Submit(ctx context.Context, j *model.Job) (*model.Job, error) {
-	if _, ok := r.handlers[j.Type]; !ok {
+	if _, ok := r.handler(j.Type); !ok {
 		return nil, fmt.Errorf("no handler for job type %q", j.Type)
 	}
 	j.Status = model.JobQueued
@@ -170,7 +183,7 @@ func (r *Runner) worker(ctx context.Context) {
 }
 
 func (r *Runner) run(ctx context.Context, j *model.Job) {
-	h := r.handlers[j.Type]
+	h, _ := r.handler(j.Type)
 	now := time.Now().UTC()
 	j.Status, j.StartedAt = model.JobRunning, &now
 	r.persistNow(j)
