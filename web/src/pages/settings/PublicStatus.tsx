@@ -165,6 +165,7 @@ export default function PublicStatusSection() {
             <span className="mono" style={{ wordBreak: 'break-all' }}>{savedUrl}</span>
             <Btn sm disabled={!form.unlisted || busy} onClick={regenerate}><Ic.refresh size={13} />Regenerate address</Btn>
           </div>
+          {form.unlisted && <span className="cap">Regenerate takes effect at once, without Save changes: the old link stops working straight away.</span>}
           {unlistedPending && <span className="cap" style={{ color: 'var(--warn)' }}>{form.unlisted ? 'Save to move the board to a new unlisted address.' : 'Save to move the board back to /status.'}</span>}
         </div>
       </SRow>

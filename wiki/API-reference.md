@@ -30,8 +30,8 @@ Source: `internal/api/server.go`.
 | DELETE | `/api/dashboard/layout` | viewer (sessions only) | — | 200 `{ok:true}`; the caller follows the instance default again | PM |
 | PUT | `/api/dashboard/layout/default` | admin (sessions only) | same body | 200 the normalised default for everyone without a personal layout | PM |
 | DELETE | `/api/dashboard/layout/default` | admin (sessions only) | — | 200 `{ok:true}`; built-in order again | PM |
-| GET | `/api/devices` | viewer | query: `q,state,make,model,severity,group,sort,limit,offset,includeDecommissioned` | 200 `{devices[],total}` | Read |
-| GET | `/api/devices.csv` | viewer | query: `device-list filters` | 200 devices CSV | Read |
+| GET | `/api/devices` | viewer | query: `q,state,make,model,severity,group,sort,dir,limit,offset,includeDecommissioned`; `sort` is `name,severity,model,address,location,supplies,pages,firmware,state,lastSeen`, `dir` is `asc` or `desc` (default: the key's natural order; pages and lastSeen start highest); sorted before paging | 200 `{devices[],total}` | Read |
+| GET | `/api/devices.csv` | viewer | query: `device-list filters and sort` | 200 devices CSV | Read |
 | GET | `/api/supplies.csv` | viewer | query: `device-list filters` | 200 installed supplies CSV | Read |
 | GET | `/api/devices/{id}` | viewer | — | 200 `{device,groups,alerts[]}` | Read |
 | PATCH | `/api/devices/{id}` | operator | `{displayName?,location?,assetTag?,notes?,dnsSync?}` | 200 Device | PM |

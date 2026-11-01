@@ -5,7 +5,7 @@ import type { Alert, AuditEntry, Consumable, Device, InstalledSupply, Sample, St
 import { decommissionedReason, deviceName, isDecommissioned, makeModel } from '../types'
 import { useEvents } from '../ws'
 import { Ic } from '../components/icons'
-import { Banner, Bar, Btn, Card, DevicePill, Mk, MiniSpark, Pill, SevPill, Sw, Tabs, Tag, fmtInt, remaining, since, supplyColor, trayTone } from '../components/ui'
+import { Banner, Bar, Btn, Card, DevicePill, Mk, MiniSpark, Pill, SevPill, Sw, Tabs, Tag, fmtInt, remaining, since, supplyColor, supplyTypeLabel, trayTone } from '../components/ui'
 import { ConsumableLink, fmtDays, statusOf } from '../components/consumables'
 import { AuditChangeCell } from '../components/AuditChange'
 import DeviceConfigTab from '../components/config/DeviceConfigTab'
@@ -258,11 +258,11 @@ function SuppliesCard({ d, canOperate, hist }: { d: Device; canOperate: boolean;
           const col = supplyColor(s)
           const low = rem !== null && rem <= 15
           const empty = rem === 0
-          const label = s.description || `${s.colorant || ''} ${s.type}`.trim()
+          const label = s.description || `${s.colorant || ''} ${supplyTypeLabel(s.type)}`.trim()
           return (
             <div className={`srow${empty ? ' crit' : ''}`} key={s.index}>
               <Sw color={col} />
-              <div style={{ minWidth: 0 }}><div style={{ fontWeight: 500, color: empty ? 'var(--crit)' : undefined }}>{label}</div><div className="cap">{s.class === 'filled' ? 'fills up' : s.type}{r.forecast?.daysToEmpty != null ? ` · ~${fmtDays(r.forecast.daysToEmpty).replace('~', '')} left` : ''}{s.percent === null && s.level === -3 ? ' · some remaining' : ''}</div></div>
+              <div style={{ minWidth: 0 }}><div style={{ fontWeight: 500, color: empty ? 'var(--crit)' : undefined }}>{label}</div><div className="cap">{s.class === 'filled' ? 'fills up' : supplyTypeLabel(s.type)}{r.forecast?.daysToEmpty != null ? ` · ~${fmtDays(r.forecast.daysToEmpty).replace('~', '')} left` : ''}{s.percent === null && s.level === -3 ? ' · some remaining' : ''}</div></div>
               <Bar lg pct={rem} color={col} tick={s.class === 'filled' ? 90 : 15} empty={empty} />
               <b className="num" style={{ textAlign: 'right', fontWeight: low ? 600 : 500, color: empty ? 'var(--crit)' : low ? 'var(--warn)' : undefined }}>{s.percent === null ? (s.level === -3 ? 'some' : '?') : `${s.percent}%`}</b>
               <MiniSpark samples={hist[String(s.index)] || []} color={col} />

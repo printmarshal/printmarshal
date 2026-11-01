@@ -4,7 +4,7 @@ import { api, ago, fmtTime } from '../api'
 import type { Credential, Job, JobResult, User } from '../types'
 import { useEvents } from '../ws'
 import { Ic } from '../components/icons'
-import { Btn, Card, JobBar, JobPill, Pill, Tag } from '../components/ui'
+import { Btn, Card, JobBar, JobPill, LongMessage, Pill, Tag } from '../components/ui'
 import { ImportDialog } from '../components/ImportDialog'
 
 const importStatus: Record<string, { tone: 'ok' | 'info' | 'off' | 'crit'; label: string }> = {
@@ -118,8 +118,8 @@ export default function Discovery({ user }: { user: User }) {
                 </div>
                 )}
                 <div className="cb" style={{ borderTop: '1px solid var(--border)' }}><div className="log" role="log" aria-label={isImport ? 'Import log' : 'Discovery log'}>{results.length === 0 ? 'waiting for the first result…' : results.slice().reverse().map((r) => isImport
-                  ? <div key={r.id}>{new Date(r.at).toLocaleTimeString()} row {rowOf(r) ?? '—'} · {r.status} · {r.message}</div>
-                  : <div key={r.id}>{new Date(r.at).toLocaleTimeString()} {r.address || '—'} · {(r.data?.methods as string[] | undefined)?.join('+') || ''} · {r.message}</div>)}</div></div>
+                  ? <div key={r.id}>{new Date(r.at).toLocaleTimeString()} row {rowOf(r) ?? '—'} · {r.status} · <LongMessage text={r.message || ''} /></div>
+                  : <div key={r.id}>{new Date(r.at).toLocaleTimeString()} {r.address || '—'} · {(r.data?.methods as string[] | undefined)?.join('+') || ''} · <LongMessage text={r.message || ''} /></div>)}</div></div>
               </>
             )}
           </Card>
@@ -147,7 +147,7 @@ export default function Discovery({ user }: { user: User }) {
                     <td className="mono">{r.address}</td>
                     <td className="mono">{(r.data?.model as string) || '—'}</td>
                     <td>{((r.data?.methods as string[]) || []).map((m) => <Tag key={m}>{m}</Tag>)}</td>
-                    <td className="cap wrap">{r.status === 'ok' ? (r.deviceId ? <Link to={`/devices/${r.deviceId}`}>open device →</Link> : r.message) : (r.message || '').slice(0, 140)}</td>
+                    <td className="cap wrap">{r.status === 'ok' ? (r.deviceId ? <Link to={`/devices/${r.deviceId}`}>open device →</Link> : r.message) : <LongMessage text={r.message || ''} />}</td>
                   </tr>
                 ))}</tbody>
               </table></div>

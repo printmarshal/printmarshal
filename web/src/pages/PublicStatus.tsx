@@ -119,7 +119,7 @@ function Toner({ supplies }: { supplies: PublicSupply[] }) {
   const empty = supplies.find((s) => s.status === 'empty')
   const knownLevels = levels.filter((n): n is number => n !== null)
   const lowest = knownLevels.length > 0 ? Math.min(...knownLevels) : null
-  const number = empty ? `${empty.name} empty` : lowest !== null ? `${lowest}%` : 'Toner unknown'
+  const number = empty ? `${empty.name} empty` : lowest !== null ? `Lowest ${lowest}%` : 'Toner unknown'
   const sr = supplies.map((s, i) => `${s.name} ${levels[i] === null ? 'unknown' : `${levels[i]}%`}${s.status === 'low' || s.status === 'empty' ? ` ${s.status}` : ''}`).join(', ')
   return (
     <span className="pub-toner">

@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Consumable, ConsumableType, ForecastSummary, StockStatus } from '../types'
 import { Ic } from './icons'
-import { Bar, Btn, Pill, Seg, Sw } from './ui'
+import { Bar, Btn, Pill, Seg, Sw, supplyTypeLabel } from './ui'
 
 export const typeLabels: Record<ConsumableType, string> = {
   toner: 'Toner', ink: 'Ink', drum: 'Drum', fuser: 'Fuser', maintenance_kit: 'Maintenance kit', waste: 'Waste', staples: 'Staples', other: 'Other',
 }
-export function typeLabel(t: string): string { return typeLabels[t as ConsumableType] || t }
+export function typeLabel(t: string): string { return typeLabels[t as ConsumableType] || supplyTypeLabel(t) }
 
 /** Colour swatch hex for a consumable colour (C/M/Y/K and named colours). */
 export function swatchFor(color?: string): string | undefined {

@@ -37,6 +37,7 @@ export default function Credentials({ user }: { user: User }) {
       <div className="ph"><div><h1 className="h1">Credentials</h1><div className="cap">Secrets are encrypted at rest and never returned by the API · device and group scopes take precedence over global</div></div></div>
       <Banner tone="info"><b style={{ color: 'var(--info)' }}>Write-only.</b> A stored secret is used by the engine when it talks to devices; it is never displayed again. Without any credential, SNMP uses the “public” community.</Banner>
       {creds.length > 0 && writers === 0 && <Banner tone="warn"><b>No write credential.</b> Every credential here is read-only, so configuration, remediation, certificate and firmware writes are refused on every device until a credential with purpose <b>Write</b> or <b>Read + write</b> is stored.</Banner>}
+      {!isAdmin && <Banner tone="info"><b style={{ color: 'var(--info)' }}>Read-only for your role.</b> You can see which credentials exist. Adding or deleting one needs the admin role.</Banner>}
       {msg && <Banner tone="crit">{msg}</Banner>}
       <div className="cols">
         <Card title="Stored credentials" id="cl" sub={`${creds.length} · tried in priority order, highest first`} style={{ flex: '3 1 520px' }}>

@@ -50,6 +50,8 @@ type Range struct {
 	Group   string    `json:"group,omitempty"`
 	Device  string    `json:"device,omitempty"`
 	Devices int       `json:"devices"` // devices in scope
+	// Decommissioned counts the retired ones among them; their history still counts.
+	Decommissioned int `json:"decommissioned"`
 }
 
 // Table is a flat view of one report section for CSV export.
@@ -137,6 +139,9 @@ func (s *Service) resolve(ctx context.Context, p Params) (*scope, error) {
 	}
 	for _, d := range sc.devices {
 		sc.byID[d.ID] = d
+		if d.Decommissioned() {
+			sc.rng.Decommissioned++
+		}
 	}
 	for _, g := range groups {
 		for _, d := range sc.devices {

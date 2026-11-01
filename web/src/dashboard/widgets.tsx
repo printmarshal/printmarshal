@@ -94,14 +94,14 @@ const alertsRecent: W = ({ data }) => (
   <Card title="Recent alerts" id="ra" right={<Link to="/alerts" className="cap" style={{ color: 'var(--accent)' }}>All alerts →</Link>}>
     {data.alerts.length === 0 ? <div className="cb"><EmptyState tone="ok" icon={<Ic.ok size={20} />} title="All clear" text={`No active alerts across ${data.summary.devices} devices.`} /></div> : (
       <div className="tw"><table className="tbl">
-        <thead><tr><th>Severity</th><th>Device</th><th>Alert</th><th>Source</th><th className="r">Last seen</th></tr></thead>
+        <thead><tr><th>Severity</th><th>Device</th><th>Alert</th><th className="hide-sm">Source</th><th className="r hide-sm">Last seen</th></tr></thead>
         <tbody>{data.alerts.slice(0, 8).map((a) => {
           // The server resolves the name by id (#53); the id prefix is the last resort.
           const name = a.deviceName || a.deviceId.slice(0, 8)
           return (
             <tr key={a.id}><td><SevPill sev={a.severity} /></td>
               <td>{a.deviceId ? <Link to={`/devices/${a.deviceId}`}>{name}</Link> : <Link to={a.source === 'consumable' ? '/consumables' : '/alerts'}>stock</Link>}</td>
-              <td className="wrap">{a.description}</td><td><Tag>{a.source}</Tag></td><td className="num cap r">{ago(a.updatedAt || a.raisedAt)}</td></tr>
+              <td className="wrap">{a.description}</td><td className="hide-sm"><Tag>{a.source}</Tag></td><td className="num cap r hide-sm">{ago(a.updatedAt || a.raisedAt)}</td></tr>
           )
         })}</tbody>
       </table></div>
@@ -113,9 +113,9 @@ const devicesAttention: W = ({ data }) => (
   <Card title="Devices needing attention" id="na" right={<Link to="/devices?sort=severity" className="cap" style={{ color: 'var(--accent)' }}>Open in inventory →</Link>}>
     {data.attention.length === 0 ? <div className="cb"><EmptyState tone="ok" icon={<Ic.ok size={20} />} title="Nothing needs attention" text="All polled devices are healthy." /></div> : (
       <div className="tw"><table className="tbl">
-        <thead><tr><th>Status</th><th>Device</th><th>Model</th><th>Location</th><th>Reason</th><th className="r">Last check</th></tr></thead>
+        <thead><tr><th>Status</th><th>Device</th><th className="hide-sm">Model</th><th className="hide-sm">Location</th><th>Reason</th><th className="r hide-sm">Last check</th></tr></thead>
         <tbody>{data.attention.map((d) => (
-          <tr key={d.id}><td><DevicePill d={d} /></td><td><Link to={`/devices/${d.id}`}>{deviceName(d)}</Link></td><td className="mono">{d.model}</td><td className="cap">{d.location || '—'}</td><td className="cap wrap">{d.reason || d.status?.message || '—'}</td><td className="num cap r">{since(d.status?.at)}</td></tr>
+          <tr key={d.id}><td><DevicePill d={d} /></td><td><Link to={`/devices/${d.id}`}>{deviceName(d)}</Link></td><td className="mono hide-sm">{d.model}</td><td className="cap hide-sm">{d.location || '—'}</td><td className="cap wrap">{d.reason || d.status?.message || '—'}</td><td className="num cap r hide-sm">{since(d.status?.at)}</td></tr>
         ))}</tbody>
       </table></div>
     )}

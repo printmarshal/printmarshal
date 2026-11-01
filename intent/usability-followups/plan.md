@@ -24,7 +24,7 @@ screenshots; the Go changes have failing tests first.
 - `web/src/pages/Devices.tsx`: sortable headers, direction, default view, supply labels, DNS lookup.
 - `web/src/components/ui.tsx`: `supplyTypeLabel`, `LongMessage`.
 - `web/src/components/config/shared.tsx`: the default tray's value in words.
-- `web/src/pages/DeviceDetail.tsx`, `Consumables.tsx`: supply labels.
+- `web/src/pages/DeviceDetail.tsx`, `web/src/components/consumables.tsx`: supply labels.
 - `web/src/pages/Login.tsx`: required fields, wrong-password wording.
 - `web/src/pages/Groups.tsx`: saved counts, "not saved yet".
 - `web/src/pages/Credentials.tsx`, `Settings.tsx`: a read-only note for roles that cannot change them.

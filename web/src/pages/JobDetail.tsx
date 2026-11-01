@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api, fmtTime } from '../api'
 import type { Job, JobResult } from '../types'
 import { useEvents } from '../ws'
-import { Banner, Card, JobBar, JobPill, Pill, Tag } from '../components/ui'
+import { Banner, Card, JobBar, JobPill, LongMessage, Pill, Tag } from '../components/ui'
 import { jobTitle } from './Jobs'
 
 export default function JobDetail() {
@@ -43,7 +43,7 @@ export default function JobDetail() {
               <tr key={r.id} className={r.status === 'skipped' ? 'dim' : ''}>
                 <td>{r.deviceId ? <Link to={`/devices/${r.deviceId}`} style={{ fontWeight: 500 }}>{r.address || r.deviceId.slice(0, 8)}</Link> : <span className="mono">{r.address || '—'}</span>}</td>
                 <td><Pill tone={r.status === 'ok' ? 'ok' : r.status === 'error' ? 'crit' : 'off'}>{r.status}</Pill></td>
-                <td className="wrap">{r.message}</td>
+                <td className="wrap"><LongMessage text={r.message || ''} /></td>
                 <td className="cap" style={{ whiteSpace: 'normal', maxWidth: 360 }}>{r.data ? Object.entries(r.data).map(([k, v]) => <Tag key={k} title={typeof v === 'object' ? JSON.stringify(v) : String(v)}>{k}: {typeof v === 'object' ? JSON.stringify(v).slice(0, 40) : String(v)}</Tag>) : ''}</td>
                 <td className="cap num">{fmtTime(r.at)}</td>
               </tr>

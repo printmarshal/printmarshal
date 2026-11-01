@@ -6,7 +6,7 @@ import { decommissionedReason, deviceName, isDecommissioned } from '../../types'
 import { useEvents } from '../../ws'
 import { Ic } from '../icons'
 import { Banner, Btn, Card, ChipSelect, EmptyState, Pill, Tag } from '../ui'
-import type { ConfigDiff, ConfigSetting, ConfigSnapshot, DeviceConfigResponse, Profile, WriteRecord } from '../../types-config'
+import type { CatalogDef, ConfigDiff, ConfigSetting, ConfigSnapshot, DeviceConfigResponse, Profile, WriteRecord } from '../../types-config'
 import { areaLabel, valuesEqual } from '../../types-config'
 import RevertPanel, { type RevertTarget } from './RevertPanel'
 import { SourceTag, fmtValue, isSecret, useCatalog } from './shared'
@@ -104,7 +104,7 @@ export default function DeviceConfigTab({ device, canOperate, hidden, onDrift }:
             : (
               <div className="tw"><table className="tbl" style={{ minWidth: 720 }}>
                 <thead><tr><th>Setting</th><th>Value</th><th>Source</th><th>Write</th></tr></thead>
-                <tbody>{byArea.map((g) => (<GroupRows key={g.area} area={g.area} items={g.items} secretKeys={new Set(g.items.filter((s) => isSecret(byKey.get(s.key)) || s.type === 'secret').map((s) => s.key))} />))}</tbody>
+                <tbody>{byArea.map((g) => (<GroupRows key={g.area} area={g.area} items={g.items} byKey={byKey} secretKeys={new Set(g.items.filter((s) => isSecret(byKey.get(s.key)) || s.type === 'secret').map((s) => s.key))} />))}</tbody>
               </table></div>
             )}
         <div className="cf cap" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Ic.info size={14} style={{ color: 'var(--info)' }} />Source is the driver that reported the value. "writable" means a driver can set it; secrets are never displayed.</div>
@@ -143,14 +143,14 @@ export default function DeviceConfigTab({ device, canOperate, hidden, onDrift }:
   )
 }
 
-function GroupRows({ area, items, secretKeys }: { area: string; items: ConfigSetting[]; secretKeys: Set<string> }) {
+function GroupRows({ area, items, byKey, secretKeys }: { area: string; items: ConfigSetting[]; byKey: Map<string, CatalogDef>; secretKeys: Set<string> }) {
   return (
     <>
       <tr className="grp"><td colSpan={4}>{areaLabel(area)} <span className="cap" style={{ fontWeight: 400 }}>· {items.length}</span></td></tr>
       {items.map((s) => (
         <tr key={s.key}>
           <td title={s.key}>{s.name || s.key}<div className="mono cap" style={{ fontSize: 10 }}>{s.key}</div></td>
-          <td className="mono" style={{ whiteSpace: 'normal' }}>{secretKeys.has(s.key) ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-3)' }}><Ic.lock size={13} />Set · never displayed</span> : fmtValue(s.value)}</td>
+          <td className="mono" style={{ whiteSpace: 'normal' }}>{secretKeys.has(s.key) ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-3)' }}><Ic.lock size={13} />Set · never displayed</span> : fmtValue(s.value, byKey.get(s.key))}</td>
           <td><SourceTag source={s.source} /></td>
           <td>{s.writable ? <Tag title="a driver can set this value"><Ic.pencil size={11} />writable</Tag> : <span className="cap" title={s.readOnlyReason}>read-only{s.readOnlyReason ? ` · ${s.readOnlyReason}` : ''}</span>}</td>
         </tr>
