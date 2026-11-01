@@ -250,3 +250,45 @@ func TestDashboardAttentionFollowsActiveAlerts(t *testing.T) {
 		}
 	}
 }
+
+// #52: saving and resetting a personal layout are in the audit trail, under the
+// person who did them, as the default layout's changes already are.
+func TestPersonalLayoutChangesAreAudited(t *testing.T) {
+	ts, s := newTestServer(t)
+	admin := login(t, ts, "admin", "adminpass123")
+	if _, err := s.Auth.CreateUser(context.Background(), "viewer1", "viewerpass123", model.RoleViewer); err != nil {
+		t.Fatal(err)
+	}
+	viewer := login(t, ts, "viewer1", "viewerpass123")
+	entries := func() []model.AuditEntry {
+		t.Helper()
+		code, body := do(t, ts, admin, "GET", "/api/audit?limit=100", "")
+		if code != 200 {
+			t.Fatalf("audit: %d %s", code, body)
+		}
+		var all []model.AuditEntry
+		if err := json.Unmarshal([]byte(body), &all); err != nil {
+			t.Fatalf("audit payload: %v\n%s", err, body)
+		}
+		var out []model.AuditEntry
+		for _, e := range all {
+			if e.Action == "dashboard.layout.personal" {
+				out = append(out, e)
+			}
+		}
+		return out
+	}
+	if code, _ := do(t, ts, viewer, "PUT", "/api/dashboard/layout", `{"widgets":[{"id":"kpi.jobs","hidden":true}]}`); code != 200 {
+		t.Fatalf("save: %d", code)
+	}
+	got := entries()
+	if len(got) != 1 || got[0].Actor != "viewer1" {
+		t.Fatalf("after a save: %+v", got)
+	}
+	if code, _ := do(t, ts, viewer, "DELETE", "/api/dashboard/layout", ""); code != 200 {
+		t.Fatalf("reset: %d", code)
+	}
+	if got = entries(); len(got) != 2 {
+		t.Fatalf("after a reset: %+v", got)
+	}
+}
