@@ -191,6 +191,18 @@ func (d *Device) NameWith(source string) string {
 	return d.Name()
 }
 
+// HealthAlertSource reports whether active alerts of a source count towards a
+// device's severity (#47). Security findings have their own posture and stock
+// alerts have no device; a new source counts only once it is listed here and in
+// the store's healthAlertSQL.
+func HealthAlertSource(source string) bool {
+	switch source {
+	case "offline", "poll", "supply", "trap":
+		return true
+	}
+	return false
+}
+
 // Status is a device's current state as read from it.
 type Status struct {
 	Online     bool          `json:"online"`

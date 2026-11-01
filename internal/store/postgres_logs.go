@@ -101,7 +101,7 @@ func (s *Postgres) SyncDevices(ctx context.Context, after SyncCursor, limit int)
 	limit = syncLimit(limit)
 	where, args := syncWherePG("updated_at", after)
 	args = append(args, limit+1)
-	rows, err := pgQuery(ctx, s.db, `SELECT `+deviceCols+` FROM devices`+where+` ORDER BY updated_at, id LIMIT ?`, args...)
+	rows, err := pgQuery(ctx, s.db, `SELECT `+deviceSelectCols+` FROM devices`+where+` ORDER BY updated_at, id LIMIT ?`, args...)
 	if err != nil {
 		return nil, false, err
 	}

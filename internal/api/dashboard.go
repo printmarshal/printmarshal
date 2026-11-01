@@ -102,14 +102,11 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	named := s.namedAlerts(ctx, alerts)
 	jobs, _ := s.Store.ListJobs(ctx, store.JobFilter{Limit: 10})
 	attention, _ := s.resolveDevices(ctx, store.DeviceFilter{Sort: "severity", Limit: 10})
-	var needs []*model.Device
+	needs := []attentionDevice{}
 	for _, d := range attention {
-		if d.Status != nil && (d.Status.Severity != model.SeverityOK || !d.Status.Online) {
-			needs = append(needs, d)
+		if d.Status != nil && (d.Severity != model.SeverityOK || !d.Status.Online) {
+			needs = append(needs, attentionDevice{Device: d, Reason: s.attentionReason(ctx, d)})
 		}
-	}
-	if needs == nil {
-		needs = []*model.Device{}
 	}
 	u := auth.UserFrom(ctx)
 	effective, personal, def := s.layouts(ctx, u)
@@ -119,6 +116,31 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		"security":    s.dashboardSecurity(ctx, ds.Devices),
 		"layout":      map[string]any{"effective": effective, "personal": personal, "default": def},
 	})
+}
+
+// attentionDevice is a row of Devices needing attention, with why it is there.
+type attentionDevice struct {
+	*model.Device
+	Reason string `json:"reason,omitempty"`
+}
+
+// attentionReason is the active alert behind the device's severity (#47), or
+// the printer's own message when the printer itself reported that severity.
+func (s *Server) attentionReason(ctx context.Context, d *model.Device) string {
+	active, _ := s.Store.ListAlerts(ctx, store.AlertFilter{DeviceID: d.ID, ActiveOnly: true})
+	for _, a := range active {
+		if d.Severity == "offline" {
+			if a.Source == "offline" {
+				return a.Description
+			}
+		} else if a.Severity == d.Severity && model.HealthAlertSource(a.Source) {
+			return a.Description
+		}
+	}
+	if d.Status != nil {
+		return d.Status.Message
+	}
+	return ""
 }
 
 // namedAlert is an alert with its device's name resolved by id (#53), so the
