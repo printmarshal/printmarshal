@@ -194,8 +194,8 @@ func devicePathID(path string) string {
 		return ""
 	}
 	id, _, hasSlash := strings.Cut(rest, "/")
-	if !hasSlash && id == "rename" {
-		return "" // POST /api/devices/rename names its devices in the body
+	if !hasSlash && (id == "rename" || id == "bulk") {
+		return "" // these POST routes name their devices in the body
 	}
 	return id
 }
