@@ -4,7 +4,7 @@
 export type SettingType = 'string' | 'int' | 'bool' | 'enum' | 'list' | 'secret'
 
 /** One canonical catalogue key as served by GET /api/config/catalog. */
-export interface CatalogDef { key: string; area: string; name: string; type: SettingType; options?: unknown[]; security: boolean }
+export interface CatalogDef { key: string; area: string; name: string; type: SettingType; options?: unknown[]; security: boolean; help?: string }
 export interface Catalog { areas: string[]; settings: CatalogDef[] }
 
 export interface SettingChange { key: string; value: unknown }

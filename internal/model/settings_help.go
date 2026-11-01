@@ -1,5 +1,103 @@
 package model
 
-// SettingHelp explains a catalogue setting in plain words, or "" when there is
-// no explanation yet. It is not implemented until the fix lands.
-func SettingHelp(key string) string { return "" }
+// settingHelp explains each catalogue setting in one plain sentence, for people
+// who may not know the terms. It says what the setting means, not how a given
+// printer behaves, so it stays true across vendors.
+var settingHelp = map[string]string{
+	"identity.hostname":           "The name the printer uses for itself on the network.",
+	"identity.location":           "Where the printer says it is, stored on the printer itself.",
+	"identity.contact":            "Who to contact about this printer, stored on the printer itself.",
+	"identity.assetNumber":        "Your organisation's asset tag, stored on the printer itself.",
+	"identity.description":        "The printer's own description of itself, usually its make and model.",
+	"identity.printerName":        "The printer's name as other print software sees it.",
+	"identity.organization":       "The organisation name, used for example in the printer's certificates.",
+	"identity.organizationalUnit": "The department or team name, used for example in the printer's certificates.",
+
+	"network.ipv4.mode":          "Whether the printer gets its address automatically (DHCP) or uses a fixed one.",
+	"network.ipv4.address":       "The printer's IPv4 address. A wrong value can make the printer unreachable.",
+	"network.ipv4.gateway":       "The router the printer uses to reach other networks.",
+	"network.ipv4.netmask":       "Which addresses the printer treats as being on its own network.",
+	"network.ipv6.enabled":       "Whether the printer also uses the newer IPv6 addressing.",
+	"network.dns.servers":        "The servers the printer asks to turn names into addresses.",
+	"network.dns.domain":         "The domain name added to the printer's name, such as example.org.",
+	"network.ntp.server":         "The time server the printer sets its clock from.",
+	"network.ntp.enabled":        "Whether the printer sets its clock from a time server.",
+	"network.timezone":           "The time zone the printer uses for its clock and logs.",
+	"network.linkSpeed":          "The speed and mode of the printer's wired network connection.",
+	"network.wifi.enabled":       "Whether the printer's Wi-Fi is switched on.",
+	"network.wifiDirect.enabled": "Whether phones and laptops can connect straight to the printer, bypassing the network.",
+
+	"protocols.snmp.v1v2cEnabled":    "Older SNMP monitoring, protected only by a shared word sent unencrypted.",
+	"protocols.snmp.v2cWriteEnabled": "Whether older SNMP may change settings as well as read them.",
+	"protocols.snmp.v3Enabled":       "Newer SNMP monitoring, with real sign-in and encryption.",
+	"protocols.snmp.readCommunity":   "The shared word that lets older SNMP read from the printer.",
+	"protocols.snmp.writeCommunity":  "The shared word that lets older SNMP change the printer's settings.",
+	"protocols.ipp.enabled":          "Printing over IPP, the common modern protocol, without encryption.",
+	"protocols.ipps.enabled":         "Printing over IPP with encryption.",
+	"protocols.raw9100.enabled":      "Printing by sending data straight to port 9100, with no sign-in or encryption.",
+	"protocols.lpd.enabled":          "Printing over LPD, an old protocol with no sign-in or encryption.",
+	"protocols.ftp.enabled":          "Sending files to the printer over FTP, which is not encrypted.",
+	"protocols.telnet.enabled":       "Remote command access over Telnet, which is not encrypted.",
+	"protocols.http.enabled":         "The printer's web page without encryption.",
+	"protocols.https.enabled":        "The printer's web page with encryption.",
+	"protocols.https.redirect":       "Sends visitors of the unencrypted web page to the encrypted one.",
+	"protocols.mdns.enabled":         "Lets nearby computers and phones find the printer automatically (Bonjour).",
+	"protocols.wsd.enabled":          "Lets Windows computers find the printer automatically.",
+	"protocols.slp.enabled":          "An older way for computers to find the printer automatically.",
+	"protocols.llmnr.enabled":        "Lets nearby computers look the printer up by name without a DNS server.",
+	"protocols.smb.enabled":          "Windows file sharing, used for example for scanning to a shared folder.",
+	"protocols.airprint.enabled":     "Printing from iPhones, iPads and Macs without installing a driver.",
+	"protocols.escl.enabled":         "Scanning from computers and phones without installing a driver.",
+	"protocols.usb.hostEnabled":      "Whether USB devices, such as memory sticks, can be plugged into the printer.",
+
+	"security.adminPassword.set":       "Whether the printer's administrator account has a password at all.",
+	"security.adminPassword":           "The password for the printer's administrator account.",
+	"security.tls.minVersion":          "The oldest encryption version the printer will accept; 1.2 or newer is safest.",
+	"security.tls.ciphers":             "The exact encryption methods the printer is allowed to use.",
+	"security.cert.identityPresent":    "Whether the printer has a certificate that proves its identity.",
+	"security.cert.identitySelfSigned": "Whether the printer issued its own certificate, which browsers warn about.",
+	"security.cert.identityExpiresAt":  "The date the printer's certificate stops being valid.",
+	"security.cert.identityDaysLeft":   "How many days remain before the printer's certificate stops being valid.",
+	"security.ieee8021x.enabled":       "Makes the printer prove its identity before the network lets it connect.",
+	"security.ipsec.enabled":           "Encrypts the printer's network traffic at the network level.",
+	"security.firewall.enabled":        "Limits which computers are allowed to talk to the printer.",
+	"security.firewall.allowList":      "The addresses allowed to talk to the printer when filtering is on.",
+	"security.panel.lock":              "Locks the printer's admin menus on its own screen.",
+	"security.jobLog.enabled":          "Keeps a record of what was printed, and by whom.",
+	"security.storage.encryption":      "Encrypts the printer's internal storage, protecting it if the printer is stolen or sold.",
+	"security.storage.overwrite":       "Overwrites deleted jobs on the printer's storage so they cannot be recovered.",
+	"security.firmware.autoUpdate":     "Lets the printer install new firmware by itself.",
+	"security.firmware.signedOnly":     "Refuses firmware that the manufacturer has not signed.",
+	"security.pjl.deviceAccess":        "Whether print jobs can reach the printer's files and settings using PJL commands.",
+	"security.syslog.server":           "The server the printer sends its logs to.",
+
+	"energy.sleepDelayMinutes": "How many idle minutes pass before the printer goes to sleep.",
+	"energy.autoOffMinutes":    "How many idle minutes pass before the printer switches itself off.",
+	"energy.wakeSchedule":      "When the printer wakes up by itself, for example on weekday mornings.",
+	"energy.ecoMode":           "Uses less toner per page, with somewhat lighter printing.",
+
+	"trays.defaultTray":      "The paper tray used when a job does not ask for a particular one.",
+	"trays.defaultMediaSize": "The paper size used when a job does not ask for a particular one.",
+	"trays.defaultMediaType": "The paper type used when a job does not ask for a particular one.",
+	"trays.traySizes":        "The paper size loaded in each tray.",
+
+	"panel.language":          "The language shown on the printer's own screen.",
+	"panel.brightness":        "How bright the printer's own screen is.",
+	"panel.homeScreenMessage": "A message shown on the printer's home screen.",
+
+	"print.defaultDuplex":         "Whether jobs print on both sides of the page unless they ask otherwise.",
+	"print.defaultColorMode":      "Whether jobs print in colour or black and white unless they ask otherwise.",
+	"print.defaultCopies":         "How many copies a job prints unless it asks otherwise.",
+	"print.defaultResolution":     "The print quality, in dots per inch, unless a job asks otherwise.",
+	"print.jobTimeoutSeconds":     "How long the printer waits for the rest of a stalled job before giving up.",
+	"print.defaultMarkerIndex":    "Which toner or ink set is used by default, on printers with more than one.",
+	"print.defaultDocumentFormat": "The format the printer assumes when a job does not say what it contains.",
+
+	"scan.email.enabled":  "Whether people can scan a document and send it by email from the printer.",
+	"scan.folder.enabled": "Whether people can scan a document to a shared network folder from the printer.",
+	"scan.smtp.server":    "The mail server the printer uses to send scans by email.",
+}
+
+// SettingHelp explains a catalogue setting in plain words, or "" for a key
+// outside the catalogue.
+func SettingHelp(key string) string { return settingHelp[key] }
