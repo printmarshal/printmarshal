@@ -12,10 +12,35 @@ import (
 	"printmarshal/internal/model"
 )
 
-const deviceCols = `id, address, hostname, dns_name, dns_name_suspect, dns_checked_at, mac, serial, uuid, make, model, device_type, firmware, sys_descr, sys_name,
+const (
+	deviceColsHead = `id, address, hostname, dns_name, dns_name_suspect, dns_checked_at, mac, serial, uuid, make, model, device_type, firmware, sys_descr, sys_name,
  enterprise_id, admin_url, capabilities, discovery_methods, identify_methods, display_name, display_name_source, dns_sync, location, asset_tag, notes,
- state, status, supplies, trays, counters, severity, consecutive_failures, first_seen, last_seen, last_polled, created_at, updated_at,
+ state, status, supplies, trays, counters, `
+	deviceColsTail = `, consecutive_failures, first_seen, last_seen, last_polled, created_at, updated_at,
  web_url_probed, web_url_override, identify_errors, field_sources`
+
+	// deviceCols names the stored columns, for writes.
+	deviceCols = deviceColsHead + "severity" + deviceColsTail
+	// deviceSelectCols is deviceCols for reads, with the effective severity.
+	deviceSelectCols = deviceColsHead + effectiveSeveritySQL + " AS severity" + deviceColsTail
+
+	// healthAlertSQL matches an active alert on the device that counts towards
+	// its health; the sources are model.HealthAlertSource's. Add the severity.
+	healthAlertSQL = `EXISTS (SELECT 1 FROM alerts a WHERE a.device_id = devices.id AND a.cleared_at IS NULL
+ AND a.source IN ('offline', 'poll', 'supply', 'trap') AND a.severity = `
+
+	// effectiveSeveritySQL is a device's severity (#47): the worse of what the
+	// printer last reported and its active operating alerts. An offline device
+	// stays offline, whatever alerts remain from before it stopped answering.
+	// Both backends use it, wherever a query reads or compares severity.
+	effectiveSeveritySQL = `(CASE WHEN devices.severity = 'offline' THEN 'offline'
+ WHEN devices.severity = 'critical' OR ` + healthAlertSQL + `'critical') THEN 'critical'
+ WHEN devices.severity = 'warning' OR ` + healthAlertSQL + `'warning') THEN 'warning'
+ ELSE devices.severity END)`
+
+	// severityOrderSQL sorts the worst devices first.
+	severityOrderSQL = " ORDER BY CASE " + effectiveSeveritySQL + " WHEN 'critical' THEN 0 WHEN 'offline' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END, address"
+)
 
 type rowScanner interface{ Scan(dest ...any) error }
 
@@ -38,6 +63,7 @@ func scanDevice(r rowScanner) (*model.Device, error) {
 	if err != nil {
 		return nil, err
 	}
+	d.Severity = model.Severity(severity)
 	fromJSON(sql.NullString{String: identErrs, Valid: true}, &d.IdentifyErrors)
 	fromJSON(sql.NullString{String: fieldSources, Valid: true}, &d.FieldSources)
 	if len(d.FieldSources) == 0 {
@@ -82,7 +108,7 @@ func (s *SQLite) getDevice(ctx context.Context, q rowScanner) (*model.Device, er
 
 // GetDevice implements Store.
 func (s *SQLite) GetDevice(ctx context.Context, id string) (*model.Device, error) {
-	return s.getDevice(ctx, s.db.QueryRowContext(ctx, `SELECT `+deviceCols+` FROM devices WHERE id=?`, id))
+	return s.getDevice(ctx, s.db.QueryRowContext(ctx, `SELECT `+deviceSelectCols+` FROM devices WHERE id=?`, id))
 }
 
 // findByIdentity de-duplicates by serial, then UUID, then MAC, then address (spec §8.1).
@@ -91,7 +117,7 @@ func (s *SQLite) findByIdentity(ctx context.Context, id *model.Identity) (*model
 		if val == "" {
 			return nil, ErrNotFound
 		}
-		return s.getDevice(ctx, s.db.QueryRowContext(ctx, `SELECT `+deviceCols+` FROM devices WHERE `+col+`=? ORDER BY last_seen DESC LIMIT 1`, val))
+		return s.getDevice(ctx, s.db.QueryRowContext(ctx, `SELECT `+deviceSelectCols+` FROM devices WHERE `+col+`=? ORDER BY last_seen DESC LIMIT 1`, val))
 	}
 	for _, k := range []struct{ col, val string }{
 		{"serial", id.Serial}, {"uuid", id.UUID}, {"mac", strings.ToLower(id.MAC)},
@@ -278,7 +304,7 @@ func buildDeviceWhere(f DeviceFilter) (string, []any) {
 		args = append(args, "%"+f.Model+"%")
 	}
 	if f.Severity != "" {
-		where = append(where, "severity = ?")
+		where = append(where, effectiveSeveritySQL+" = ?")
 		args = append(args, f.Severity)
 	}
 	if f.Q != "" {
@@ -315,13 +341,13 @@ func (s *SQLite) ListDevices(ctx context.Context, f DeviceFilter) ([]*model.Devi
 	case "lastSeen":
 		order = " ORDER BY last_seen DESC"
 	case "severity":
-		order = " ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'offline' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END, address"
+		order = severityOrderSQL
 	}
 	limit := ""
 	if f.Limit > 0 {
 		limit = fmt.Sprintf(" LIMIT %d OFFSET %d", f.Limit, f.Offset)
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT `+deviceCols+` FROM devices`+where+order+limit, args...)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+deviceSelectCols+` FROM devices`+where+order+limit, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +528,7 @@ func (s *SQLite) DeleteDevice(ctx context.Context, id string) error {
 // Dashboard implements Store.
 func (s *SQLite) Dashboard(ctx context.Context) (*DashboardSummary, error) {
 	ds := &DashboardSummary{ByState: map[string]int{}, BySeverity: map[string]int{}}
-	rows, err := s.db.QueryContext(ctx, `SELECT state, severity, COUNT(*) FROM devices GROUP BY state, severity`)
+	rows, err := s.db.QueryContext(ctx, `SELECT state, sev, COUNT(*) FROM (SELECT state, `+effectiveSeveritySQL+` AS sev FROM devices) d GROUP BY state, sev`)
 	if err != nil {
 		return nil, err
 	}

@@ -994,7 +994,7 @@ func (s *Server) exportDevicesCSV(w http.ResponseWriter, r *http.Request) {
 	for _, d := range devs {
 		status, sev := "", ""
 		if d.Status != nil {
-			status, sev = d.Status.State, string(d.Status.Severity)
+			status, sev = d.Status.State, string(d.Severity)
 		}
 		pages := ""
 		if d.Counters != nil {

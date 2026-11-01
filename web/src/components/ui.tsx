@@ -23,8 +23,9 @@ export function DevicePill({ d, xs }: { d: Device; xs?: boolean }) {
   if (d.state === 'decommissioned') return <Pill tone="unk" xs={xs}>Not contacted</Pill>
   if (!d.status) return <Pill tone="unk" xs={xs}>Not polled</Pill>
   if (!d.status.online) return <Pill tone="off" xs={xs}>Offline</Pill>
-  if (d.status.severity === 'critical') return <Pill tone="crit" xs={xs}>Critical</Pill>
-  if (d.status.severity === 'warning') return <Pill tone="warn" xs={xs}>Warning</Pill>
+  const sev = d.severity ?? d.status.severity
+  if (sev === 'critical') return <Pill tone="crit" xs={xs}>Critical</Pill>
+  if (sev === 'warning') return <Pill tone="warn" xs={xs}>Warning</Pill>
   return <Pill tone="ok" xs={xs}>{d.status.state === 'printing' ? 'Printing' : 'Online'}</Pill>
 }
 

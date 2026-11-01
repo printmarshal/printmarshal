@@ -19,6 +19,8 @@ export interface Device {
   webUrl?: string; webUrlProbed?: string; webUrlOverride?: string
   capabilities: Record<string, string>; discoveryMethods: string[]; identifyMethods: string[]; identifyErrors?: Record<string, string>
   displayName: string; displayNameSource?: string; dnsSync?: boolean; dnsNameChanged?: boolean; location: string; assetTag: string; notes: string; state: string
+  /** The worse of status.severity and the device's active operating alerts, or offline. */
+  severity?: Severity | 'offline'
   status?: Status; supplies: Supply[]; trays: Tray[]; counters?: Counters
   firstSeen: string; lastSeen: string; lastPolled?: string; createdAt: string; updatedAt: string
   /** Where an operator field's value came from: field → source ("import", "operator", "dns", …) and time. */
@@ -80,7 +82,7 @@ export interface DashboardLayout { version: number; widgets: LayoutEntry[] }
 export interface BulkPatchResponse { changed: number; skipped: number; results: { id: string; changed: string[]; skipped?: string }[] }
 export interface Dashboard {
   summary: { devices: number; byState: Record<string, number>; bySeverity: Record<string, number>; offline: number; activeAlerts: number; criticalAlerts: number; lowSupplies: number; lowStock: number; runningJobs: number }
-  alerts: Alert[]; jobs: Job[]; attention: Device[]
+  alerts: Alert[]; jobs: Job[]; attention: (Device & { reason?: string })[]
   consumables: { lowStock: ConsumableRow[]; reorder: ConsumableRow[]; pendingReplacements: number }
   security: ComplianceSummary
   layout: { effective: DashboardLayout | null; personal: DashboardLayout | null; default: DashboardLayout | null }

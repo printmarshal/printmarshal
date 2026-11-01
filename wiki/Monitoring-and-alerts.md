@@ -33,6 +33,10 @@ Supply defaults are warning 15%, critical 5%. Unknown percentages and class `oth
 
 A failed status or supply read does not prove resolution. `alerts.Evaluate` returns observed sources, and reconciliation clears only those sources; unreachable or counters-only polls preserve unobserved faults. Review per-capability errors when the header remains online with stale measurements.
 
+## Device severity
+
+A device's severity is the worse of what the printer last reported and its active alerts from the `offline`, `poll`, `supply` and `trap` sources. Fleet health, Devices needing attention, the status pill, the severity filter and sort, the CSV export and the metrics all use it. Acknowledging an alert does not change it, because the condition is still there; it changes when the alert clears. Security findings do not count, as they have their own posture. An offline device reads Offline whatever alerts remain from before. The API returns this as `severity` on a device, while `status.severity` stays what the printer reported.
+
 ## SNMP traps and the hold
 
 Traps are enabled on UDP `0.0.0.0:1162` by default. Accept sources can be restricted by `trap.allowedSources` (CIDRs or single IPs); handled traffic is capped at 60 per source per minute unless configured otherwise. Known device address must exactly equal source address. Authentication is source-based; the listener accepts any community, not an independent credential proof. Preserve source IP through networking and restrict inbound traffic appropriately.

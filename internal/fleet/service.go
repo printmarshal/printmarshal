@@ -250,6 +250,11 @@ func (s *Service) PollDevice(ctx context.Context, dev *model.Device) (*model.Dev
 	if res.Reachable {
 		s.ensureWebURL(ctx, updated, false)
 	}
+	// The alerts above are newer than the poll stored at the top: read the
+	// device back so the result and the event carry their severity (#47).
+	if fresh, err := s.Store.GetDevice(ctx, updated.ID); err == nil {
+		updated = fresh
+	}
 	s.emit("device.updated", updated)
 	return updated, res, nil
 }

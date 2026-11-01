@@ -32,6 +32,7 @@ func scanDevicePG(r rowScanner) (*model.Device, error) {
 	if err != nil {
 		return nil, err
 	}
+	d.Severity = model.Severity(severity)
 	fromJSON(sql.NullString{String: identErrs, Valid: true}, &d.IdentifyErrors)
 	fromJSON(sql.NullString{String: fieldSources, Valid: true}, &d.FieldSources)
 	if len(d.FieldSources) == 0 {
@@ -76,7 +77,7 @@ func (s *Postgres) getDevice(q rowScanner) (*model.Device, error) {
 
 // GetDevice implements Store.
 func (s *Postgres) GetDevice(ctx context.Context, id string) (*model.Device, error) {
-	return s.getDevice(pgRow(ctx, s.db, `SELECT `+deviceCols+` FROM devices WHERE id=?`, id))
+	return s.getDevice(pgRow(ctx, s.db, `SELECT `+deviceSelectCols+` FROM devices WHERE id=?`, id))
 }
 
 // findByIdentity de-duplicates by serial, then UUID, then MAC, then address (spec §8.1).
@@ -85,7 +86,7 @@ func (s *Postgres) findByIdentity(ctx context.Context, id *model.Identity) (*mod
 		if val == "" {
 			return nil, ErrNotFound
 		}
-		return s.getDevice(pgRow(ctx, s.db, `SELECT `+deviceCols+` FROM devices WHERE `+col+`=? ORDER BY last_seen DESC LIMIT 1`, val))
+		return s.getDevice(pgRow(ctx, s.db, `SELECT `+deviceSelectCols+` FROM devices WHERE `+col+`=? ORDER BY last_seen DESC LIMIT 1`, val))
 	}
 	for _, k := range []struct{ col, val string }{
 		{"serial", id.Serial}, {"uuid", id.UUID}, {"mac", strings.ToLower(id.MAC)},
@@ -183,7 +184,7 @@ func buildDeviceWherePG(f DeviceFilter) (string, []any) {
 		args = append(args, "%"+f.Model+"%")
 	}
 	if f.Severity != "" {
-		where = append(where, "severity = ?")
+		where = append(where, effectiveSeveritySQL+" = ?")
 		args = append(args, f.Severity)
 	}
 	if f.Q != "" {
@@ -220,13 +221,13 @@ func (s *Postgres) ListDevices(ctx context.Context, f DeviceFilter) ([]*model.De
 	case "lastSeen":
 		order = " ORDER BY last_seen DESC"
 	case "severity":
-		order = " ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'offline' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END, address"
+		order = severityOrderSQL
 	}
 	limit := ""
 	if f.Limit > 0 {
 		limit = fmt.Sprintf(" LIMIT %d OFFSET %d", f.Limit, f.Offset)
 	}
-	rows, err := pgQuery(ctx, s.db, `SELECT `+deviceCols+` FROM devices`+where+order+limit, args...)
+	rows, err := pgQuery(ctx, s.db, `SELECT `+deviceSelectCols+` FROM devices`+where+order+limit, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -399,7 +400,7 @@ func (s *Postgres) DeleteDevice(ctx context.Context, id string) error {
 // Dashboard implements Store.
 func (s *Postgres) Dashboard(ctx context.Context) (*DashboardSummary, error) {
 	ds := &DashboardSummary{ByState: map[string]int{}, BySeverity: map[string]int{}}
-	rows, err := pgQuery(ctx, s.db, `SELECT state, severity, COUNT(*) FROM devices GROUP BY state, severity`)
+	rows, err := pgQuery(ctx, s.db, `SELECT state, sev, COUNT(*) FROM (SELECT state, `+effectiveSeveritySQL+` AS sev FROM devices) d GROUP BY state, sev`)
 	if err != nil {
 		return nil, err
 	}

@@ -107,7 +107,7 @@ func (s *SQLite) SyncDevices(ctx context.Context, after SyncCursor, limit int) (
 	limit = syncLimit(limit)
 	where, args := syncWhere("updated_at", after)
 	args = append(args, limit+1)
-	rows, err := s.db.QueryContext(ctx, `SELECT `+deviceCols+` FROM devices`+where+` ORDER BY updated_at, id LIMIT ?`, args...)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+deviceSelectCols+` FROM devices`+where+` ORDER BY updated_at, id LIMIT ?`, args...)
 	if err != nil {
 		return nil, false, err
 	}
