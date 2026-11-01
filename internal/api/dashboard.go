@@ -222,6 +222,7 @@ func (s *Server) putLayout(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	s.audit(r.Context(), r, "dashboard.layout.personal", "dashboard", nil, map[string]any{"widgets": len(l.Widgets)}, "ok")
 	writeJSON(w, http.StatusOK, l)
 }
 
@@ -235,6 +236,7 @@ func (s *Server) deleteLayout(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, err)
 		return
 	}
+	s.audit(r.Context(), r, "dashboard.layout.personal", "dashboard", nil, map[string]any{"cleared": true}, "ok")
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
