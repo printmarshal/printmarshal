@@ -44,6 +44,7 @@ func runStoreTests(t *testing.T, open func(t *testing.T) testStore) {
 		{"SyncAuditAlertsJobs", testSyncAuditAlertsJobs},
 		{"DeviceLogs", testDeviceLogs},
 		{"IdentifyErrorsFollowLatestScan", testIdentifyErrorsFollowLatestScan},
+		{"DeviceSeverityCountsActiveAlerts", testDeviceSeverityCountsActiveAlerts},
 	} {
 		t.Run(tc.name, func(t *testing.T) { tc.fn(t, open(t)) })
 	}

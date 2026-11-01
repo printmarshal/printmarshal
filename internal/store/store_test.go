@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"printmarshal/internal/model"
 )
@@ -393,4 +394,128 @@ func testIdentifyErrorsFollowLatestScan(t *testing.T, s testStore) {
 	if err != nil || len(d.IdentifyErrors) != 0 {
 		t.Fatalf("a later clean scan should clear the errors: %+v (%v)", d.IdentifyErrors, err)
 	}
+}
+
+// #47: a device's severity is the worse of what the printer reports and its
+// active operating alerts, in every read: the device, the filter, the sort and
+// the dashboard's counts.
+func testDeviceSeverityCountsActiveAlerts(t *testing.T, s testStore) {
+	ctx := context.Background()
+	seed := func(address, serial string) *model.Device {
+		d, _, err := s.UpsertDevice(ctx, &model.Identity{Address: address, Serial: serial, Method: "snmp"}, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.ApplyPoll(ctx, d.ID, PollUpdate{Reachable: true, At: time.Now().UTC(),
+			Status: &model.Status{Online: true, State: "idle", Severity: model.SeverityOK, At: time.Now().UTC()}}); err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	healthy := seed("10.0.0.10", "SN-HEALTHY")
+	d := seed("10.0.0.20", "SN-ALERTED")
+	want := func(step string, sev model.Severity, counts map[string]int) {
+		t.Helper()
+		got, err := s.GetDevice(ctx, d.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Severity != sev {
+			t.Errorf("%s: device severity = %q, want %q", step, got.Severity, sev)
+		}
+		ds, err := s.Dashboard(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for k, n := range counts {
+			if ds.BySeverity[k] != n {
+				t.Errorf("%s: bySeverity[%s] = %d, want %d (%v)", step, k, ds.BySeverity[k], n, ds.BySeverity)
+			}
+		}
+		list, err := s.ListDevices(ctx, DeviceFilter{Severity: string(sev)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, l := range list {
+			found = found || l.ID == d.ID
+		}
+		if !found {
+			t.Errorf("%s: filter severity=%s misses the device", step, sev)
+		}
+		if n, err := s.CountDevices(ctx, DeviceFilter{Severity: string(sev)}); err != nil || n != len(list) {
+			t.Errorf("%s: count severity=%s = %d %v, list has %d", step, sev, n, err, len(list))
+		}
+	}
+	want("no alerts", model.SeverityOK, map[string]int{"ok": 2})
+
+	// Security findings have their own widget and do not change device health.
+	if _, _, err := s.RaiseAlert(ctx, d.ID, "security:telnet", "security", model.SeverityCritical, "Telnet on"); err != nil {
+		t.Fatal(err)
+	}
+	want("security finding", model.SeverityOK, map[string]int{"ok": 2, "critical": 0})
+
+	if _, _, err := s.RaiseAlert(ctx, d.ID, "supply:1", "supply", model.SeverityWarning, "Black low (12%)"); err != nil {
+		t.Fatal(err)
+	}
+	want("supply warning", model.SeverityWarning, map[string]int{"ok": 1, "warning": 1})
+
+	drum, _, err := s.RaiseAlert(ctx, d.ID, "supply:5", "supply", model.SeverityCritical, "Black Drum at 5%")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want("supply critical", model.SeverityCritical, map[string]int{"ok": 1, "warning": 0, "critical": 1})
+
+	// The healthy device has the lower address; severity still sorts first.
+	sorted, err := s.ListDevices(ctx, DeviceFilter{Sort: "severity"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sorted) != 2 || sorted[0].ID != d.ID || sorted[1].ID != healthy.ID {
+		t.Errorf("sort by severity puts the alerted device first: %+v", sorted)
+	}
+
+	// Acknowledging records that someone saw it; the drum is still at 5%.
+	if _, err := s.AckAlert(ctx, drum.ID, "op"); err != nil {
+		t.Fatal(err)
+	}
+	want("acknowledged", model.SeverityCritical, map[string]int{"critical": 1})
+
+	// status.severity keeps meaning what the printer reported.
+	if got, _ := s.GetDevice(ctx, d.ID); got.Status == nil || got.Status.Severity != model.SeverityOK {
+		t.Errorf("printer-reported severity changed: %+v", got.Status)
+	}
+
+	// An offline device reads offline whatever alerts remain from before.
+	if _, err := s.ApplyPoll(ctx, d.ID, PollUpdate{Reachable: false, At: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	want("offline with old alerts", "offline", map[string]int{"offline": 1, "critical": 0})
+	if ds, _ := s.Dashboard(ctx); ds.Offline != 1 {
+		t.Errorf("offline count = %d", ds.Offline)
+	}
+
+	// Back online with the conditions gone: healthy again.
+	if _, err := s.ApplyPoll(ctx, d.ID, PollUpdate{Reachable: true, At: time.Now().UTC(),
+		Status: &model.Status{Online: true, State: "idle", Severity: model.SeverityOK, At: time.Now().UTC()}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ClearAlertsExcept(ctx, d.ID, "supply", nil); err != nil {
+		t.Fatal(err)
+	}
+	want("cleared", model.SeverityOK, map[string]int{"ok": 2, "critical": 0})
+
+	// A trap counts, and what the printer itself reports still does.
+	if _, _, err := s.RaiseAlert(ctx, d.ID, "trap:cold-start", "trap", model.SeverityWarning, "Device cold start"); err != nil {
+		t.Fatal(err)
+	}
+	want("trap", model.SeverityWarning, map[string]int{"warning": 1})
+	if _, err := s.ClearAlertsExcept(ctx, d.ID, "trap", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ApplyPoll(ctx, d.ID, PollUpdate{Reachable: true, At: time.Now().UTC(),
+		Status: &model.Status{Online: true, State: "down", Severity: model.SeverityCritical, At: time.Now().UTC()}}); err != nil {
+		t.Fatal(err)
+	}
+	want("printer reports critical", model.SeverityCritical, map[string]int{"critical": 1})
 }

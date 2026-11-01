@@ -129,6 +129,10 @@ type Device struct {
 
 	State LifecycleState `json:"state"`
 
+	// Severity is the worse of Status.Severity and the device's active operating
+	// alerts (HealthAlertSource), or "offline". The store computes it on every read.
+	Severity Severity `json:"severity,omitempty"`
+
 	// Last known telemetry.
 	Status   *Status   `json:"status,omitempty"`
 	Supplies []Supply  `json:"supplies"`
