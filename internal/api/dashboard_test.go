@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"printmarshal/internal/model"
+	"printmarshal/internal/store"
 )
 
 type layoutView struct {
@@ -172,5 +173,80 @@ func TestDashboardAlertsCarryDeviceName(t *testing.T) {
 	}
 	if len(v.Alerts) != 1 || v.Alerts[0].DeviceID != d.ID || v.Alerts[0].DeviceName != "Reception" {
 		t.Errorf("dashboard alerts = %+v, want deviceName %q", v.Alerts, "Reception")
+	}
+}
+
+// #47: a printer with an active alert is not Healthy. It leaves the Healthy
+// count, joins Devices needing attention with the alert as its reason, and the
+// inventory's filter and export agree. Security findings stay on their widget.
+func TestDashboardAttentionFollowsActiveAlerts(t *testing.T) {
+	ts, s := newTestServer(t)
+	admin := login(t, ts, "admin", "adminpass123")
+	ctx := context.Background()
+	poll := func(d *model.Device) {
+		t.Helper()
+		if _, err := s.Store.ApplyPoll(ctx, d.ID, store.PollUpdate{Reachable: true, At: time.Now().UTC(),
+			Status: &model.Status{Online: true, State: "idle", Severity: model.SeverityOK, Message: "Ready", At: time.Now().UTC()}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	drum := seedBoardDevice(t, s.Store, 1, "Low drum")
+	audit := seedBoardDevice(t, s.Store, 2, "Failed policy")
+	fine := seedBoardDevice(t, s.Store, 3, "Fine")
+	for _, d := range []*model.Device{drum, audit, fine} {
+		poll(d)
+	}
+	if _, _, err := s.Store.RaiseAlert(ctx, drum.ID, "supply:5", "supply", model.SeverityWarning, "Black low (12%)"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Store.RaiseAlert(ctx, drum.ID, "supply:6", "supply", model.SeverityCritical, "Black Drum HP W9054MC at 5%"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Store.RaiseAlert(ctx, audit.ID, "security:telnet", "security", model.SeverityCritical, "Telnet on"); err != nil {
+		t.Fatal(err)
+	}
+
+	code, body := do(t, ts, admin, "GET", "/api/dashboard", "")
+	if code != 200 {
+		t.Fatalf("dashboard: %d %s", code, body)
+	}
+	var v struct {
+		Summary struct {
+			BySeverity map[string]int `json:"bySeverity"`
+		} `json:"summary"`
+		Attention []struct {
+			ID       string `json:"id"`
+			Severity string `json:"severity"`
+			Reason   string `json:"reason"`
+		} `json:"attention"`
+	}
+	if err := json.Unmarshal([]byte(body), &v); err != nil {
+		t.Fatal(err)
+	}
+	if v.Summary.BySeverity["critical"] != 1 || v.Summary.BySeverity["ok"] != 2 {
+		t.Errorf("bySeverity = %v, want 1 critical and 2 ok", v.Summary.BySeverity)
+	}
+	if len(v.Attention) != 1 || v.Attention[0].ID != drum.ID {
+		t.Fatalf("attention = %+v, want only the low drum", v.Attention)
+	}
+	if v.Attention[0].Severity != "critical" || v.Attention[0].Reason != "Black Drum HP W9054MC at 5%" {
+		t.Errorf("attention row = %+v, want critical with the worst alert as its reason", v.Attention[0])
+	}
+
+	code, body = do(t, ts, admin, "GET", "/api/devices?severity=critical", "")
+	if code != 200 || !strings.Contains(body, drum.ID) || strings.Contains(body, audit.ID) || strings.Contains(body, fine.ID) {
+		t.Errorf("filter severity=critical: %d %s", code, body)
+	}
+	code, body = do(t, ts, admin, "GET", "/api/devices.csv", "")
+	if code != 200 {
+		t.Fatalf("csv: %d %s", code, body)
+	}
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, drum.ID) && !strings.Contains(line, ",critical,") {
+			t.Errorf("csv row keeps the printer's severity: %s", line)
+		}
+		if strings.HasPrefix(line, audit.ID) && !strings.Contains(line, ",ok,") {
+			t.Errorf("csv row counts a security finding: %s", line)
+		}
 	}
 }

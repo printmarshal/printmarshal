@@ -129,6 +129,10 @@ type Device struct {
 
 	State LifecycleState `json:"state"`
 
+	// Severity is the worse of Status.Severity and the device's active operating
+	// alerts (HealthAlertSource), or "offline". The store computes it on every read.
+	Severity Severity `json:"severity,omitempty"`
+
 	// Last known telemetry.
 	Status   *Status   `json:"status,omitempty"`
 	Supplies []Supply  `json:"supplies"`
@@ -185,6 +189,18 @@ func (d *Device) NameWith(source string) string {
 		}
 	}
 	return d.Name()
+}
+
+// HealthAlertSource reports whether active alerts of a source count towards a
+// device's severity (#47). Security findings have their own posture and stock
+// alerts have no device; a new source counts only once it is listed here and in
+// the store's healthAlertSQL.
+func HealthAlertSource(source string) bool {
+	switch source {
+	case "offline", "poll", "supply", "trap":
+		return true
+	}
+	return false
 }
 
 // Status is a device's current state as read from it.

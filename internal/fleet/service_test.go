@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -789,5 +790,39 @@ func TestResolverFollowsServerSetting(t *testing.T) {
 	b := svc.resolver("10.0.0.53")
 	if b == a || b != svc.resolver("10.0.0.53") {
 		t.Fatal("a new server should build one new resolver")
+	}
+}
+
+// #47: alerts raised by a poll are reconciled after the poll is stored, so the
+// result and the device.updated event must be read back to carry their severity.
+func TestPollResultCarriesAlertSeverity(t *testing.T) {
+	svc, _ := newTestService(t, "generic-laser.snmp")
+	ctx := context.Background()
+	svc.Cfg.Alerts.SupplyWarningPercent = 100
+	svc.Cfg.Alerts.SupplyCriticalPercent = 100
+	var mu sync.Mutex
+	var event *model.Device
+	svc.Events = func(e model.Event) {
+		if d, ok := e.Data.(*model.Device); ok && e.Type == "device.updated" {
+			mu.Lock()
+			event = d
+			mu.Unlock()
+		}
+	}
+	dev, _, err := svc.IdentifyAndUpsert(ctx, "10.0.0.5", []string{"scan"}, discoveryCandidate("10.0.0.5"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	upd, _, err := svc.PollDevice(ctx, dev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if upd.Severity != model.SeverityCritical {
+		t.Errorf("poll result severity = %q, want critical", upd.Severity)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if event == nil || event.Severity != model.SeverityCritical {
+		t.Errorf("device.updated = %+v, want severity critical", event)
 	}
 }

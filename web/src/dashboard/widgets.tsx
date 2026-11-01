@@ -78,7 +78,7 @@ const fleetHealth: W = ({ data: { summary: s } }) => {
   const total = Math.max(1, s.devices)
   const pct = (n: number) => (n / total) * 100
   return (
-    <Card title="Fleet health" id="fh" right={<span className="cap">by device state · updated live</span>}>
+    <Card title="Fleet health" id="fh" right={<span className="cap">by device state and active alerts · updated live</span>}>
       <div className="cb" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <MultiBar height={14} gap parts={[{ pct: pct(healthy), color: 'var(--ok)' }, { pct: pct(warn), color: 'var(--warn)' }, { pct: pct(crit), color: 'var(--crit)' }, { pct: pct(off), color: 'var(--off)' }]} label={`Healthy ${healthy}, warning ${warn}, critical ${crit}, offline ${off}`} />
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 24px' }}>
@@ -115,7 +115,7 @@ const devicesAttention: W = ({ data }) => (
       <div className="tw"><table className="tbl">
         <thead><tr><th>Status</th><th>Device</th><th>Model</th><th>Location</th><th>Reason</th><th className="r">Last check</th></tr></thead>
         <tbody>{data.attention.map((d) => (
-          <tr key={d.id}><td><DevicePill d={d} /></td><td><Link to={`/devices/${d.id}`}>{deviceName(d)}</Link></td><td className="mono">{d.model}</td><td className="cap">{d.location || '—'}</td><td className="cap wrap">{d.status?.message || '—'}</td><td className="num cap r">{since(d.status?.at)}</td></tr>
+          <tr key={d.id}><td><DevicePill d={d} /></td><td><Link to={`/devices/${d.id}`}>{deviceName(d)}</Link></td><td className="mono">{d.model}</td><td className="cap">{d.location || '—'}</td><td className="cap wrap">{d.reason || d.status?.message || '—'}</td><td className="num cap r">{since(d.status?.at)}</td></tr>
         ))}</tbody>
       </table></div>
     )}
