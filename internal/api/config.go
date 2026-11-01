@@ -342,10 +342,11 @@ func (s *Server) configCatalog(w http.ResponseWriter, r *http.Request) {
 		Type     string `json:"type"`
 		Options  []any  `json:"options,omitempty"`
 		Security bool   `json:"security"`
+		Help     string `json:"help,omitempty"`
 	}
 	out := make([]def, 0, len(model.Catalog))
 	for _, d := range model.Catalog {
-		out = append(out, def{d.Key, d.Area, d.Name, d.Type, d.Options, d.Security})
+		out = append(out, def{d.Key, d.Area, d.Name, d.Type, d.Options, d.Security, model.SettingHelp(d.Key)})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"areas": model.Areas, "settings": out})
 }

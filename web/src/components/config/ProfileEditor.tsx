@@ -5,6 +5,7 @@ import { Btn, Tag } from '../ui'
 import type { Catalog, CatalogDef, Profile, SettingChange } from '../../types-config'
 import { areaLabel } from '../../types-config'
 import { SettingInput, isSecret, valueComplete } from './shared'
+import SettingPicker, { settingDragType } from './SettingPicker'
 
 function defaultFor(def: CatalogDef): unknown {
   switch (def.type) { case 'bool': return true; case 'int': return ''; case 'list': return []; case 'enum': return ''; default: return '' }
@@ -20,9 +21,11 @@ export default function ProfileEditor({ profile, catalog, onClose, onSaved }: { 
   const [settings, setSettings] = useState<SettingChange[]>(profile?.settings.map((s) => ({ ...s })) || [])
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [picking, setPicking] = useState(!profile)
+  const [dragging, setDragging] = useState(false)
   const byKey = useMemo(() => new Map(catalog.settings.map((d) => [d.key, d])), [catalog])
   const chosen = new Set(settings.map((s) => s.key))
-  const addable = catalog.areas.map((area) => ({ area, defs: catalog.settings.filter((d) => d.area === area && !isSecret(d) && !chosen.has(d.key)) })).filter((g) => g.defs.length > 0)
+  const addable = catalog.settings.filter((d) => !isSecret(d) && !chosen.has(d.key))
   const grouped = catalog.areas.map((area) => ({ area, items: settings.filter((s) => byKey.get(s.key)?.area === area) })).filter((g) => g.items.length > 0)
   const unknown = settings.filter((s) => !byKey.has(s.key))
   const incomplete = settings.filter((s) => { const d = byKey.get(s.key); return d && !valueComplete(d, s.value) }).length
@@ -53,12 +56,11 @@ export default function ProfileEditor({ profile, catalog, onClose, onSaved }: { 
         </div>
         <div className="row between">
           <span style={{ fontWeight: 500 }}>Settings <span className="cap num">· {settings.length}</span></span>
-          <label className="chip"><Ic.plus />Add setting<select aria-label="Add setting" value="" onChange={(e) => add(e.target.value)}>
-            <option value="">choose…</option>
-            {addable.map((g) => <optgroup key={g.area} label={areaLabel(g.area)}>{g.defs.map((d) => <option key={d.key} value={d.key}>{d.name}</option>)}</optgroup>)}
-          </select></label>
+          <Btn sm aria-expanded={picking} onClick={() => setPicking((p) => !p)}>{picking ? <><Ic.x />Close list</> : <><Ic.plus />Add settings</>}</Btn>
         </div>
-        {settings.length === 0 && <div className="cap" style={{ padding: '12px 0', borderTop: '1px solid var(--border)' }}>No settings yet. Add the settings this profile should enforce; anything not listed is left as the device has it.</div>}
+        {picking && <SettingPicker settings={addable} areas={catalog.areas} onAdd={add} onDragging={setDragging} />}
+        <div className={`sp-drop${dragging ? ' on' : ''}`} onDragOver={(e) => { if (e.dataTransfer.types.includes(settingDragType)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }} onDrop={(e) => { const key = e.dataTransfer.getData(settingDragType); if (key) { e.preventDefault(); if (!chosen.has(key)) add(key) } setDragging(false) }}>
+        {settings.length === 0 && <div className="cap" style={{ padding: '12px 0', borderTop: '1px solid var(--border)' }}>No settings yet. Add the settings this profile should enforce; anything not listed is left as the printer has it.</div>}
         <div className="card" style={{ display: settings.length ? 'block' : 'none' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '150px minmax(0, 1fr) 28px', gap: '8px 12px', alignItems: 'center', padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
             <span className="lbl">Setting</span><span className="lbl">Desired in profile</span><span />
@@ -72,7 +74,7 @@ export default function ProfileEditor({ profile, catalog, onClose, onSaved }: { 
                 return (
                   <div key={s.key} style={{ display: 'grid', gridTemplateColumns: '150px minmax(0, 1fr) 28px', gap: '8px 12px', alignItems: 'center', padding: '6px 14px' }}>
                     <label className="cap" htmlFor={`ps-${s.key}`} title={s.key} style={{ color: 'var(--text-2)' }}>{def.name}<div className="mono" style={{ fontSize: 10, color: 'var(--text-3)' }}>{s.key}</div></label>
-                    <div><SettingInput def={def} value={s.value} onChange={(v) => set(s.key, v)} id={`ps-${s.key}`} />{!ok && <div style={{ fontSize: 11, color: 'var(--crit)', marginTop: 3 }}>{def.type === 'int' ? 'Whole number required' : 'A value is required'}</div>}</div>
+                    <div><SettingInput def={def} value={s.value} onChange={(v) => set(s.key, v)} id={`ps-${s.key}`} />{!ok && <div style={{ fontSize: 11, color: 'var(--crit)', marginTop: 3 }}>{def.type === 'int' ? 'Whole number required' : 'A value is required'}</div>}{def.help && <div className="cap" style={{ fontSize: 11, marginTop: 3 }}>{def.help}</div>}</div>
                     <Btn sm variant="ghost" ic aria-label={`Remove ${def.name}`} onClick={() => remove(s.key)}><Ic.x /></Btn>
                   </div>
                 )
@@ -80,6 +82,7 @@ export default function ProfileEditor({ profile, catalog, onClose, onSaved }: { 
             </div>
           ))}
           {unknown.length > 0 && <div className="cf cap">Vendor keys: {unknown.map((s) => <Tag key={s.key} mono>{s.key}</Tag>)}<Btn sm variant="ghost" onClick={() => setSettings((s) => s.filter((x) => byKey.has(x.key)))}>Remove</Btn></div>}
+        </div>
         </div>
         <div className="cap" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><Ic.lock size={13} />Secret settings (communities, passwords) cannot be stored in a profile and are not offered here.</div>
         {error && <div className="banner crit" role="alert"><Ic.crit style={{ color: 'var(--crit)' }} /><div style={{ flex: 1 }}>{error}</div></div>}
