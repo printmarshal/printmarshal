@@ -2,6 +2,7 @@
 /data/
 /web/node_modules/
 /internal/web/dist/assets/
+/internal/web/dist/licenses/
 *.db
 *.db-wal
 *.db-shm
