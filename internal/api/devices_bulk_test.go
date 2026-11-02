@@ -177,3 +177,42 @@ func TestBulkRenameCountsSyncRename(t *testing.T) {
 		t.Fatalf("after bulk rename: displayName=%q source=%q sync=%v", after.DisplayName, after.DisplayNameSource, after.DNSSync)
 	}
 }
+
+// The bulk route names its devices in the body. A scoped principal can edit its
+// own, and one foreign device in the list refuses the whole request.
+func TestScopedBulkEdit(t *testing.T) {
+	ts, s := newTestServer(t)
+	admin := login(t, ts, "admin", "adminpass123")
+	g, in, out := scopedFixture(t, s)
+	tok := mkToken(t, ts, admin, `{"name":"bot","role":"operator","scope":["`+g.ID+`"]}`).Secret
+	ctx := context.Background()
+
+	if code, body := do(t, ts, tok, "POST", "/api/devices/bulk", `{"deviceIds":["`+in.ID+`"],"set":{"location":"Scoped room"}}`); code != 200 {
+		t.Fatalf("own device: %d %s", code, body)
+	}
+	if d, _ := s.Store.GetDevice(ctx, in.ID); d.Location != "Scoped room" {
+		t.Fatalf("own device not edited: %q", d.Location)
+	}
+
+	code, body := do(t, ts, tok, "POST", "/api/devices/bulk", `{"deviceIds":["`+in.ID+`","`+out.ID+`"],"set":{"location":"Everywhere"}}`)
+	if code != 403 {
+		t.Fatalf("foreign device: %d %s", code, body)
+	}
+	if d, _ := s.Store.GetDevice(ctx, in.ID); d.Location != "Scoped room" {
+		t.Errorf("a refused request changed the device in scope: %q", d.Location)
+	}
+	if d, _ := s.Store.GetDevice(ctx, out.ID); d.Location == "Everywhere" {
+		t.Errorf("a refused request changed the foreign device: %q", d.Location)
+	}
+	// The refusal is the body check's: the audit names the foreign device, not "bulk".
+	code, audit := do(t, ts, admin, "GET", "/api/audit?limit=20", "")
+	if code != 200 || !strings.Contains(audit, out.ID) {
+		t.Errorf("the denial should name the foreign device: %d %s", code, audit)
+	}
+
+	for path, want := range map[string]string{"/api/devices/bulk": "", "/api/devices/rename": "", "/api/devices/abc": "abc", "/api/devices/abc/state": "abc"} {
+		if got := devicePathID(path); got != want {
+			t.Errorf("devicePathID(%q) = %q, want %q", path, got, want)
+		}
+	}
+}
