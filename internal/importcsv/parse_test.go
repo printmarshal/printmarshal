@@ -178,3 +178,15 @@ func TestExportHeaderAliases(t *testing.T) {
 		t.Errorf("export ignored columns %v, want %v", tab.Ignored, ExportIgnored)
 	}
 }
+
+// A file the console exported carries an apostrophe before formula characters;
+// reading it back gives the value, not the protection.
+func TestParseRemovesExportProtection(t *testing.T) {
+	tbl, err := Parse(strings.NewReader("address,displayName\n10.0.0.1,\"'=Lobby\"\n"), 10, 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tbl.Records) != 1 || tbl.Records[0].Cells["displayName"] != "=Lobby" {
+		t.Errorf("records: %+v", tbl.Records)
+	}
+}

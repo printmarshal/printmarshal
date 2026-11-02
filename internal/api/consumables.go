@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"printmarshal/internal/consumables"
+	"printmarshal/internal/csvsafe"
 	"printmarshal/internal/model"
 	"printmarshal/internal/store"
 )
@@ -673,7 +674,7 @@ func (s *Server) exportConsumablesCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="consumables.csv"`)
-	cw := csv.NewWriter(w)
+	cw := csvsafe.NewWriter(w)
 	_ = cw.Write(consumableCSVHeader)
 	for _, c := range items {
 		cost := ""
@@ -702,6 +703,11 @@ func (s *Server) importConsumablesCSV(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid CSV: "+err.Error())
 		return
+	}
+	for _, rec := range records {
+		for i, v := range rec {
+			rec[i] = csvsafe.Undo(v)
+		}
 	}
 	if len(records) < 2 {
 		writeErr(w, http.StatusBadRequest, "CSV needs a header row and at least one item")

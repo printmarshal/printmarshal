@@ -1,6 +1,6 @@
 // Package importcsv reads a CSV list of printers and plans what importing it
 // would do to the inventory (intent/csv-import). It is standard library
-// only, contacts no device and changes nothing: Parse turns the file into a
+// only, apart from csvsafe, contacts no device and changes nothing: Parse turns the file into a
 // Table, Plan turns a Table and a Lookup over the inventory into a
 // PlanResult, which the API returns as the preview and the import job
 // recomputes and applies.
@@ -14,6 +14,8 @@ import (
 	"io"
 	"strings"
 	"unicode/utf8"
+
+	"printmarshal/internal/csvsafe"
 )
 
 // Limits on one file (spec R1).
@@ -174,7 +176,7 @@ func Parse(r io.Reader, maxRows, maxBytes int) (*Table, error) {
 		for i, v := range rec {
 			if i < len(cols) && cols[i] != "" {
 				if v = strings.TrimSpace(v); v != "" {
-					cells[cols[i]] = v
+					cells[cols[i]] = csvsafe.Undo(v)
 				}
 			}
 		}
