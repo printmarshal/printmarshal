@@ -264,7 +264,7 @@ func buildPublicBoard(cfg publicStatusConfig, devices []*model.Device, alerts []
 		return ri < rj
 	})
 	for _, a := range sorted {
-		if a.ClearedAt != nil || a.AckedAt != nil || byID[a.DeviceID] == nil {
+		if a.ClearedAt != nil || byID[a.DeviceID] == nil { // an acknowledged fault is still a fault
 			continue
 		}
 		if _, ok := publicSeverityRank[a.Severity]; !ok {

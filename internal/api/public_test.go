@@ -402,7 +402,7 @@ func TestPublicBoardNeverCarriesIdentity(t *testing.T) {
 		}
 	}
 	for _, secret := range []string{"Acmecorp", "LaserMax", "FW-7.7.7", "TN-999", "ASSET-SECRET", "note-secret", "console-secret",
-		"SECRETDESC", "SECRETFINDING", "ACKEDSECRET", "CLEAREDSECRET", "security", "jam", "offline", `"id"`} {
+		"SECRETDESC", "SECRETFINDING", "ACKEDSECRET", "CLEAREDSECRET", "security", "offline", `"id"`} {
 		if strings.Contains(body, secret) {
 			t.Errorf("public board carries %q:\n%s", secret, body)
 		}
@@ -415,8 +415,36 @@ func TestPublicBoardNeverCarriesIdentity(t *testing.T) {
 		t.Errorf("labels = %v, %v; want the configured order with a neutral fallback", list[0]["label"], list[1]["label"])
 	}
 	alerts := objects(t, list[0]["alerts"], "alerts")
-	if len(alerts) != 1 || alerts[0]["severity"] != "critical" || alerts[0]["category"] != "door" {
-		t.Errorf("alerts = %v, want only the active, unacknowledged door alert", alerts)
+	got := map[any]bool{}
+	for _, a := range alerts {
+		got[a["category"]] = true
+	}
+	if len(alerts) != 2 || !got["door"] || !got["jam"] {
+		t.Errorf("alerts = %v, want the active door and acknowledged jam alerts, by category only", alerts)
+	}
+}
+
+// R4: acknowledging records that someone knows about a condition, not that it
+// has ended, so an alert stays on the board until it clears.
+func TestPublicBoardKeepsAcknowledgedAlerts(t *testing.T) {
+	d := &model.Device{ID: "d1", DisplayName: "Lobby"}
+	cfg := publicStatusConfig{Enabled: true, Devices: []publicStatusDevice{{ID: d.ID}}, Show: publicShow{Alerts: true}}
+	now := time.Now().UTC()
+	jam := func(acked, cleared *time.Time) []*model.Alert {
+		return []*model.Alert{{ID: "a1", DeviceID: d.ID, Severity: model.SeverityCritical, Source: "poll", Key: "error:jammed", AckedAt: acked, ClearedAt: cleared}}
+	}
+	board := func(alerts []*model.Alert) []publicAlert {
+		b := buildPublicBoard(cfg, []*model.Device{d}, alerts, now, time.Minute, 20)
+		return *b.Devices[0].Alerts
+	}
+	if got := board(jam(nil, nil)); len(got) != 1 || got[0].Category != "jam" {
+		t.Errorf("active jam = %+v, want one jam alert", got)
+	}
+	if got := board(jam(&now, nil)); len(got) != 1 || got[0].Category != "jam" {
+		t.Errorf("acknowledged jam = %+v, want it still on the board", got)
+	}
+	if got := board(jam(&now, &now)); len(got) != 0 {
+		t.Errorf("acknowledged and cleared jam = %+v, want it gone", got)
 	}
 }
 
