@@ -218,7 +218,7 @@ Source: `internal/api/public.go`. The board itself is described under [Monitorin
 | `devices[].state` | `show.state` | The printer's own state word (ready, sleeping, printing). |
 | `devices[].paper[]` | `show.paper` | `{name,status}` per input tray; `status` is `ok`, `low`, `empty` or `unknown`. |
 | `devices[].toner[]` | `show.toner` | `{name,colorant,percent,status}` per supply; `percent` is a number or `null`; `status` as for paper. |
-| `devices[].alerts[]` | `show.alerts` | `{severity,category}` per active alert; `category` is one of `offline`, `paper`, `toner`, `door`, `jam`, `maintenance`, `other`. The alert's description is never sent; acknowledged and cleared alerts are left out. |
+| `devices[].alerts[]` | `show.alerts` | `{severity,category}` per active alert; `category` is one of `offline`, `paper`, `toner`, `door`, `jam`, `maintenance`, `other`. The alert's description is never sent; an acknowledged alert stays until it clears. |
 
 Addresses, hostnames, serials, make, model, firmware, groups, tags, asset tags, notes, security findings and device ids are never part of the response, whatever the switches. A board lists at most 200 printers.
 

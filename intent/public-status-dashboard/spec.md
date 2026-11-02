@@ -42,7 +42,8 @@ Boundary
   instance data, device ids. Devices are listed in the configured order with no id.
 - R4. Alert `category` is one of offline, paper, toner, door, jam, maintenance, other, derived from
   the alert's source and key by a fixed mapping in code; the free-text description is never sent.
-  Acknowledged and cleared alerts are excluded. Security assessment findings are never alerts here.
+  Cleared alerts are excluded; an acknowledged alert stays until it clears (amended by
+  `intent/public-board-acked-alerts`). Security assessment findings are never alerts here.
 - R5. Serving the board never contacts a device: the handler reads the store only. A test runs the
   handler with a fleet service whose drivers would fail on any call and sees no call.
 - R6. The response is cached in memory for 15 seconds per board; concurrent requests during a

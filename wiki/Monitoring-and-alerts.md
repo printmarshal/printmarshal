@@ -188,7 +188,7 @@ The public status board is a page people can open without signing in, so staff a
 | State | The printer's own state word, such as sleeping or printing (off by default, so a sleeping printer never reads as down). |
 | Paper | One pill per input tray: ok, low, empty or unknown. |
 | Toner | A gauge per supply in its own colour, with the percentage when the printer reports it. |
-| Alerts | Active alerts as a fixed category, such as "paper jam" or "cover open"; the alert text is never shown. |
+| Alerts | Active alerts as a fixed category, such as "paper jam" or "cover open"; the alert text is never shown. Acknowledging an alert does not remove it from the board; it leaves when it clears. |
 
 **Address.** The board is at `/status`. Switch on **Unlisted** to move it to `/status/<slug>` with a random 22-character slug; **Regenerate** issues a new slug and retires the old address, and `/status` then says the board is not available. An unlisted address hides the board, it does not protect it: anyone who has the link can open it.
 
