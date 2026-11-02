@@ -28,7 +28,7 @@ const SIGNALS: { k: keyof PublicStatusShow; label: string; summary: string; hint
   { k: 'state', label: 'Printer state', summary: 'state', hint: 'The printer’s own word for what it is doing, such as ready, sleeping or printing.' },
   { k: 'paper', label: 'Paper', summary: 'paper', hint: 'How full each paper tray is, where the printer reports it.' },
   { k: 'toner', label: 'Toner', summary: 'toner', hint: 'How much toner or ink is left in each supply.' },
-  { k: 'alerts', label: 'Alerts', summary: 'alerts', hint: 'Open alerts as a short category such as jam or toner; never the alert text. An alert stays here until it clears, even after someone acknowledges it.' },
+  { k: 'alerts', label: 'Alerts', summary: 'alerts', hint: 'Open alerts as a short category such as jam or toner; never the alert text. An alert stays on the board until it clears, even after someone acknowledges it.' },
 ]
 
 // scheme://host[:port], nothing after it: what the browser compares for
