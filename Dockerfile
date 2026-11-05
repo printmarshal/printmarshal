@@ -55,8 +55,8 @@ LABEL org.opencontainers.image.title="PrintMarshal" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
-      org.opencontainers.image.source="https://github.com/printmarshal/printmarshal" \
-      org.opencontainers.image.documentation="https://github.com/printmarshal/printmarshal/blob/main/docs/operations.md" \
+      org.opencontainers.image.source="https://github.com/laythos/printmarshal" \
+      org.opencontainers.image.documentation="https://github.com/laythos/printmarshal/blob/main/docs/operations.md" \
       org.opencontainers.image.base.name="${RUNTIME_IMAGE}"
 
 # ca-certificates: webhooks / IPPS to real CAs.  tzdata: TZ env.  sqlite: the

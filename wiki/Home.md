@@ -1,4 +1,4 @@
-![PrintMarshal](https://raw.githubusercontent.com/printmarshal/printmarshal/main/brand/logo-horizontal.svg)
+![PrintMarshal](https://raw.githubusercontent.com/laythos/printmarshal/main/brand/logo-horizontal.svg)
 
 # PrintMarshal administrator and developer wiki
 

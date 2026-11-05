@@ -1,8 +1,8 @@
 # Site Metadata & Navigation (`site/`)
 
 - **Domain:** `https://printmarshal.app`
-- **Repository:** `https://github.com/printmarshal/printmarshal`
-- **Wiki:** `https://github.com/printmarshal/printmarshal/wiki`
+- **Repository:** `https://github.com/laythos/printmarshal`
+- **Wiki:** `https://github.com/laythos/printmarshal/wiki`
 - **Pages:**
   - `/` (`site/index.html`) — Overview
   - `/features/` (`site/features/index.html`) — Features & Capability Matrix
