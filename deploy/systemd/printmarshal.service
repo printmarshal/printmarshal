@@ -13,7 +13,7 @@
 
 [Unit]
 Description=PrintMarshal printer fleet management
-Documentation=https://github.com/printmarshal/printmarshal/blob/main/docs/operations.md
+Documentation=https://github.com/laythos/printmarshal/blob/main/docs/operations.md
 After=network-online.target
 Wants=network-online.target
 

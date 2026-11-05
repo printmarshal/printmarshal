@@ -5,9 +5,9 @@ type: application
 version: 0.1.0
 appVersion: "latest"
 kubeVersion: ">=1.25.0-0"
-home: https://github.com/printmarshal/printmarshal
+home: https://github.com/laythos/printmarshal
 sources:
-  - https://github.com/printmarshal/printmarshal
+  - https://github.com/laythos/printmarshal
 keywords:
   - printers
   - snmp
